@@ -9,25 +9,5 @@ Building on the foundation of [March Madness 2023](https://github.com/nehat312/m
 
 ## Key Enhancements for 2025
 - **Enhanced Logging and Debugging:** Color-coded logging for improved clarity.
-- **Streamlit Integration:** Updated dashboards for exploring team metrics, bracket scenarios, and simulations.
 - **Modular Code Architecture:** Improved maintainability and expandability for upcoming features.
-- **Advanced Visualizations:** Utilizing `matplotlib`, `seaborn`, and `plotly-express` for clear and informative charts.
-
-
-
-## Installation
-#To set up the repository, clone it and install dependencies:
-
-## Project Structure
-
-march-madness-2025/
-├── src/                     # Core source code
-├── data/                    # Raw/processed/output data
-├── notebooks/               # Jupyter Notebooks
-├── tests/                   # Test runs
-├── docs/                    # Documentation files
-├── .github/                 # GitHub configuration
-├── .pre-commit-config.yaml  # Pre-commit hook configuration
-├── .gitignore               # Git ignore patterns
-├── LICENSE                  # License information
-├── README.md                # README (this file)
+- **Streamlit Integration:** Updated dashboards for exploring team metrics, bracket scenarios, and simulations
