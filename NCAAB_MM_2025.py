@@ -25,13 +25,6 @@ def load_data():
 
 mm_database_2025 = load_data()
 
-# --- DEBUGGING DATA LOAD ---
-st.subheader("Data Load - Initial Inspection")
-st.write("First 5 rows of raw data:")
-st.dataframe(mm_database_2025.head())
-st.write("Data types of each column:")
-st.write(mm_database_2025.dtypes)
-
 # ----------------------------------------------------------------------------
 # 2) Select Relevant Columns (including radar metrics)
 core_cols = [
@@ -293,23 +286,16 @@ df_heat = df_main.copy()
 df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
 df_heat_T = df_heat.T  # Transpose so that index = metric names, columns = teams
 
-# --- **Enhanced Code for Integer Conversion in Heatmap Data:** ---
+# --- **Robust Code for Integer Conversion in Heatmap Data:** ---
+# Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
 for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
     if metric in df_heat_T.index:
-        st.write(f"**Debugging {metric} column before conversion:**") # DEBUG
-        st.write(df_heat_T.loc[metric].dtype) # DEBUG
-        st.write(df_heat_T.loc[metric].head()) # DEBUG
-        # 1. Convert to string first to handle mixed types robustly
-        df_heat_T.loc[metric] = df_heat_T.loc[metric].astype(str)
-        # 2. Replace any non-numeric characters (except decimal and sign) with NaN
-        df_heat_T.loc[metric] = df_heat_T.loc[metric].str.replace(r'[^0-9\.\-]+', '', regex=True)
-        # 3. Convert to numeric, coercing errors to NaN
+        # Convert to numeric, coercing errors to NaN
         df_heat_T.loc[metric] = pd.to_numeric(df_heat_T.loc[metric], errors='coerce')
-        # 4. Fill NaN with 0, then convert to Int64
+        # Explicitly convert to float first
+        df_heat_T.loc[metric] = df_heat_T.loc[metric].astype(float)
+        # Fill NaN with 0, then convert to Int64 (nullable integer)
         df_heat_T.loc[metric] = df_heat_T.loc[metric].fillna(0).astype("Int64")
-        st.write(f"**Debugging {metric} column after conversion:**") # DEBUG
-        st.write(df_heat_T.loc[metric].dtype) # DEBUG
-        st.write(df_heat_T.loc[metric].head()) # DEBUG
 # ----------------------------------------------------------------------------
 
 
@@ -511,5 +497,4 @@ with tab_regions:
 with tab_tbd:
     st.header("More Features To Come...")
     st.write("Stay tuned for additional features and analyses!")
-
 st.stop()
