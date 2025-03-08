@@ -1,39 +1,31 @@
 [theme]
 # Base Theme (light or dark)
-base = "light" # or "dark"
+base = "light"
 
-
-## HARDWOOD THEME ##
-primaryColor="#DADADA"
-backgroundColor= "#1A1A1D" #"" #hardwoodlightbrown attempts: #"#E9D0AF" #E4C49B  #DEB887 
-secondaryBackgroundColor="#DADADA"
-textColor= "#FFFFFF"
-font="sans serif"
-
-# Primary Colors
-#primaryColor = "#2E8B57" # Sea Green (Modern, vibrant primary)
-#secondaryBackgroundColor = "#F0FFF0" # Light Honeydew (Soft background)
-#backgroundColor = "#FFFFFF" # White (Clean background)
-#textColor = "#333333" # Dark Gray (Readable text)
-#font = "sans serif" # Modern sans-serif stack
+## March Madness Warm Court Theme ##
+primaryColor = "#CBB67C"  # Football Gold (Subtle, warm primary)
+backgroundColor = "#663831" # Football Brown (Rich, court-like background)
+secondaryBackgroundColor = "#DADADA" # Football White (Light secondary background)
+textColor = "#EEFCF7" # white-silver (soft, readable text)
+font = "sans serif"
 
 # Dark Mode Specific Overrides
 [theme.dark]
-primaryColor = "#90EE90" # Light Green (Softer primary in dark mode)
-secondaryBackgroundColor = "#282828" # Dark Gray (Dark background)
-backgroundColor = "#121212" # Very Dark Gray (Deeper dark background)
-textColor = "#E0E0E0" # Light Gray (Readable text in dark mode)
+primaryColor = "#D4AF37" # Metallic Gold (Rich primary in dark mode)
+backgroundColor = "#152238" # dark-blue2 (Deep dark background)
+secondaryBackgroundColor = "#282828" # space-gray (Dark secondary background)
+textColor = "#DADADA" # football-white (Readable text in dark mode)
 
 # Component Styling (Fine-Grained Control)
 [theme.components]
 # Buttons
-button = { primaryColor = "#2E8B57", textColor = "#FFFFFF", borderRadius = "8px", padding = "10px 20px", fontWeight = "600", boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)" }
+button = { primaryColor = "#CBB67C", textColor = "#1A1A1D", borderRadius = "8px", padding = "10px 20px", fontWeight = "600", boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)" }
 # Slider
-slider = { primaryColor = "#2E8B57", trackColor = "#D3D3D3", thumbColor = "#2E8B57", trackHeight = "8px", thumbSize = "20px" }
+slider = { primaryColor = "#CBB67C", trackColor = "#D3D3D3", thumbColor = "#CBB67C", trackHeight = "8px", thumbSize = "20px" }
 # Selectbox
-selectbox = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#2E8B57" }
+selectbox = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#CBB67C" }
 # Text Input
-textInput = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#2E8B57" }
+textInput = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#CBB67C" }
 # Expander
 expander = { borderColor = "#D3D3D3", borderRadius = "8px" }
 
@@ -45,12 +37,17 @@ monospaceFont = "monospace"
 
 # Layout and Spacing
 [layout]
-wideMode = true # Enable wide mode for better use of screen space
-spacing = "medium" # Adjust spacing between elements ("small", "medium", "large")
-padding = "1rem" # Overall padding
+wideMode = true
+spacing = "medium"
+padding = "1rem"
 
 
-
+## HARDWOOD THEME ##
+#primaryColor="#DADADA"
+#backgroundColor= "#1A1A1D" #"" #hardwoodlightbrown attempts: #"#E9D0AF" #E4C49B  #DEB887 
+#secondaryBackgroundColor="#DADADA"
+#textColor= "#FFFFFF"
+#font="sans serif"
 
 ## COLOR LIBRARY ##
 

@@ -13,21 +13,20 @@ hide_menu_style = """<style>#MainMenu {visibility: hidden; } footer {visibility:
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------
-# 1) PATH TO CSV FROM GITHUB
+# 1) Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
 mm_database_csv = abs_path + '/data/mm_2025_database.csv'
 
-# ----------------------------------------------------------------------------
-# 2) READ THE DATA
 @st.cache_data
 def load_data():
     df = pd.read_csv(mm_database_csv, index_col=0)
     df.index.name = "TEAM"
     return df
+
 mm_database_2025 = load_data()
 
 # ----------------------------------------------------------------------------
-# 3) SELECT RELEVANT COLUMNS (include radar metrics)
+# 2) Select Relevant Columns (including radar metrics)
 core_cols = [
     "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM", 
     "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "OFF REB/GM", "DEF REB/GM",
@@ -39,12 +38,12 @@ all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
 
-# If "TM_KP" is not in the data, add it from the index.
+# Ensure team label exists (if "TM_KP" is missing, use index)
 if "TM_KP" not in df_main.columns:
     df_main["TM_KP"] = df_main.index
 
 # ----------------------------------------------------------------------------
-# 4) FIX MISSING DATA for Treemap
+# 3) Clean Data for Treemap
 required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]
 cols_that_exist = [c for c in required_path_cols if c in df_main.columns]
 if len(cols_that_exist) == len(required_path_cols):
@@ -53,12 +52,12 @@ else:
     df_main_notnull = df_main.copy()
 
 # ----------------------------------------------------------------------------
-# 5) LOGO LOADING
+# 4) Logo Loading
 logo_path = "images/NCAA_logo1.png"
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 
 # ----------------------------------------------------------------------------
-# 6) RADAR CHART FUNCTIONS
+# 5) Radar Chart Functions
 def get_default_metrics():
     return ['OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM', 'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM']
 
@@ -105,8 +104,8 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
             z = -z
         z_scores.append(z)
     scale_factor = 1.5
-    scaled_team = [min(max(5 + z*scale_factor, 0), 10) for z in z_scores]
-    scaled_ncaam = [5]*len(available_metrics)
+    scaled_team = [min(max(5 + z * scale_factor, 0), 10) for z in z_scores]
+    scaled_ncaam = [5] * len(available_metrics)
     conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
     if conf is not None and not conf_df.empty:
         conf_vals = []
@@ -120,9 +119,9 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
                 conf_vals.append(z)
             else:
                 conf_vals.append(0)
-        scaled_conf = [min(max(5 + z*scale_factor, 0), 10) for z in conf_vals]
+        scaled_conf = [min(max(5 + z * scale_factor, 0), 10) for z in conf_vals]
     else:
-        scaled_conf = [5]*len(available_metrics)
+        scaled_conf = [5] * len(available_metrics)
     metrics_circ = available_metrics + [available_metrics[0]]
     team_scaled_circ = scaled_team + [scaled_team[0]]
     ncaam_scaled_circ = scaled_ncaam + [scaled_ncaam[0]]
@@ -160,7 +159,7 @@ def create_radar_chart(selected_teams, full_df):
     if n_teams <= 4:
         rows, cols = 1, n_teams
     else:
-        rows, cols = 2, min(4, math.ceil(n_teams/2))
+        rows, cols = 2, min(4, math.ceil(n_teams / 2))
     subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
@@ -168,7 +167,7 @@ def create_radar_chart(selected_teams, full_df):
         subplot_titles.append(f"{i+1}) {team_name} ({conf})")
     fig = make_subplots(
         rows=rows, cols=cols,
-        specs=[[{'type': 'polar'}]*cols for _ in range(rows)],
+        specs=[[{'type': 'polar'}] * cols for _ in range(rows)],
         subplot_titles=subplot_titles,
         horizontal_spacing=0.07, vertical_spacing=0.15
     )
@@ -177,13 +176,19 @@ def create_radar_chart(selected_teams, full_df):
         title="Radar Dashboards for Selected Teams",
         template='plotly_dark', font=dict(size=12), showlegend=True
     )
+    # Adjust angular axis to reduce label spillover
     fig.update_polars(
         radialaxis=dict(
-            tickmode='array', tickvals=[0,2,4,6,8,10],
-            ticktext=['0','2','4','6','8','10'], tickfont=dict(size=10),
+            tickmode='array', tickvals=[0, 2, 4, 6, 8, 10],
+            ticktext=['0', '2', '4', '6', '8', '10'],
+            tickfont=dict(size=10),
             showline=False, gridcolor='lightgrey'
         ),
-        angularaxis=dict(tickfont=dict(size=10), showline=False, gridcolor='lightgrey')
+        angularaxis=dict(
+            tickfont=dict(size=8),
+            tickangle=45,
+            showline=False, gridcolor='lightgrey'
+        )
     )
     for idx, team_row in subset.iterrows():
         r = idx // cols + 1
@@ -195,7 +200,7 @@ def create_radar_chart(selected_teams, full_df):
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
         perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
-        polar_idx = (r-1)*cols + c
+        polar_idx = (r - 1) * cols + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
         if polar_key in fig.layout:
             domain_x = fig.layout[polar_key].domain.x
@@ -212,16 +217,23 @@ def create_radar_chart(selected_teams, full_df):
     return fig
 
 # ----------------------------------------------------------------------------
-# 7) CREATE ENHANCED TREEMAP
+# 6) Create Enhanced Treemap
 def create_treemap(df_notnull):
     if all(c in df_notnull.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
         treemap_data = df_notnull.reset_index()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
-        # Ensure team label exists
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
         treemap_data['hover_text'] = treemap_data.apply(
-            lambda x: f"<b>{x['TM_KP']}</b><br>KP Rank: {x['KP_Rank']:.0f}<br>Record: {x['WIN_25']:.0f}-{x['LOSS_25']:.0f}<br>AdjEM: {x['KP_AdjEM']:.1f}<br>OFF EFF: {x.get('OFF EFF', 'N/A')}<br>DEF EFF: {x.get('DEF EFF', 'N/A')}", axis=1
+            lambda x: (
+                f"<b>{x['TM_KP']}</b><br>"
+                f"KP Rank: {x['KP_Rank']:.0f}<br>"
+                f"Record: {x['WIN_25']:.0f}-{x['LOSS_25']:.0f}<br>"
+                f"AdjEM: {x['KP_AdjEM']:.1f}<br>"
+                f"OFF EFF: {x.get('OFF EFF', 'N/A')}<br>"
+                f"DEF EFF: {x.get('DEF EFF', 'N/A')}"
+            ),
+            axis=1
         )
         treemap = px.treemap(
             data_frame=treemap_data,
@@ -251,7 +263,7 @@ def create_treemap(df_notnull):
     return None
 
 # ----------------------------------------------------------------------------
-# 8) APP HEADER & TABS
+# 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
 col1, col2 = st.columns([6, 1])
@@ -316,7 +328,7 @@ with tab_eda:
                               color=conf_group.values, color_continuous_scale="Viridis", template="plotly_dark")
             for conf in conf_group.index:
                 teams = df_main[df_main["CONFERENCE"] == conf]
-                fig_conf.add_trace(go.Scatter(x=teams[conf_metric], y=[conf]*len(teams),
+                fig_conf.add_trace(go.Scatter(x=teams[conf_metric], y=[conf] * len(teams),
                                               mode="markers", marker=dict(color="white", size=6, opacity=0.7),
                                               name=f"{conf} Teams"))
             fig_conf.update_layout(showlegend=False)
@@ -405,34 +417,38 @@ with tab_regions:
         "South Region": south_teams_2025,
         "Midwest Region": midwest_teams_2025
     }
-    # Common styler settings for all regions
-    styler_dict = {
-        "KP_Rank": "Spectral_r",
-        "WIN_25": "YlGn",
-        "LOSS_25": "YlOrRd_r",
-        "KP_AdjEM": "RdYlGn",
-        "KP_SOS_AdjEM": "RdBu",
-        "OFF EFF": "Blues",
-        "DEF EFF": "Reds_r",
-        "AVG MARGIN": "RdYlGn",
-        "TS%": "YlGn",
-        "OPP TS%": "YlOrRd_r",
-        "AST/TO%": "Greens",
-        "STOCKS/GM": "Purples"
-    }
+    # Enhanced safe formatting function for region heatmap cells
+    def safe_format(x):
+        try:
+            val = float(x)
+            # If the value is a fraction (0 to 1), format as percentage; otherwise, two decimals.
+            if 0 <= val < 1:
+                return f"{val*100:.1f}%"
+            else:
+                return f"{val:.2f}"
+        except (ValueError, TypeError):
+            return x
     for region_name, team_list in regions.items():
         teams_found = [tm for tm in team_list if tm in df_heat_T.columns]
         if teams_found:
-            region_df = df_heat_T[teams_found]
+            region_df = df_heat_T[teams_found].copy()
             st.subheader(region_name)
             region_styler = region_df.style
-            for row_label, cmap in styler_dict.items():
+            for row_label, cmap in {
+                "KP_Rank": "Spectral_r",
+                "WIN_25": "YlGn",
+                "LOSS_25": "YlOrRd_r",
+                "KP_AdjEM": "RdYlGn",
+                "KP_SOS_AdjEM": "RdBu",
+                "OFF EFF": "Blues",
+                "DEF EFF": "Reds_r",
+                "AVG MARGIN": "RdYlGn",
+                "TS%": "YlGn",
+                "OPP TS%": "YlOrRd_r",
+                "AST/TO%": "Greens",
+                "STOCKS/GM": "Purples"
+            }.items():
                 region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
-            def safe_format(x):
-                try:
-                    return "{:.2f}".format(float(x))
-                except (ValueError, TypeError):
-                    return x
             region_styler = region_styler.format(safe_format)
             st.dataframe(region_styler, use_container_width=True)
         else:
@@ -444,8 +460,8 @@ with tab_tbd:
     st.info("More visualizations and analysis coming soon.")
 
 # ----------------------------------------------------------------------------
-# 9) GITHUB LINK & APP FOOTER
+# 9) GitHub Link & App Footer
 st.markdown("---")
 st.markdown("App code available on [GitHub](https://github.com/nehat312/march-madness-2025)")
 
-st.stop('')
+st.stop()
