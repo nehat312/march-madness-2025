@@ -14,44 +14,37 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 from PIL import Image
-import datetime
+import os
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
 ## DIRECTORY CONFIGURATION ##
-# Point to your GitHub RAW CSV path; do NOT force 'TEAM' as index_col since your CSV
-# does not contain a 'TEAM' column name. Instead we read normally and let the
-# row labels become the DataFrame’s index via index_col=0.
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
 mm_database_csv = abs_path + '/data/mm_2025_database.csv'
 
-## DATA IMPORT ##
-# Read the CSV, use the first column (which should be your school names) as the index:
+################################
+## READ THE 2025 CSV DATAFRAME ##
+################################
+# The CSV’s first column should be Team Names, so index_col=0 ensures that column is used as the index.
 mm_database_2025 = pd.read_csv(mm_database_csv, index_col=0)
+mm_database_2025.index.name = 'TEAM'  # rename the DF index to "TEAM" for clarity
 
-# Make sure the index name is “TEAM” (helpful for labeling):
-mm_database_2025.index.name = 'TEAM'
+##################################################
+## SAMPLE PRE-PROCESSING & COLUMN SELECTION/RENAMES
+##################################################
+# Adjust column references to match the actual 2025 CSV columns
+# Many columns from the snippet below reference names we know exist in 2025 data
 
-## PRE-PROCESSING ##
-# Replace your 2023 column references with the 2025 columns that actually exist
-# in the CSV. For instance:
-#   - 'KP_Rank' instead of 'KenPom RANK'
-#   - 'NET_24' instead of 'NET RANK'
-#   - 'WIN_25' instead of 'WIN'
-#   - 'LOSS_25' instead of 'LOSS'
-#   - 'KP_AdjEM' instead of 'KenPom EM'
-#   - 'KP_SOS_AdjEM' instead of 'KenPom SOS EM'
-#   etc.
 tourney_matchup_cols = [
-    'KP_Rank',         # was "KenPom RANK" 
-    'NET_24',          # was "NET RANK" 
-    'WIN_25',          # was "WIN"
-    'LOSS_25',         # was "LOSS"
+    'KP_Rank',         # KenPom ranking
+    'NET_24',          # 2024 NET rank, but presumably still relevant in 2025 CSV
+    'WIN_25',          
+    'LOSS_25',
     'WIN% ALL GM',
     'WIN% CLOSE GM',
-    'KP_AdjEM',        # was "KenPom EM"
-    'KP_SOS_AdjEM',    # was "KenPom SOS EM"
+    'KP_AdjEM',        # KenPom adjusted efficiency margin
+    'KP_SOS_AdjEM',    # KenPom SOS adjusted EM
     'OFF EFF',
     'DEF EFF',
     'AVG MARGIN',
@@ -66,54 +59,48 @@ tourney_matchup_cols = [
     'STOCKS-TOV/GM',
 ]
 
-# Some teams won’t have all columns completed yet (NaNs). Just filter to columns that exist:
+# Only keep columns that actually exist in the CSV
 available_cols = [c for c in tourney_matchup_cols if c in mm_database_2025.columns]
-mm_database_2025 = mm_database_2025[available_cols].copy()
+df_main = mm_database_2025[available_cols].copy()
 
-# Example filter: top 100 by KenPom rank
-if 'KP_Rank' in mm_database_2025.columns:
-    top_KP100 = mm_database_2025[ mm_database_2025['KP_Rank'] <= 100 ].copy()
+#####################
+## SIMPLE FILTERING ##
+#####################
+# Example: top 100 teams by KenPom rank
+if 'KP_Rank' in df_main.columns:
+    top_KP100 = df_main[df_main['KP_Rank'] <= 100].copy()
 else:
-    # Fallback if KP_Rank not found
-    top_KP100 = mm_database_2025.copy()
+    top_KP100 = df_main.copy()
 
-##########################################
-## VISUALIZATION: TREEMAP EXAMPLE (2025) ##
-##########################################
-# We use 'TM_KP' for hover labels (since your CSV has 'TM_KP'),
-# and 'CONFERENCE' for the group hierarchy. 
-# For the treemap color & values, we use 'KP_AdjEM' (KenPom EM) if present.
-has_adj_em = 'KP_AdjEM' in top_KP100.columns
-treemap_value_col = 'KP_AdjEM' if has_adj_em else available_cols[0]  # fallback
-
-# For coloring, if we do not have 'KP_AdjEM', pick something valid from the data
-treemap_color_col = 'KP_AdjEM' if has_adj_em else available_cols[0]
-
-# The path uses 'CONFERENCE' and 'TM_KP' if they exist, else fallback
+######################################
+## TREEMAP (CONFERENCE vs. KP_AdjEM) ##
+######################################
+# If your CSV includes 'CONFERENCE' and 'TM_KP' or 'TM_MODEL', we can build a treemap.
+# Adjust to whichever naming your CSV includes for team name or model name columns.
+# Let’s check if they exist:
 path_list = []
-if 'CONFERENCE' in top_KP100.columns:
+if 'CONFERENCE' in mm_database_2025.columns:
     path_list.append('CONFERENCE')
-# 'TM_KP' is from your code snippet, so if it exists:
 if 'TM_KP' in mm_database_2025.columns:
     path_list.append('TM_KP')
-elif 'TEAM' in top_KP100.index.name:
-    # If no 'TM_KP', but we want to group by index:
-    # we can do something like path=['TEAM'] if we rename index to a column
-    pass
 
-# Build the treemap only if we actually have something to group by:
-if len(path_list) >= 1:
+# For values & color, we’ll use 'KP_AdjEM' if present:
+treemap_value_col = 'KP_AdjEM' if 'KP_AdjEM' in top_KP100.columns else None
+
+if len(path_list) > 0 and treemap_value_col is not None:
+    # We must .reset_index() so that the 'TEAM' index becomes a column for Plotly
+    treemap_data = top_KP100.reset_index()
+
     treemap = px.treemap(
-        data_frame=top_KP100.reset_index(),  # reset_index so 'TEAM' is a column
+        data_frame=treemap_data,
         path=path_list,
         values=treemap_value_col,
-        color=treemap_color_col,
-        color_discrete_sequence=px.colors.diverging.RdYlGn,
+        color=treemap_value_col,
         color_continuous_scale=px.colors.diverging.RdYlGn,
-        hover_name='TEAM',  # or 'TM_KP' if you prefer
+        color_discrete_sequence=px.colors.diverging.RdYlGn,
+        hover_name='TEAM',   # or 'TM_KP' if you want
         template='plotly_dark',
     )
-
     # Layout & styling
     viz_margin_dict = dict(l=20, r=20, t=50, b=20)
     viz_bg_color = '#0360CE'
@@ -123,163 +110,210 @@ if len(path_list) >= 1:
         margin=viz_margin_dict,
         paper_bgcolor=viz_bg_color,
         font=viz_font_dict,
-        title='2025 MARCH MADNESS LANDSCAPE',
+        title='2025 MARCH MADNESS LANDSCAPE: (KenPom AdjEM by Conference)',
         legend=dict(orientation='h', yanchor='bottom', y=1.02),
     )
+else:
+    treemap = None  # fallback if columns not present
 
-########################
-## STREAMLIT APP SETUP ##
-########################
-st.set_page_config(page_title='NCAA BASKETBALL -- MARCH MADNESS 2025', 
-                   layout='wide',
-                   initial_sidebar_state='auto')
+##################################
+## LOGO IMAGE (CHECK FILE FIRST) ##
+##################################
+logo_path = 'images/NCAA_logo1.png'
+NCAA_logo = None
+if os.path.exists(logo_path):
+    NCAA_logo = Image.open(logo_path)
+else:
+    # Optionally, load from a URL or skip
+    # For example:
+    # NCAA_logo = Image.open(requests.get('https://upload.wikimedia.org/...', stream=True).raw)
+    pass
+
+##################################
+## STREAMLIT APP CONFIG & LAYOUT ##
+##################################
+st.set_page_config(
+    page_title='NCAA BASKETBALL -- MARCH MADNESS 2025',
+    layout='wide',
+    initial_sidebar_state='auto'
+)
 
 hide_menu_style = """
-        <style>
-        #MainMenu {visibility: hidden; }
-        footer {visibility: hidden;}
-        </style>
-        """
+    <style>
+    #MainMenu {visibility: hidden; }
+    footer {visibility: hidden;}
+    </style>
+"""
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-###################################
-## LOGO IMAGES (IF LOCALLY SAVED) ##
-###################################
-# If these images are local, ensure they exist in the 'images' folder
-# Or use URLs. Example:
-NCAA_logo = Image.open('images/NCAA_logo1.png')
-
-##################################
-## PAGE HEADER & BASIC DISPLAYS ##
-##################################
 st.title('NCAA BASKETBALL -- MARCH MADNESS 2025')
 st.write('*2025 MARCH MADNESS RESEARCH HUB*')
-st.image(NCAA_logo, caption='NCAAB', width=200)
+if NCAA_logo:
+    st.image(NCAA_logo, caption='NCAAB', width=200)
 
-###############################
-## SHOW THE TREEMAP (IF BUILT) ##
-###############################
-if len(path_list) < 1:
-    st.warning("Not enough columns in CSV to build the Treemap. Check 'TM_KP' and 'CONFERENCE'.")
-else:
-    st.plotly_chart(treemap, use_container_width=True)
+#####################
+## DEFINE TABS LAYOUT
+#####################
+tab_0, tab_1, tab_2, tab_3, tab_4 = st.tabs(['Home', 'EDA & Plots', 'Regional Heatmaps', 'TBU', 'TBU'])
 
-###########################################
-## EXAMPLE: CREATING FAKE "REGIONAL" DATA ##
-###########################################
-# Adjust team names or region groupings once brackets / seeds are announced
-
-heatmap_2025 = mm_database_2025.copy()
-heatmap_2025.loc['TOURNEY AVG'] = heatmap_2025.mean(numeric_only=True)
-
-heatmap_2025_T = heatmap_2025.T
-
-# Example: East region teams. You must supply real 2025 region sets or remove these for now.
-east_teams_2025 = [
-    "Alabama","Auburn","UAB",  # <--- placeholder
-    "TOURNEY AVG",
-]
-# Filter to those columns if they exist
-East_region_2025 = heatmap_2025_T.loc[:, [t for t in east_teams_2025 if t in heatmap_2025_T.columns]]
-
-# Same for West/South/Midwest
-# (You can remove these if you do not yet have real bracket assignments.)
-west_teams_2025 = [
-    "Gonzaga","UCLA","Southern Cal",
-    "TOURNEY AVG",
-]
-West_region_2025 = heatmap_2025_T.loc[:, [t for t in west_teams_2025 if t in heatmap_2025_T.columns]]
-
-# Example aggregator columns (region means)
-if not East_region_2025.empty:
-    East_region_2025['EAST AVG'] = East_region_2025.mean(axis=1, numeric_only=True)
-if not West_region_2025.empty:
-    West_region_2025['WEST AVG'] = West_region_2025.mean(axis=1, numeric_only=True)
-
-#########################
-## PANDAS STYLER DEMOS  ##
-#########################
-# Example usage. You can expand it to match your original 2023 styling.
-styler_dict = {
-    "KP_Rank": "Spectral_r", 
-    "NET_24": "Spectral_r",
-    "WIN_25": "Spectral",
-    "LOSS_25": "Spectral_r",
-    "WIN% ALL GM": "Spectral",
-    "WIN% CLOSE GM": "Spectral",
-    "KP_AdjEM": "Spectral",
-    "KP_SOS_AdjEM": "Spectral",
-    "OFF EFF": "Spectral",
-    "DEF EFF": "Spectral_r",
-    "AVG MARGIN": "Spectral",
-    "PTS/GM": "Spectral",
-    "OPP PTS/GM": "Spectral_r",
-    "eFG%": "Spectral",
-    "OPP eFG%": "Spectral_r",
-    "TS%": "Spectral",
-    "OPP TS%": "Spectral_r",
-    "AST/TO%": "Spectral",
-    "STOCKS/GM": "Spectral",
-    "STOCKS-TOV/GM": "Spectral",
-}
-
-############
-## TABS UI ##
-############
-tab_0, tab_1, tab_2, tab_3, tab_4 = st.tabs(['2025','TBU','TBU','TBU','TBU'])
-
+####################
+## TAB 0: HOME PAGE
+####################
 with tab_0:
-    st.subheader("EAST REGION (DEMO)")
-    if not East_region_2025.empty:
+    st.subheader('Overall Landscape')
+    if treemap is not None:
+        st.plotly_chart(treemap, use_container_width=True)
+    else:
+        st.warning("Treemap not available (missing 'CONFERENCE' or 'KP_AdjEM').")
+
+    st.write("Use the tabs above to explore additional EDA, region-based tables, and other 2025 data.")
+
+########################
+## TAB 1: EDA & PLOTS
+########################
+with tab_1:
+    st.header("Exploratory Data Analysis")
+    st.markdown("""
+    Below are some quick exploratory plots of the 2025 data. 
+    Adjust columns, bins, or filters as needed.
+    """)
+
+    ## Example 1: Distribution (Histogram) of KP_AdjEM
+    if 'KP_AdjEM' in df_main.columns:
+        st.subheader("Histogram of KenPom AdjEM (all teams)")
+        fig_hist = px.histogram(
+            df_main, 
+            x='KP_AdjEM', 
+            nbins=20, 
+            title="Distribution of KenPom AdjEM"
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+    else:
+        st.write("`KP_AdjEM` not found in columns for histogram plot.")
+
+    ## Example 2: Correlation Heatmap
+    # Choose a subset of numeric columns
+    numeric_cols = [
+        'KP_Rank','NET_24','WIN_25','LOSS_25','KP_AdjEM',
+        'KP_SOS_AdjEM','OFF EFF','DEF EFF','AVG MARGIN','PTS/GM','OPP PTS/GM'
+    ]
+    numeric_cols = [c for c in numeric_cols if c in df_main.columns]
+
+    if len(numeric_cols) >= 2:
+        st.subheader("Correlation Heatmap")
+        temp_df = df_main[numeric_cols].dropna()
+        corr_matrix = temp_df.corr()
+        fig_corr = px.imshow(
+            corr_matrix,
+            text_auto=True,
+            color_continuous_scale='RdBu_r',
+            aspect='auto',
+            title='Correlation Matrix (selected columns)'
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+    else:
+        st.info("Not enough numeric columns to produce a correlation heatmap.")
+
+    ## Example 3: Conference-level Average of KP_AdjEM
+    if 'CONFERENCE' in mm_database_2025.columns and 'KP_AdjEM' in df_main.columns:
+        st.subheader("Avg KenPom AdjEM by Conference (Bar Chart)")
+        conf_group = mm_database_2025.groupby('CONFERENCE')['KP_AdjEM'].mean(numeric_only=True).dropna()
+        conf_group = conf_group.sort_values(ascending=False)
+
+        fig_conf = px.bar(
+            conf_group,
+            x=conf_group.index,
+            y=conf_group.values,
+            title="Average KenPom AdjEM by Conference",
+            labels={'x': 'Conference', 'y': 'KP_AdjEM'},
+        )
+        st.plotly_chart(fig_conf, use_container_width=True)
+    else:
+        st.write("No 'CONFERENCE' or 'KP_AdjEM' column found for conference bar chart.")
+
+
+############################################
+## TAB 2: REGIONAL HEATMAPS (SEED PLACEHOLDERS)
+############################################
+with tab_2:
+    st.header("Regional Heatmaps / Bracket Data (2025)")
+
+    # The bracket is not set yet, but we can demonstrate placeholders using 
+    # the 2023 code approach if you have team lists. For example:
+    # Example region teams (fake placeholders) - update once seeds are known
+    east_teams_2025 = [
+        "Alabama", "Auburn", "Tennessee", "TOURNEY AVG"
+    ]
+    # Build transposed DF with average row
+    df_heat = df_main.copy()
+    df_heat.loc['TOURNEY AVG'] = df_heat.mean(numeric_only=True)
+    df_heat_T = df_heat.T
+
+    East_region_2025 = df_heat_T.loc[:, [t for t in east_teams_2025 if t in df_heat_T.columns]]
+
+    # Simple styling logic for demonstration
+    styler_dict = {
+        "KP_Rank": "Spectral_r",
+        "NET_24": "Spectral_r",
+        "WIN_25": "Spectral",
+        "LOSS_25": "Spectral_r",
+        "KP_AdjEM": "Spectral",
+        "KP_SOS_AdjEM": "Spectral",
+        "OFF EFF": "Spectral",
+        "DEF EFF": "Spectral_r",
+        "AVG MARGIN": "Spectral",
+        "PTS/GM": "Spectral",
+        "OPP PTS/GM": "Spectral_r",
+        "eFG%": "Spectral",
+        "OPP eFG%": "Spectral_r",
+        "TS%": "Spectral",
+        "OPP TS%": "Spectral_r",
+        "AST/TO%": "Spectral",
+        "STOCKS/GM": "Spectral",
+        "STOCKS-TOV/GM": "Spectral",
+    }
+
+    st.subheader('EAST REGION (DEMO PLACEHOLDER)')
+    if East_region_2025.empty:
+        st.write("No example East region teams found in the dataset yet.")
+    else:
         # Build a Styler
         East_region_styler = East_region_2025.style
-        for col, cmap in styler_dict.items():
-            if col in East_region_2025.index:
+        for row_label, cmap in styler_dict.items():
+            if row_label in East_region_2025.index:
                 East_region_styler = East_region_styler.background_gradient(
                     cmap=cmap,
-                    subset=pd.IndexSlice[col, :],
+                    subset=pd.IndexSlice[row_label, :],
                     axis=1
                 )
+        # Convert to HTML and display
         st.markdown(East_region_styler.to_html(), unsafe_allow_html=True)
-    else:
-        st.write("No EAST region data yet.")
 
-    st.subheader("WEST REGION (DEMO)")
-    if not West_region_2025.empty:
-        West_region_styler = West_region_2025.style
-        for col, cmap in styler_dict.items():
-            if col in West_region_2025.index:
-                West_region_styler = West_region_styler.background_gradient(
-                    cmap=cmap,
-                    subset=pd.IndexSlice[col, :],
-                    axis=1
-                )
-        st.markdown(West_region_styler.to_html(), unsafe_allow_html=True)
-    else:
-        st.write("No WEST region data yet.")
+    st.write("Add your real regions once seeds are determined, or load them from a bracket file.")
 
-with tab_1:
-    st.subheader("Placeholder for future bracket or summary data")
-    st.image(NCAA_logo, width=180)
 
-with tab_2:
-    st.subheader("Placeholder for future bracket or summary data")
-    st.image(NCAA_logo, width=180)
-
+#############################
+## TAB 3 & TAB 4: PLACEHOLDERS
+#############################
 with tab_3:
-    st.subheader("Placeholder for future bracket or summary data")
-    st.image(NCAA_logo, width=180)
+    st.subheader('TBU (Future Content)')
+    if NCAA_logo:
+        st.image(NCAA_logo, width=200)
+    st.write("Use this tab for future bracket analysis, matchup predictions, etc.")
 
 with tab_4:
-    st.subheader("Placeholder for future bracket or summary data")
-    st.image(NCAA_logo, width=180)
+    st.subheader('TBU (Future Content)')
+    if NCAA_logo:
+        st.image(NCAA_logo, width=200)
+    st.write("Use this tab for additional EDA, historical comparisons, or advanced stats.")
 
-#########################
-## LINK OUT / FOOTER   ##
-#########################
+
+################################
+## FOOTER LINKS & SCRIPT ENDING
+################################
+st.write("---")
 github_link1 = '[GITHUB: 2025 Repo](https://github.com/nehat312/march-madness-2025)'
 kenpom_site_link = '[KENPOM](https://kenpom.com/)'
-st.write(github_link1 + " | " + kenpom_site_link)
+st.write(f"{github_link1} | {kenpom_site_link}")
 
-## SCRIPT TERMINATION ##
 st.stop()
