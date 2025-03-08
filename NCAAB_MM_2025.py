@@ -38,9 +38,12 @@ all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
 
-# Ensure team label exists (if "TM_KP" is missing, use index)
+# Ensure TEAM label exists (if "TM_KP" is missing, use index)
 if "TM_KP" not in df_main.columns:
     df_main["TM_KP"] = df_main.index
+
+# Force CONFERENCE to string (to be used as a categorical color)
+df_main["CONFERENCE"] = df_main["CONFERENCE"].astype(str)
 
 # ----------------------------------------------------------------------------
 # 3) Clean Data for Treemap
@@ -156,15 +159,10 @@ def create_radar_chart(selected_teams, full_df):
         return None
     t_avgs, t_stdevs = compute_tournament_stats(full_df)
     n_teams = len(subset)
-    if n_teams <= 4:
-        rows, cols = 1, n_teams
-    else:
-        rows, cols = 2, min(4, math.ceil(n_teams / 2))
-    subplot_titles = []
-    for i, row in subset.iterrows():
-        team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
-        conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
-        subplot_titles.append(f"{i+1}) {team_name} ({conf})")
+    # Remove subplot titles to avoid clutter.
+    subplot_titles = [""] * n_teams
+    rows = 1 if n_teams <= 4 else 2
+    cols = n_teams if n_teams <= 4 else min(4, math.ceil(n_teams / 2))
     fig = make_subplots(
         rows=rows, cols=cols,
         specs=[[{'type': 'polar'}] * cols for _ in range(rows)],
@@ -176,7 +174,7 @@ def create_radar_chart(selected_teams, full_df):
         title="Radar Dashboards for Selected Teams",
         template='plotly_dark', font=dict(size=12), showlegend=True
     )
-    # Adjust angular axis to reduce label spillover
+    # Do not rotate angular labels
     fig.update_polars(
         radialaxis=dict(
             tickmode='array', tickvals=[0, 2, 4, 6, 8, 10],
@@ -186,7 +184,6 @@ def create_radar_chart(selected_teams, full_df):
         ),
         angularaxis=dict(
             tickfont=dict(size=8),
-            tickangle=45,
             showline=False, gridcolor='lightgrey'
         )
     )
@@ -199,20 +196,20 @@ def create_radar_chart(selected_teams, full_df):
         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
-        perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
+        # Move performance annotation slightly lower to avoid overlap with chart data
         polar_idx = (r - 1) * cols + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
         if polar_key in fig.layout:
             domain_x = fig.layout[polar_key].domain.x
             domain_y = fig.layout[polar_key].domain.y
             x_annot = domain_x[0] + 0.03
-            y_annot = domain_y[1] - 0.03
+            y_annot = domain_y[1] - 0.07  # lowered a bit
         else:
             x_annot, y_annot = 0.1, 0.9
         fig.add_annotation(
             x=x_annot, y=y_annot, xref="paper", yref="paper",
-            text=f"<b>{perf_text}</b>", showarrow=False,
-            font=dict(size=12, color="gold")
+            text=f"<b>{compute_performance_text(team_row, t_avgs, t_stdevs)}</b>",
+            showarrow=False, font=dict(size=12, color="gold")
         )
     return fig
 
@@ -254,6 +251,7 @@ def create_treemap(df_notnull):
         )
         treemap.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
+            height=600,  # fixed height for Streamlit
             coloraxis_colorbar=dict(
                 title="AdjEM", thicknessmode="pixels", thickness=15,
                 lenmode="pixels", len=300, yanchor="top", y=1, ticks="outside"
@@ -263,7 +261,19 @@ def create_treemap(df_notnull):
     return None
 
 # ----------------------------------------------------------------------------
-# 7) App Header & Tabs
+# 7) Pre-format Regional Heatmap Data
+# For metrics that should be integer, force conversion
+df_heat = df_main.copy()
+for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
+    if metric in df_heat.columns:
+        df_heat[metric] = pd.to_numeric(df_heat[metric], errors='coerce').round().astype("Int64")
+df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
+
+# Transpose for regional heatmap (rows = metrics, columns = teams)
+df_heat_T = df_heat.T
+
+# ----------------------------------------------------------------------------
+# 8) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
 col1, col2 = st.columns([6, 1])
@@ -338,6 +348,9 @@ with tab_eda:
     elif plot_type == "Team Metrics Comparison":
         x_metric = st.selectbox("Select X-Axis Metric", numeric_cols, index=numeric_cols.index("OFF EFF") if "OFF EFF" in numeric_cols else 0)
         y_metric = st.selectbox("Select Y-Axis Metric", numeric_cols, index=numeric_cols.index("DEF EFF") if "DEF EFF" in numeric_cols else 0)
+        # Ensure selected metrics are numeric
+        df_main[x_metric] = pd.to_numeric(df_main[x_metric], errors='coerce')
+        df_main[y_metric] = pd.to_numeric(df_main[y_metric], errors='coerce')
         if "CONFERENCE" in df_main.columns:
             fig_scatter = px.scatter(df_main.reset_index(), x=x_metric, y=y_metric, color="CONFERENCE",
                                      hover_name="TEAM", size="KP_AdjEM" if "KP_AdjEM" in df_main.columns else None,
@@ -417,11 +430,29 @@ with tab_regions:
         "South Region": south_teams_2025,
         "Midwest Region": midwest_teams_2025
     }
-    # Enhanced safe formatting function for region heatmap cells
+    # Uniform color scales for all metrics using Spectral and Spectral_r
+    region_color_dict = {
+        "KP_Rank": "Spectral_r",
+        "WIN_25": "Spectral",
+        "LOSS_25": "Spectral_r",
+        "KP_AdjEM": "Spectral",
+        "KP_SOS_AdjEM": "Spectral",
+        "OFF EFF": "Spectral",
+        "DEF EFF": "Spectral_r",
+        "AVG MARGIN": "Spectral",
+        "TS%": "Spectral",
+        "OPP TS%": "Spectral_r",
+        "AST/TO%": "Spectral",
+        "STOCKS/GM": "Spectral"
+    }
+    # Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
+    for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
+        if metric in df_heat_T.index:
+            df_heat_T.loc[metric] = df_heat_T.loc[metric].apply(lambda x: x if pd.isna(x) else int(round(float(x))))
+    # Enhanced safe formatting function for other metrics
     def safe_format(x):
         try:
             val = float(x)
-            # If the value is a fraction (0 to 1), format as percentage; otherwise, two decimals.
             if 0 <= val < 1:
                 return f"{val*100:.1f}%"
             else:
@@ -434,20 +465,7 @@ with tab_regions:
             region_df = df_heat_T[teams_found].copy()
             st.subheader(region_name)
             region_styler = region_df.style
-            for row_label, cmap in {
-                "KP_Rank": "Spectral_r",
-                "WIN_25": "YlGn",
-                "LOSS_25": "YlOrRd_r",
-                "KP_AdjEM": "RdYlGn",
-                "KP_SOS_AdjEM": "RdBu",
-                "OFF EFF": "Blues",
-                "DEF EFF": "Reds_r",
-                "AVG MARGIN": "RdYlGn",
-                "TS%": "YlGn",
-                "OPP TS%": "YlOrRd_r",
-                "AST/TO%": "Greens",
-                "STOCKS/GM": "Purples"
-            }.items():
+            for row_label, cmap in region_color_dict.items():
                 region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
             region_styler = region_styler.format(safe_format)
             st.dataframe(region_styler, use_container_width=True)

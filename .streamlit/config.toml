@@ -2,44 +2,44 @@
 # Base Theme (light or dark)
 base = "light"
 
-## March Madness Warm Court Theme ##
-primaryColor = "#CBB67C"  # Football Gold (Subtle, warm primary)
-backgroundColor = "#663831" # Football Brown (Rich, court-like background)
-secondaryBackgroundColor = "#DADADA" # Football White (Light secondary background)
-textColor = "#EEFCF7" # white-silver (soft, readable text)
+## Modern Tech March Madness ##
+primaryColor = "#66FCF1"  # Bright Teal (Dynamic, modern primary)
+backgroundColor = "#1A1A1D" # Space Black (Sleek, dark background)
+secondaryBackgroundColor = "#2C3531" # Space Gray (Subtle secondary background)
+textColor = "#EEFCF7" # White Silver (Soft, readable text)
 font = "sans serif"
 
 # Dark Mode Specific Overrides
 [theme.dark]
-primaryColor = "#D4AF37" # Metallic Gold (Rich primary in dark mode)
-backgroundColor = "#152238" # dark-blue2 (Deep dark background)
-secondaryBackgroundColor = "#282828" # space-gray (Dark secondary background)
-textColor = "#DADADA" # football-white (Readable text in dark mode)
+primaryColor = "#2BDB6B" # Alien Green (Vibrant primary in dark mode)
+backgroundColor = "#121212" # Very Dark Gray (Deeper dark background)
+secondaryBackgroundColor = "#19181A" # Space Black (Dark secondary background)
+textColor = "#DADADA" # Football White (Readable text in dark mode)
 
 # Component Styling (Fine-Grained Control)
 [theme.components]
 # Buttons
-button = { primaryColor = "#CBB67C", textColor = "#1A1A1D", borderRadius = "8px", padding = "10px 20px", fontWeight = "600", boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)" }
+button = { primaryColor = "#66FCF1", textColor = "#1A1A1D", borderRadius = "25px", padding = "12px 25px", fontWeight = "600", boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)", border = "1px solid transparent" }
 # Slider
-slider = { primaryColor = "#CBB67C", trackColor = "#D3D3D3", thumbColor = "#CBB67C", trackHeight = "8px", thumbSize = "20px" }
+slider = { primaryColor = "#66FCF1", trackColor = "#2C3531", thumbColor = "#66FCF1", trackHeight = "6px", thumbSize = "18px" }
 # Selectbox
-selectbox = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#CBB67C" }
+selectbox = { borderColor = "#2C3531", borderRadius = "25px", padding = "10px", focusBorderColor = "#66FCF1" }
 # Text Input
-textInput = { borderColor = "#D3D3D3", borderRadius = "8px", padding = "8px", focusBorderColor = "#CBB67C" }
+textInput = { borderColor = "#2C3531", borderRadius = "25px", padding = "10px", focusBorderColor = "#66FCF1" }
 # Expander
-expander = { borderColor = "#D3D3D3", borderRadius = "8px" }
+expander = { borderColor = "#2C3531", borderRadius = "25px", border = "1px solid #2C3531"}
 
 # Font Customization (Advanced)
 [theme.fonts]
-bodyFont = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif"
-headingFont = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif"
-monospaceFont = "monospace"
+bodyFont = "Roboto, sans-serif"
+headingFont = "Montserrat, sans-serif"
+monospaceFont = "Fira Mono, monospace"
 
 # Layout and Spacing
 [layout]
 wideMode = true
-spacing = "medium"
-padding = "1rem"
+spacing = "large"
+padding = "1.5rem"
 
 
 ## HARDWOOD THEME ##
