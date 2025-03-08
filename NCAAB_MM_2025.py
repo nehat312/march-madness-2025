@@ -27,15 +27,21 @@ def load_data():
 mm_database_2025 = load_data()
 
 # ----------------------------------------------------------------------------
-# 3) SELECT RELEVANT COLUMNS
-core_cols = ["KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM", 
-             "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "AVG MARGIN", 
-             "PTS/GM", "OPP PTS/GM", "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
-             "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM"]
+# 3) SELECT RELEVANT COLUMNS (include radar metrics)
+core_cols = [
+    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM", 
+    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "OFF REB/GM", "DEF REB/GM",
+    "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
+    "eFG%", "OPP eFG%", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM"
+]
 extra_cols_for_treemap = ["CONFERENCE", "TM_KP"]
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
+
+# If "TM_KP" is not in the data, add it from the index.
+if "TM_KP" not in df_main.columns:
+    df_main["TM_KP"] = df_main.index
 
 # ----------------------------------------------------------------------------
 # 4) FIX MISSING DATA for Treemap
@@ -211,6 +217,9 @@ def create_treemap(df_notnull):
     if all(c in df_notnull.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
         treemap_data = df_notnull.reset_index()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
+        # Ensure team label exists
+        if "TM_KP" not in treemap_data.columns:
+            treemap_data["TM_KP"] = treemap_data["TEAM"]
         treemap_data['hover_text'] = treemap_data.apply(
             lambda x: f"<b>{x['TM_KP']}</b><br>KP Rank: {x['KP_Rank']:.0f}<br>Record: {x['WIN_25']:.0f}-{x['LOSS_25']:.0f}<br>AdjEM: {x['KP_AdjEM']:.1f}<br>OFF EFF: {x.get('OFF EFF', 'N/A')}<br>DEF EFF: {x.get('DEF EFF', 'N/A')}", axis=1
         )
@@ -381,43 +390,53 @@ The overall performance rating is calculated from the team's average z-score acr
 # --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header("Regional Analysis & Heatmaps")
-    st.write("Will be updated with actual tournament seeds/regions once available.")
+    st.write("Regional analysis for East, West, South, and Midwest.")
     df_heat = df_main.copy()
     df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
     df_heat_T = df_heat.T  # Transpose so that index = metric names, columns = teams
+    # Define region team lists (update these with actual 2025 team names)
     east_teams_2025 = ["Alabama", "Houston", "Duke", "Tennessee", "TOURNEY AVG"]
-    east_teams_found = [tm for tm in east_teams_2025 if tm in df_heat_T.columns]
-    if east_teams_found:
-        East_region_2025 = df_heat_T[east_teams_found]
-        st.subheader("EAST REGION - EXAMPLE")
-        styler_dict = {
-            "KP_Rank": "Spectral_r",
-            "WIN_25": "YlGn",
-            "LOSS_25": "YlOrRd_r",  # Inverted so lower is better
-            "KP_AdjEM": "RdYlGn",
-            "KP_SOS_AdjEM": "RdBu",
-            "OFF EFF": "Blues",
-            "DEF EFF": "Reds_r",  # Inverted so lower is better
-            "AVG MARGIN": "RdYlGn",
-            "TS%": "YlGn",
-            "OPP TS%": "YlOrRd_r",  # Inverted
-            "AST/TO%": "Greens",
-            "STOCKS/GM": "Purples"
-        }
-        east_styler = East_region_2025.style
-        # Use pd.IndexSlice to select rows (i.e. metric names) in the transposed table
-        for row_label, cmap in styler_dict.items():
-            east_styler = east_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
-        # Define a safe formatter that only formats numeric values
-        def safe_format(x):
-            try:
-                return "{:.2f}".format(float(x))
-            except (ValueError, TypeError):
-                return x
-        east_styler = east_styler.format(safe_format)
-        st.dataframe(east_styler, use_container_width=True)
-    else:
-        st.info("No regional data available.")
+    west_teams_2025 = ["Kansas", "UCLA", "Gonzaga", "Connecticut", "TOURNEY AVG"]
+    south_teams_2025 = ["Arizona", "Baylor", "Virginia", "Florida", "TOURNEY AVG"]
+    midwest_teams_2025 = ["Texas", "Xavier", "Indiana", "Michigan St", "TOURNEY AVG"]
+    regions = {
+        "East Region": east_teams_2025,
+        "West Region": west_teams_2025,
+        "South Region": south_teams_2025,
+        "Midwest Region": midwest_teams_2025
+    }
+    # Common styler settings for all regions
+    styler_dict = {
+        "KP_Rank": "Spectral_r",
+        "WIN_25": "YlGn",
+        "LOSS_25": "YlOrRd_r",
+        "KP_AdjEM": "RdYlGn",
+        "KP_SOS_AdjEM": "RdBu",
+        "OFF EFF": "Blues",
+        "DEF EFF": "Reds_r",
+        "AVG MARGIN": "RdYlGn",
+        "TS%": "YlGn",
+        "OPP TS%": "YlOrRd_r",
+        "AST/TO%": "Greens",
+        "STOCKS/GM": "Purples"
+    }
+    for region_name, team_list in regions.items():
+        teams_found = [tm for tm in team_list if tm in df_heat_T.columns]
+        if teams_found:
+            region_df = df_heat_T[teams_found]
+            st.subheader(region_name)
+            region_styler = region_df.style
+            for row_label, cmap in styler_dict.items():
+                region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
+            def safe_format(x):
+                try:
+                    return "{:.2f}".format(float(x))
+                except (ValueError, TypeError):
+                    return x
+            region_styler = region_styler.format(safe_format)
+            st.dataframe(region_styler, use_container_width=True)
+        else:
+            st.info(f"No data available for {region_name}.")
 
 # --- TBD Tab ---
 with tab_tbd:
@@ -429,4 +448,4 @@ with tab_tbd:
 st.markdown("---")
 st.markdown("App code available on [GitHub](https://github.com/nehat312/march-madness-2025)")
 
-st.stop
+st.stop('')
