@@ -7,256 +7,94 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import matplotlib.pyplot as plt
-import altair as alt
 from PIL import Image
 import os
 import math
-import warnings
-warnings.filterwarnings('ignore')
 
 # ----------------------------------------------------------------------------
-# 1) PATH TO DATA & RESOURCES
-#    (Adjust if your CSV path or location changes)
+# 1) PATH TO YOUR GITHUB-BASED CSV
 # ----------------------------------------------------------------------------
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
 mm_database_csv = abs_path + '/data/mm_2025_database.csv'
 
 # ----------------------------------------------------------------------------
-# 2) DATA LOADING AND PREPROCESSING
+# 2) READ THE DATA
 # ----------------------------------------------------------------------------
 @st.cache_data
 def load_data():
-    """Load and preprocess the March Madness dataset"""
-    mm_database_2025 = pd.read_csv(mm_database_csv, index_col=0)
-    mm_database_2025.index.name = "TEAM"  # rename for clarity
-    
-    # Fill NA values for numeric columns to enable better visualizations
-    numeric_cols = mm_database_2025.select_dtypes(include=['float64']).columns
-    mm_database_2025[numeric_cols] = mm_database_2025[numeric_cols].fillna(mm_database_2025[numeric_cols].mean())
-    
-    return mm_database_2025
+    df = pd.read_csv(mm_database_csv, index_col=0)
+    df.index.name = "TEAM"  # rename for clarity
+    return df
 
 mm_database_2025 = load_data()
 
 # ----------------------------------------------------------------------------
-# 3) SELECT RELEVANT COLUMNS FOR DIFFERENT ANALYSES
+# 3) SELECT RELEVANT COLUMNS
 # ----------------------------------------------------------------------------
 core_cols = [
-    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-    "KP_AdjEM", "KP_AdjO", "KP_AdjD", "KP_SOS_AdjEM", "NET_24",
-    "OFF EFF", "DEF EFF", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
-    "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM", 
+    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "AVG MARGIN", 
+    "PTS/GM", "OPP PTS/GM", "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
     "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
-    "3PT%", "2PT%", "FT%", "TTL REB/GM"
 ]
+# Additional columns needed for the treemap path
+extra_cols_for_treemap = ["CONFERENCE", "TM_KP"]
+all_desired_cols = core_cols + extra_cols_for_treemap
 
-# Path columns for treemap
-path_cols = ["CONFERENCE", "TM_KP"]
-
-# Additional metrics for radar charts
-radar_metrics = [
-    'OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM',
-    'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM'
-]
-
-# Create a main dataframe with the required columns
-all_required_cols = list(set(core_cols + path_cols + radar_metrics))
-actual_cols = [c for c in all_required_cols if c in mm_database_2025.columns]
+# Keep only the columns that actually exist in the CSV
+actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
 
-# Remove rows with missing values in required path columns for treemap
-treemap_required = [c for c in path_cols + ["KP_AdjEM"] if c in df_main.columns]
-df_treemap = df_main.dropna(subset=treemap_required).copy()
-
 # ----------------------------------------------------------------------------
-# 4) COMPUTED STATISTICS & METRICS
+# 4) FIX MISSING DATA for Treemap
 # ----------------------------------------------------------------------------
-# Compute tournament averages & standard deviations for radar charts
-tournament_avgs = {
-    m: df_main[m].mean() for m in radar_metrics if m in df_main.columns
-}
-tournament_stdevs = {
-    m: df_main[m].std() for m in radar_metrics if m in df_main.columns
-}
+required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]
+cols_that_exist = [c for c in required_path_cols if c in df_main.columns]
 
-# Create a Top 25 teams dataframe
-if "KP_Rank" in df_main.columns:
-    df_top25 = df_main.sort_values("KP_Rank").head(25).copy()
+# We only drop rows if all path columns exist
+if len(cols_that_exist) == len(required_path_cols):
+    df_main_notnull = df_main.dropna(subset=cols_that_exist, how="any").copy()
 else:
-    # Fallback if KP_Rank is missing
-    ranking_col = next((c for c in df_main.columns if "Rank" in c), None)
-    if ranking_col:
-        df_top25 = df_main.sort_values(ranking_col).head(25).copy()
-    else:
-        # If no ranking available, sort by KP_AdjEM if available
-        if "KP_AdjEM" in df_main.columns:
-            df_top25 = df_main.sort_values("KP_AdjEM", ascending=False).head(25).copy()
-        else:
-            df_top25 = df_main.head(25).copy()
-
-# Determine popular conferences (with at least 3 teams)
-if "CONFERENCE" in df_main.columns:
-    conf_counts = df_main["CONFERENCE"].value_counts()
-    popular_conferences = conf_counts[conf_counts >= 3].index.tolist()
-else:
-    popular_conferences = []
+    df_main_notnull = df_main.copy()
 
 # ----------------------------------------------------------------------------
-# 5) HELPER FUNCTIONS FOR VISUALIZATIONS 
+# 5) LOGO LOADING (CHECK FILE FIRST)
 # ----------------------------------------------------------------------------
-def create_treemap(df):
-    """Create a conference-based treemap colored by KP_AdjEM."""
-    if all(c in df.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
-        treemap_data = df.reset_index()  # 'TEAM' becomes a column
-        treemap_data = treemap_data.sort_values("KP_AdjEM")
+logo_path = "images/NCAA_logo1.png"
+NCAA_logo = None
+if os.path.exists(logo_path):
+    NCAA_logo = Image.open(logo_path)
 
-        treemap = px.treemap(
-            data_frame=treemap_data,
-            path=["CONFERENCE", "TM_KP"],
-            values="KP_AdjEM",
-            color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.RdYlGn,
-            hover_data=["TEAM", "KP_Rank", "WIN_25", "LOSS_25"],
-            template="plotly_dark",
-            title="2025 KenPom AdjEM by Conference"
-        )
-        treemap.update_layout(
-            margin=dict(l=10, r=10, t=50, b=10),
-            coloraxis_colorbar=dict(
-                title="KP_AdjEM",
-                thicknessmode="pixels", thickness=15,
-                lenmode="pixels", len=300
-            )
-        )
-        return treemap
-    return None
+# ----------------------------------------------------------------------------
+# 6) RADAR CHART FUNCTIONS
+# ----------------------------------------------------------------------------
+def get_default_metrics():
+    """Return the default metrics for radar charts"""
+    return ['OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM',
+            'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM']
 
-def create_conference_comparison(df, popular_conferences):
-    """Create a multi-metric conference comparison chart."""
-    if "CONFERENCE" not in df.columns or len(popular_conferences) == 0:
-        return None
-    
-    # Select metrics for comparison
-    comparison_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "AVG MARGIN"]
-    available_metrics = [m for m in comparison_metrics if m in df.columns]
-    
-    if len(available_metrics) == 0:
-        return None
-    
-    # Aggregate by conference
-    conf_stats = df.groupby("CONFERENCE")[available_metrics].mean().reset_index()
-    conf_stats = conf_stats[conf_stats["CONFERENCE"].isin(popular_conferences)]
-    
-    # Create subplots: one bar per metric
-    fig = make_subplots(
-        rows=1, 
-        cols=len(available_metrics),
-        subplot_titles=[m for m in available_metrics],
-        shared_yaxes=True
-    )
-    
-    colors = px.colors.qualitative.Plotly
-    
-    for i, metric in enumerate(available_metrics):
-        conf_stats_sorted = conf_stats.sort_values(metric, ascending=False)
-        fig.add_trace(
-            go.Bar(
-                x=conf_stats_sorted["CONFERENCE"],
-                y=conf_stats_sorted[metric],
-                marker_color=colors[i % len(colors)],
-                name=metric
-            ),
-            row=1, col=i+1
-        )
-    
-    fig.update_layout(
-        height=400,
-        title="Conference Comparison by Key Metrics",
-        template="plotly_white",
-        showlegend=False,
-        margin=dict(l=50, r=20, t=80, b=80)
-    )
-    
-    # Rotate x-axis if many conferences
-    if len(popular_conferences) > 5:
-        for j in range(len(available_metrics)):
-            fig.update_xaxes(tickangle=45, row=1, col=j+1)
-    
-    return fig
+def compute_tournament_stats(df):
+    """Compute tournament averages and standard deviations for metrics"""
+    metrics = get_default_metrics()
+    avgs = {m: df[m].mean() for m in metrics if m in df.columns}
+    stdevs = {m: df[m].std() for m in metrics if m in df.columns}
+    return avgs, stdevs
 
-def create_offensive_defensive_scatter(df):
-    """Create an offensive vs defensive efficiency scatter plot with quadrant lines."""
-    if "OFF EFF" not in df.columns or "DEF EFF" not in df.columns:
-        return None
-    
-    plot_data = df.reset_index()
-    size_col = "AVG MARGIN" if "AVG MARGIN" in df.columns else None
-    color_col = "KP_AdjEM" if "KP_AdjEM" in df.columns else None
-    
-    fig = px.scatter(
-        plot_data,
-        x="OFF EFF",
-        y="DEF EFF",
-        size=size_col,
-        color=color_col,
-        hover_name="TEAM",
-        hover_data=["CONFERENCE", "KP_Rank", "WIN_25", "LOSS_25"],
-        color_continuous_scale="RdYlGn",
-        template="plotly_white",
-        title="Offensive vs Defensive Efficiency",
-        labels={
-            "OFF EFF": "Offensive Efficiency",
-            "DEF EFF": "Defensive Efficiency (lower is better)",
-            color_col: "KenPom AdjEM" if color_col == "KP_AdjEM" else color_col
-        }
-    )
-    
-    x_avg = df["OFF EFF"].mean()
-    y_avg = df["DEF EFF"].mean()
-    
-    fig.add_shape(
-        type="line", line=dict(dash="dash", color="gray"),
-        x0=x_avg, y0=fig.data[0].y.min(), x1=x_avg, y1=fig.data[0].y.max()
-    )
-    fig.add_shape(
-        type="line", line=dict(dash="dash", color="gray"),
-        x0=fig.data[0].x.min(), y0=y_avg, x1=fig.data[0].x.max(), y1=y_avg
-    )
-    
-    # Quadrant annotations
-    fig.add_annotation(x=df["OFF EFF"].max()-5, y=df["DEF EFF"].min()+5,
-                       text="Elite Offense, Elite Defense",
-                       showarrow=False, font=dict(color="green"))
-    fig.add_annotation(x=df["OFF EFF"].min()+5, y=df["DEF EFF"].min()+5,
-                       text="Poor Offense, Elite Defense",
-                       showarrow=False)
-    fig.add_annotation(x=df["OFF EFF"].max()-5, y=df["DEF EFF"].max()-5,
-                       text="Elite Offense, Poor Defense",
-                       showarrow=False)
-    fig.add_annotation(x=df["OFF EFF"].min()+5, y=df["DEF EFF"].max()-5,
-                       text="Poor Offense, Poor Defense",
-                       showarrow=False, font=dict(color="red"))
-    
-    fig.update_layout(height=600)
-    return fig
-
-def compute_performance_text(team_row):
-    """Return a simple performance category: 'Elite', 'Above Average', etc. based on avg z-score."""
-    available_metrics = [m for m in radar_metrics if m in team_row.index]
-    if not available_metrics:
-        return "N/A"
-    
+def compute_performance_text(team_row, t_avgs, t_stdevs):
+    """Return performance category based on avg z-score"""
+    metrics = get_default_metrics()
     z_vals = []
-    for m in available_metrics:
-        std = tournament_stdevs.get(m, 1.0)
-        if std <= 0:
-            std = 1.0
-        z = (team_row[m] - tournament_avgs.get(m, 0)) / std
-        # invert where lower is better
-        if m in ['DEF EFF', 'TO/GM']:
-            z = -z
-        z_vals.append(z)
+    for m in metrics:
+        if m in team_row and m in t_avgs and m in t_stdevs:
+            std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
+            z = (team_row[m] - t_avgs[m]) / std
+            # invert for defensive stats
+            if m in ['DEF EFF', 'TO/GM']:
+                z = -z
+            z_vals.append(z)
+    
+    if not z_vals:
+        return "No Data"
     
     avg_z = sum(z_vals) / len(z_vals)
     if avg_z > 1.5:
@@ -270,53 +108,57 @@ def compute_performance_text(team_row):
     else:
         return "Poor"
 
-def get_radar_traces(team_row, show_legend=False):
-    """Generate the 3-layer radar chart traces (TEAM, NCAAM AVG, CONF) for a single team."""
-    available_metrics = [m for m in radar_metrics if m in team_row.index]
-    if not available_metrics:
-        return []
+def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
+    """Returns 3 Scatterpolar traces for the team, NCAAM AVG, and conference"""
+    metrics = get_default_metrics()
+    available_metrics = [m for m in metrics if m in team_row.index and m in t_avgs]
     
+    if not available_metrics:
+        return []  # No metrics available
+    
+    # Compute scaled team values
     z_scores = []
     for m in available_metrics:
-        std = tournament_stdevs.get(m, 1.0)
-        if std <= 0:
-            std = 1.0
-        z = (team_row[m] - tournament_avgs.get(m, 0)) / std
+        std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
+        z = (team_row[m] - t_avgs[m]) / std
         if m in ['DEF EFF', 'TO/GM']:
             z = -z
         z_scores.append(z)
     
     scale_factor = 1.5
     scaled_team = [min(max(5 + z*scale_factor, 0), 10) for z in z_scores]
-
+    
     # NCAAM avg => 5
     scaled_ncaam = [5]*len(available_metrics)
-
+    
     # Conference avg
-    if "CONFERENCE" in team_row.index and team_row["CONFERENCE"] in df_main["CONFERENCE"].values:
-        conf = team_row["CONFERENCE"]
-        conf_df = df_main[df_main["CONFERENCE"] == conf]
+    conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
+    scaled_conf = []
+    
+    if conf is not None and not conf_df.empty:
         conf_vals = []
         for m in available_metrics:
-            conf_avg = conf_df[m].mean()
-            std = tournament_stdevs.get(m, 1.0)
-            if std <= 0:
-                std = 1.0
-            z = (conf_avg - tournament_avgs.get(m, 0)) / std
-            if m in ['DEF EFF', 'TO/GM']:
-                z = -z
-            conf_vals.append(z)
+            if m in conf_df.columns:
+                conf_avg = conf_df[m].mean()
+                std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
+                z = (conf_avg - t_avgs[m]) / std
+                if m in ['DEF EFF', 'TO/GM']:
+                    z = -z
+                conf_vals.append(z)
+            else:
+                conf_vals.append(0)  # Default if metric not available
         scaled_conf = [min(max(5 + z*scale_factor, 0), 10) for z in conf_vals]
     else:
-        scaled_conf = scaled_ncaam.copy()
-
-    # Close the circle
+        scaled_conf = [5]*len(available_metrics)
+    
+    # Close the loop
     metrics_circ = available_metrics + [available_metrics[0]]
     team_scaled_circ = scaled_team + [scaled_team[0]]
     ncaam_scaled_circ = scaled_ncaam + [scaled_ncaam[0]]
     conf_scaled_circ = scaled_conf + [scaled_conf[0]]
-
-    # Build the 3 polar traces
+    
+    team_name = team_row.name if hasattr(team_row, 'name') else "Team"
+    
     trace_team = go.Scatterpolar(
         r=team_scaled_circ,
         theta=metrics_circ,
@@ -325,8 +167,9 @@ def get_radar_traces(team_row, show_legend=False):
         name='TEAM',
         line=dict(color='dodgerblue', width=2),
         showlegend=show_legend,
-        hovertemplate="%{theta}: %{r:.1f}<extra>" + f"{team_row.name}</extra>"
+        hovertemplate="%{theta}: %{r:.1f}<extra>" + f"{team_name}</extra>"
     )
+    
     trace_ncaam = go.Scatterpolar(
         r=ncaam_scaled_circ,
         theta=metrics_circ,
@@ -337,6 +180,7 @@ def get_radar_traces(team_row, show_legend=False):
         showlegend=show_legend,
         hoverinfo='skip'
     )
+    
     trace_conf = go.Scatterpolar(
         r=conf_scaled_circ,
         theta=metrics_circ,
@@ -350,27 +194,34 @@ def get_radar_traces(team_row, show_legend=False):
     
     return [trace_team, trace_ncaam, trace_conf]
 
-def create_team_radars(teams_df, title="Team Radar Analysis"):
-    """Given a subset of teams, create multi-subplot radar charts."""
-    if teams_df.empty:
+def create_radar_chart(selected_teams, full_df):
+    """Create radar chart for selected teams"""
+    if not selected_teams:
         return None
     
-    n_teams = len(teams_df)
-    if n_teams <= 3:
+    # Filter dataframe for selected teams
+    team_mask = full_df['TM_KP'].isin(selected_teams)
+    subset = full_df[team_mask].copy().reset_index()
+    
+    if subset.empty:
+        return None
+    
+    # Compute tournament stats
+    t_avgs, t_stdevs = compute_tournament_stats(full_df)
+    
+    # Decide rows, cols based on number of teams
+    n_teams = len(subset)
+    if n_teams <= 4:
         rows, cols = 1, n_teams
-    elif n_teams <= 6:
-        rows, cols = 2, 3
     else:
-        rows, cols = 2, 4  # cap at 8
-        teams_df = teams_df.head(8)
-        n_teams = 8
+        rows, cols = 2, min(4, math.ceil(n_teams/2))
     
     # Build subplot titles
     subplot_titles = []
-    for idx, (team_name, row) in enumerate(teams_df.iterrows()):
-        conf = row.get("CONFERENCE", "")
-        rank = int(row.get("KP_Rank", idx+1)) if "KP_Rank" in row else (idx+1)
-        subplot_titles.append(f"#{rank} {team_name} ({conf})")
+    for i, row in subset.iterrows():
+        team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
+        conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
+        subplot_titles.append(f"{i+1}) {team_name} ({conf})")
     
     fig = make_subplots(
         rows=rows, cols=cols,
@@ -381,13 +232,14 @@ def create_team_radars(teams_df, title="Team Radar Analysis"):
     )
     
     fig.update_layout(
-        height=500 if rows == 1 else 900,
-        title=title,
+        height=400 if rows == 1 else 800,
+        title="Radar Dashboards for Selected Teams",
         template='plotly_dark',
         font=dict(size=12),
         showlegend=True
     )
-    # Custom radial ticks
+    
+    # Customize polar axes
     fig.update_polars(
         radialaxis=dict(
             tickmode='array',
@@ -404,18 +256,26 @@ def create_team_radars(teams_df, title="Team Radar Analysis"):
         )
     )
     
-    for i, (team_name, team_row) in enumerate(teams_df.iterrows()):
+    # Add traces for each team
+    for idx, team_row in subset.iterrows():
+        i = idx  # 0-based
         r = i // cols + 1
         c = i % cols + 1
-        show_legend = (i == 0)
+        show_legend = (idx == 0)  # only for the first subplot
         
-        # Add radar traces
-        traces = get_radar_traces(team_row, show_legend=show_legend)
+        # Get conference data for this team
+        conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
+        conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
+        
+        # Create radar traces
+        traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
         
-        # Add performance annotation
-        perf_text = compute_performance_text(team_row)
+        # Compute performance
+        perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
+        
+        # domain key for annotation
         polar_idx = (r-1)*cols + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
         if polar_key in fig.layout:
@@ -439,252 +299,454 @@ def create_team_radars(teams_df, title="Team Radar Analysis"):
     
     return fig
 
-def create_shooting_efficiency_chart(df):
-    """Example: A 2-row plot: top eFG% scatter vs TS%, then a bar chart with 3PT%, 2PT%, FT%."""
-    if not all(c in df.columns for c in ["eFG%", "TS%", "3PT%", "2PT%", "FT%"]):
-        return None
-    
-    plot_data = df.reset_index()
-    plot_data = plot_data.sort_values("eFG%", ascending=False).head(20)
-    
-    # We'll show the top 20 teams by eFG%
-    fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=["Shooting Efficiency Comparison (Top 20 eFG%)",
-                        "Shooting Breakdown by Type"],
-        vertical_spacing=0.15,
-        row_heights=[0.6, 0.4]
-    )
-    
-    # Scatter plot of eFG% vs TS%
-    fig.add_trace(
-        go.Scatter(
-            x=plot_data["eFG%"],
-            y=plot_data["TS%"],
-            mode='markers+text',
-            text=plot_data["TEAM"],
-            textposition="top center",
-            marker=dict(
-                size=10,
-                color=plot_data["3PT%"],
-                colorscale='Viridis',
-                showscale=True,
-                colorbar=dict(title="3PT%")
-            ),
-            name='Teams'
-        ),
-        row=1, col=1
-    )
-    
-    # Bar chart for top 10 teams by eFG%
-    for i, row in plot_data.head(10).iterrows():
-        # X = shot types, Y = each shot's percentage
-        team_name = row["TEAM"]
-        fg3 = row["3PT%"]
-        fg2 = row["2PT%"]
-        ft = row["FT%"]
+# ----------------------------------------------------------------------------
+# 7) CREATE ENHANCED TREEMAP
+# ----------------------------------------------------------------------------
+def create_treemap(df_notnull):
+    """Create enhanced treemap with KenPom metrics"""
+    if all(c in df_notnull.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
+        treemap_data = df_notnull.reset_index()
         
-        fig.add_trace(
-            go.Bar(
-                x=["3PT%", "2PT%", "FT%"],
-                y=[fg3, fg2, ft],
-                name=team_name,
-                hovertemplate=f"{team_name}<br>3PT={{x}}%<br>Value={{y}}"
-            ),
-            row=2, col=1
+        # Ensure numeric values
+        treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
+        
+        # Create customized hover text
+        treemap_data['hover_text'] = treemap_data.apply(
+            lambda x: f"<b>{x['TM_KP']}</b><br>"
+                      f"KP Rank: {x['KP_Rank']:.0f}<br>"
+                      f"Record: {x['WIN_25']:.0f}-{x['LOSS_25']:.0f}<br>"
+                      f"AdjEM: {x['KP_AdjEM']:.1f}<br>"
+                      f"OFF EFF: {x.get('OFF EFF', 'N/A')}<br>"
+                      f"DEF EFF: {x.get('DEF EFF', 'N/A')}",
+            axis=1
         )
-    
-    fig.update_layout(
-        height=800,
-        template="plotly_white",
-        legend=dict(orientation="h", y=-0.15),
-        xaxis=dict(title="Effective FG% (horizontal axis)"),
-        yaxis=dict(title="True Shooting %"),
-        xaxis2=dict(title="Shot Type"),
-        yaxis2=dict(title="Percentage", range=[0, 100])
-    )
-    return fig
-
-def create_correlation_heatmap(df):
-    """Create a correlation heatmap of selected numeric columns for interpretability."""
-    # Pick some columns that are typically interesting 
-    num_cols = [
-        "KP_AdjEM", "OFF EFF", "DEF EFF", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
-        "AST/TO%", "eFG%", "TS%", "3PT%", "2PT%", "FT%", "TTL REB/GM"
-    ]
-    # Filter for columns that exist
-    num_cols = [c for c in num_cols if c in df.columns]
-    if len(num_cols) < 2:
-        return None
-    
-    corr_df = df[num_cols].corr()
-    
-    fig = px.imshow(
-        corr_df,
-        text_auto=True,
-        aspect="auto",
-        color_continuous_scale="RdBu_r",
-        title="Correlation Heatmap (Selected Metrics)",
-    )
-    fig.update_layout(
-        template="plotly_white",
-        width=700, height=700
-    )
-    return fig
-
-def create_stat_distribution_chart(df, stat="KP_AdjEM"):
-    """Create a distribution (histogram + boxplot) for a chosen numeric stat to see overall field distribution."""
-    if stat not in df.columns:
-        return None
-    
-    # Drop NA
-    series = df[stat].dropna()
-    if series.empty:
-        return None
-    
-    # Plotly histogram
-    hist_fig = px.histogram(
-        series,
-        nbins=30,
-        template="plotly_white",
-        title=f"Distribution of {stat}",
-        labels={stat: stat}
-    )
-    hist_fig.update_layout(height=400)
-    
-    # Plotly boxplot
-    box_fig = px.box(
-        series,
-        template="plotly_white",
-        title=f"Boxplot of {stat}",
-        labels={stat: stat}
-    )
-    box_fig.update_layout(height=300)
-    
-    return hist_fig, box_fig
+        
+        treemap = px.treemap(
+            data_frame=treemap_data,
+            path=["CONFERENCE", "TM_KP"],
+            values="KP_AdjEM",
+            color="KP_AdjEM",
+            color_continuous_scale=px.colors.diverging.RdYlGn,
+            hover_name="TM_KP",
+            hover_data={
+                "TEAM": True,
+                "KP_Rank": ':.0f', 
+                "KP_AdjEM": ':.1f',
+                "hover_text": False,
+                "TM_KP": False
+            },
+            custom_data=["hover_text"],
+            template="plotly_dark",
+            title="2025 KenPom AdjEM by Conference"
+        )
+        
+        # Enhanced hover template
+        treemap.update_traces(
+            hovertemplate='%{customdata[0]}',
+            texttemplate='<b>%{label}</b><br>%{value:.1f}',
+            textfont=dict(size=11)
+        )
+        
+        treemap.update_layout(
+            margin=dict(l=10, r=10, t=50, b=10),
+            coloraxis_colorbar=dict(
+                title="AdjEM",
+                thicknessmode="pixels", thickness=15,
+                lenmode="pixels", len=300,
+                yanchor="top", y=1,
+                ticks="outside"
+            )
+        )
+        
+        return treemap
+    return None
 
 # ----------------------------------------------------------------------------
-# 6) STREAMLIT APP LAYOUT
+# 8) STREAMLIT PAGE CONFIG
 # ----------------------------------------------------------------------------
-st.title("NCAA March Madness 2025 - Pre-Tournament Analysis")
-
-# Create a sidebar for navigation
-page = st.sidebar.radio(
-    "Select Page",
-    (
-        "Home",
-        "Treemap (Conferences)",
-        "Conference Comparison",
-        "Offense vs. Defense",
-        "Team Radar (Multi-Select)",
-        "Distribution & Boxplots",
-        "Correlation Heatmap",
-        "Shooting Efficiency",
-    )
+st.set_page_config(
+    page_title="NCAA BASKETBALL -- MARCH MADNESS 2025",
+    layout="wide",
+    initial_sidebar_state="auto"
 )
 
-if page == "Home":
-    st.header("Welcome to the 2025 NCAA Men's Basketball Pre-Tourney Dashboard")
-    st.markdown("""
-        This application provides an early look at the Division I field before the bracket is set. 
-        Explore team performance, conference strength, and more. Data courtesy of KenPom and related 2025 metrics.
-    """)
-    
-    st.subheader("Top 25 Snapshot")
-    st.write(df_top25.head(25))
-    
-    st.markdown("Use the sidebar to explore more visual analyses.")
-    
-elif page == "Treemap (Conferences)":
-    st.header("Treemap of Teams by Conference (Colored by KP_AdjEM)")
-    treemap_fig = create_treemap(df_treemap)
-    if treemap_fig:
-        st.plotly_chart(treemap_fig, use_container_width=True)
-    else:
-        st.write("Treemap not available. Required columns missing.")
-    
-elif page == "Conference Comparison":
-    st.header("Multi-Metric Conference Comparison")
-    conf_fig = create_conference_comparison(df_main, popular_conferences)
-    if conf_fig:
-        st.plotly_chart(conf_fig, use_container_width=True)
-    else:
-        st.write("No valid conference data to display.")
-    
-elif page == "Offense vs. Defense":
-    st.header("Offensive vs Defensive Efficiency")
-    od_fig = create_offensive_defensive_scatter(df_main)
-    if od_fig:
-        st.plotly_chart(od_fig, use_container_width=True)
-    else:
-        st.write("Unable to create Offense-Defense scatter. Required columns missing.")
+# Hide the Streamlit menu / watermark
+hide_menu_style = """
+    <style>
+    #MainMenu {visibility: hidden; }
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-elif page == "Team Radar (Multi-Select)":
-    st.header("Interactive Team Radar Charts")
-    team_list = list(df_main.index.unique())
-    selected_teams = st.multiselect(
-        "Select up to 8 teams to compare:",
-        options=team_list,
-        default=team_list[:4]  # default picks just for demonstration
+# ----------------------------------------------------------------------------
+# 9) HEADER & STYLING
+# ----------------------------------------------------------------------------
+st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
+st.write("*2025 MARCH MADNESS RESEARCH HUB*")
+
+col1, col2 = st.columns([6, 1])
+with col2:
+    if NCAA_logo:
+        st.image(NCAA_logo, width=150)
+
+# Create treemap
+treemap = create_treemap(df_main_notnull)
+
+# ----------------------------------------------------------------------------
+# 10) TABS LAYOUT
+# ----------------------------------------------------------------------------
+tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
+    "Home", "EDA & Plots", "Team Radar Charts", "Regional Heatmaps", "TBD"
+])
+
+# ----------------------------------------------------------------------------
+# 10A) HOME TAB
+# ----------------------------------------------------------------------------
+with tab_home:
+    st.subheader("Conference Treemap Overview")
+    if treemap is not None:
+        st.plotly_chart(treemap, use_container_width=True)
+    else:
+        st.warning("Treemap not available due to missing data in required columns.")
+    
+    st.markdown("### Key Insights")
+    st.write("Use the tabs above to explore teams, stats, and visualizations for March Madness 2025.")
+    
+    # Simple stats table
+    if "CONFERENCE" in df_main.columns:
+        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+        conf_counts.columns = ["Conference", "# Teams"]
+        
+        # Compute conference stats if possible
+        if "KP_AdjEM" in df_main.columns:
+            conf_stats = df_main.groupby("CONFERENCE")["KP_AdjEM"].agg(
+                ["mean", "min", "max", "count"]
+            ).reset_index()
+            conf_stats.columns = ["Conference", "Avg AdjEM", "Min AdjEM", "Max AdjEM", "Count"]
+            conf_stats = conf_stats.sort_values("Avg AdjEM", ascending=False)
+            
+            st.markdown("### Conference Power Ratings")
+            st.dataframe(conf_stats.style.format({
+                "Avg AdjEM": "{:.2f}",
+                "Min AdjEM": "{:.2f}",
+                "Max AdjEM": "{:.2f}"
+            }), use_container_width=True)
+
+# ----------------------------------------------------------------------------
+# 10B) EDA & PLOTS TAB
+# ----------------------------------------------------------------------------
+with tab_eda:
+    st.header("Exploratory Data Analysis")
+    
+    # Select which plot to show
+    plot_type = st.selectbox(
+        "Select Plot Type",
+        ["Histogram", "Correlation Heatmap", "Conference Comparison", "Team Metrics Comparison"]
     )
-    if selected_teams:
-        subset = df_main.loc[selected_teams].copy()
-        # Create a radar figure
-        radar_fig = create_team_radars(subset, title="Radar Dashboards for Selected Teams")
-        if radar_fig:
-            st.plotly_chart(radar_fig, use_container_width=True)
-        else:
-            st.write("No radar chart available for selected teams.")
-    else:
-        st.write("Please select at least one team.")
-
-elif page == "Distribution & Boxplots":
-    st.header("Overall Distribution of a Metric")
-    numeric_cols = df_main.select_dtypes(include=[np.number]).columns.tolist()
-    selected_metric = st.selectbox("Select a metric to visualize:", options=numeric_cols, index=0)
     
-    dist_charts = create_stat_distribution_chart(df_main, stat=selected_metric)
-    if dist_charts:
-        hist_fig, box_fig = dist_charts
-        st.plotly_chart(hist_fig, use_container_width=True)
-        st.plotly_chart(box_fig, use_container_width=True)
-    else:
-        st.write("Unable to generate distribution charts.")
-
-elif page == "Correlation Heatmap":
-    st.header("Correlation Heatmap (Key Metrics)")
-    corr_fig = create_correlation_heatmap(df_main)
-    if corr_fig:
-        st.plotly_chart(corr_fig, use_container_width=True)
-    else:
-        st.write("Correlation heatmap unavailable. Check numeric columns.")
-
-elif page == "Shooting Efficiency":
-    st.header("Shooting Efficiency Analysis")
-    se_fig = create_shooting_efficiency_chart(df_main)
-    if se_fig:
-        st.plotly_chart(se_fig, use_container_width=True)
-    else:
-        st.write("Unable to generate shooting efficiency chart.")
-
+    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
+    
+    if plot_type == "Histogram":
+        # Select metric for histogram
+        if numeric_cols:
+            default_hist = "KP_AdjEM" if "KP_AdjEM" in numeric_cols else numeric_cols[0]
+            hist_metric = st.selectbox("Select Metric", numeric_cols, index=numeric_cols.index(default_hist))
+            
+            # Create histogram with custom styles
+            fig_hist = px.histogram(
+                df_main,
+                x=hist_metric,
+                nbins=25,
+                marginal="box",
+                color_discrete_sequence=["dodgerblue"],
+                template="plotly_dark",
+                title=f"Distribution of {hist_metric} (All Teams)"
+            )
+            fig_hist.update_layout(bargap=0.1)
+            st.plotly_chart(fig_hist, use_container_width=True)
+        else:
+            st.warning("No numeric columns available for histogram.")
+    
+    elif plot_type == "Correlation Heatmap":
+        # Select metrics for correlation heatmap
+        default_corr_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "PTS/GM", "OPP PTS/GM"]
+        default_corr_metrics = [m for m in default_corr_metrics if m in numeric_cols]
+        
+        selected_corr_metrics = st.multiselect(
+            "Select Metrics for Correlation Analysis",
+            options=numeric_cols,
+            default=default_corr_metrics
+        )
+        
+        if len(selected_corr_metrics) >= 2:
+            df_for_corr = df_main[selected_corr_metrics].dropna()
+            corr_mat = df_for_corr.corr().round(2)
+            
+            fig_corr = px.imshow(
+                corr_mat,
+                text_auto=True,
+                color_continuous_scale="RdBu_r",
+                title="Correlation Matrix",
+                template="plotly_dark"
+            )
+            fig_corr.update_layout(width=800, height=700)
+            st.plotly_chart(fig_corr, use_container_width=True)
+        else:
+            st.warning("Please select at least 2 metrics for correlation analysis")
+    
+    elif plot_type == "Conference Comparison":
+        if "CONFERENCE" in df_main.columns and numeric_cols:
+            default_conf = "KP_AdjEM" if "KP_AdjEM" in numeric_cols else numeric_cols[0]
+            conf_metric = st.selectbox(
+                "Select Metric for Conference Comparison", 
+                numeric_cols, 
+                index=numeric_cols.index(default_conf)
+            )
+            
+            # Group by conference
+            conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean()
+            conf_group = conf_group.dropna().sort_values(ascending=False)
+            
+            # Create horizontal bar chart
+            fig_conf = px.bar(
+                conf_group,
+                y=conf_group.index,
+                x=conf_group.values,
+                orientation='h',
+                title=f"Average {conf_metric} by Conference",
+                labels={"y": "Conference", "x": conf_metric},
+                color=conf_group.values,
+                color_continuous_scale="Viridis",
+                template="plotly_dark"
+            )
+            
+            # Add individual team dots
+            for conf in conf_group.index:
+                teams = df_main[df_main["CONFERENCE"] == conf]
+                if conf_metric in teams.columns:
+                    fig_conf.add_trace(
+                        go.Scatter(
+                            x=teams[conf_metric],
+                            y=[conf] * len(teams),
+                            mode="markers",
+                            marker=dict(color="white", size=6, opacity=0.7),
+                            name=f"{conf} Teams"
+                        )
+                    )
+            
+            fig_conf.update_layout(showlegend=False)
+            st.plotly_chart(fig_conf, use_container_width=True)
+        else:
+            st.warning("Conference data or numeric columns not available.")
+    
+    elif plot_type == "Team Metrics Comparison":
+        if numeric_cols:
+            default_x = "OFF EFF" if "OFF EFF" in numeric_cols else numeric_cols[0]
+            x_metric = st.selectbox(
+                "Select X-Axis Metric", 
+                numeric_cols, 
+                index=numeric_cols.index(default_x)
+            )
+            
+            default_y = "DEF EFF" if "DEF EFF" in numeric_cols else numeric_cols[-1]
+            y_metric = st.selectbox(
+                "Select Y-Axis Metric", 
+                numeric_cols,
+                index=numeric_cols.index(default_y)
+            )
+            
+            # Create scatter plot with conference color
+            if "CONFERENCE" in df_main.columns:
+                fig_scatter = px.scatter(
+                    df_main.reset_index(),
+                    x=x_metric,
+                    y=y_metric,
+                    color="CONFERENCE",
+                    hover_name="TEAM",
+                    size="KP_AdjEM" if "KP_AdjEM" in df_main.columns else None,
+                    size_max=15,
+                    opacity=0.8,
+                    template="plotly_dark",
+                    title=f"{y_metric} vs {x_metric}",
+                    height=700
+                )
+            else:
+                fig_scatter = px.scatter(
+                    df_main.reset_index(),
+                    x=x_metric,
+                    y=y_metric,
+                    hover_name="TEAM",
+                    opacity=0.8,
+                    template="plotly_dark",
+                    title=f"{y_metric} vs {x_metric}"
+                )
+            
+            # Add quadrant lines and annotations if using offensive/defensive metrics
+            if ("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric):
+                x_avg = df_main[x_metric].mean()
+                y_avg = df_main[y_metric].mean()
+                
+                # Add horizontal and vertical lines
+                fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
+                fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
+                
+                # Simple quadrant labeling
+                # (Exact logic for "good vs. poor" can be customized as needed)
+                fig_scatter.add_annotation(
+                    x=x_avg - 1, y=y_avg - 1,
+                    text="Poor Both",
+                    showarrow=False, font=dict(color="white", size=10),
+                    opacity=0.7
+                )
+                fig_scatter.add_annotation(
+                    x=x_avg + 1, y=y_avg - 1,
+                    text="Better X",
+                    showarrow=False, font=dict(color="white", size=10),
+                    opacity=0.7
+                )
+                fig_scatter.add_annotation(
+                    x=x_avg - 1, y=y_avg + 1,
+                    text="Better Y",
+                    showarrow=False, font=dict(color="white", size=10),
+                    opacity=0.7
+                )
+                fig_scatter.add_annotation(
+                    x=x_avg + 1, y=y_avg + 1,
+                    text="Elite Both",
+                    showarrow=False, font=dict(color="white", size=10),
+                    opacity=0.7
+                )
+            
+            st.plotly_chart(fig_scatter, use_container_width=True)
+        else:
+            st.warning("No numeric columns available.")
 
 # ----------------------------------------------------------------------------
-# 8D) FUTURE TABS
+# 10C) RADAR CHARTS TAB
 # ----------------------------------------------------------------------------
-# with tab_tbd1:
-#     st.subheader("TBD Tab 1")
-#     st.write("Placeholder for future bracket or advanced analytics.")
-#     if NCAA_logo:
-#         st.image(NCAA_logo, width=120)
-
-# with tab_tbd2:
-#     st.subheader("TBD Tab 2")
-#     st.write("Placeholder for additional expansions or data merges.")
-#     if NCAA_logo:
-#         st.image(NCAA_logo, width=120)
+with tab_radar:
+    st.header("Team Radar Performance Charts")
+    
+    # Check if we have the necessary metrics for radar charts
+    radar_metrics = get_default_metrics()
+    available_radar_metrics = [m for m in radar_metrics if m in df_main.columns]
+    
+    if len(available_radar_metrics) < 3:
+        st.warning(f"Not enough radar metrics available. Need at least 3 of these: {', '.join(radar_metrics)}")
+    else:
+        # Get teams with valid TM_KP
+        if "TM_KP" in df_main.columns:
+            all_teams = df_main["TM_KP"].dropna().unique().tolist()
+            
+            # Default to top teams by KP_AdjEM if available
+            default_teams = []
+            if "KP_AdjEM" in df_main.columns:
+                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(6)
+                if "TM_KP" in top_teams.columns:
+                    default_teams = top_teams["TM_KP"].tolist()
+            
+            # If we couldn't get defaults, just use first few teams
+            if not default_teams and all_teams:
+                default_teams = all_teams[:min(6, len(all_teams))]
+            
+            # Let user select teams
+            selected_teams = st.multiselect(
+                "Select Teams to Compare (4-8 recommended)",
+                options=sorted(all_teams),
+                default=default_teams[:min(6, len(default_teams))]
+            )
+            
+            if selected_teams:
+                radar_fig = create_radar_chart(selected_teams, df_main)
+                if radar_fig:
+                    st.plotly_chart(radar_fig, use_container_width=True)
+                else:
+                    st.warning("Could not create radar chart with selected teams.")
+            else:
+                st.info("Please select at least one team to display radar charts.")
+            
+            # Explain the radar chart
+            with st.expander("About Radar Charts"):
+                st.markdown("""
+                These radar charts show team performance across 8 key metrics compared to:
+                - **NCAAM Average** (red dashed line)
+                - **Conference Average** (green dotted line)
+                
+                Each metric is scaled to show how many standard deviations a team is from the NCAA average:
+                - **5** represents the NCAA average
+                - Values above **5** are better than average
+                - Values below **5** are worse than average
+                
+                The overall performance rating (**Elite**, **Above Average**, etc.) is calculated from the team's *average z-score* across all metrics.
+                """)
+        else:
+            st.warning("Team names (TM_KP column) not available in dataset.")
 
 # ----------------------------------------------------------------------------
-# 9) FOOTER / STOP
+# 10D) REGIONAL HEATMAPS TAB
+# ----------------------------------------------------------------------------
+with tab_regions:
+    st.header("Regional Analysis & Heatmaps")
+    st.write("Will be updated with actual tournament seeds/regions once available.")
+    
+    # Create a row for 'TOURNEY AVG' if desired
+    df_heat = df_main.copy()
+    df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
+    df_heat_T = df_heat.T  # Transpose
+    
+    # Example: define a fake list of 'East region' teams, if present
+    east_teams_2025 = ["Alabama", "Houston", "Duke", "Tennessee", "TOURNEY AVG"]
+    
+    # Filter columns to those teams that exist
+    east_teams_found = [tm for tm in east_teams_2025 if tm in df_heat_T.columns]
+    
+    if east_teams_found:
+        East_region_2025 = df_heat_T[east_teams_found]
+        
+        st.subheader("EAST REGION - EXAMPLE")
+        
+        # Enhanced styling with better color maps
+        styler_dict = {
+            "KP_Rank": "Spectral_r",
+            "WIN_25": "YlGn",
+            "LOSS_25": "YlOrRd_r",  # Inverted so lower is better
+            "KP_AdjEM": "RdYlGn",
+            "KP_SOS_AdjEM": "RdBu",
+            "OFF EFF": "Blues",
+            "DEF EFF": "Reds_r",  # Inverted so lower is better
+            "AVG MARGIN": "RdYlGn",
+            "TS%": "YlGn",
+            "OPP TS%": "YlOrRd_r",  # Inverted
+            "AST/TO%": "Greens",
+            "STOCKS/GM": "Purples"
+        }
+        
+        east_styler = East_region_2025.style
+        for row_label, cmap in styler_dict.items():
+            if row_label in East_region_2025.index:
+                # Apply background gradient to that row
+                east_styler = east_styler.background_gradient(
+                    subset=pd.IndexSlice[row_label, :],
+                    axis=1,
+                    cmap=cmap
+                )
+        
+        # Format numeric cells with 2 decimals for the transposed table
+        east_styler = east_styler.format("{:.2f}")
+        
+        st.dataframe(east_styler, use_container_width=True)
+    else:
+        st.info("Sample East region teams not found in dataset (example placeholder).")
+
+# ----------------------------------------------------------------------------
+# 10E) TAB TBD
+# ----------------------------------------------------------------------------
+with tab_tbd:
+    st.write("Coming Soon: Additional analytics, bracket matchups, and more.")
+
+# ----------------------------------------------------------------------------
+# 11) FOOTER & STOP
 # ----------------------------------------------------------------------------
 st.markdown("---")
 github_link = "[GitHub: 2025 Repo](https://github.com/nehat312/march-madness-2025)"
