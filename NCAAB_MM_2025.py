@@ -159,10 +159,15 @@ def create_radar_chart(selected_teams, full_df):
         return None
     t_avgs, t_stdevs = compute_tournament_stats(full_df)
     n_teams = len(subset)
-    # Remove subplot titles to avoid clutter.
-    subplot_titles = [""] * n_teams
-    rows = 1 if n_teams <= 4 else 2
-    cols = n_teams if n_teams <= 4 else min(4, math.ceil(n_teams / 2))
+    if n_teams <= 4:
+        rows, cols = 1, n_teams
+    else:
+        rows, cols = 2, min(4, math.ceil(n_teams / 2))
+    subplot_titles = []
+    for i, row in subset.iterrows():
+        team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
+        conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
+        subplot_titles.append(f"{i+1}) {team_name} ({conf})")
     fig = make_subplots(
         rows=rows, cols=cols,
         specs=[[{'type': 'polar'}] * cols for _ in range(rows)],
@@ -217,10 +222,21 @@ def create_radar_chart(selected_teams, full_df):
 # 6) Create Enhanced Treemap
 def create_treemap(df_notnull):
     if all(c in df_notnull.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
-        treemap_data = df_notnull.reset_index()
+        treemap_data = df_notnull.copy() #make copy before reseting index.
+        treemap_data["CONFERENCE"] = treemap_data["CONFERENCE"].astype(str) #force conference to string.
+        treemap_data = treemap_data.reset_index()
+        
+        # Ensure "KP_AdjEM" is numeric, handle non-numeric values explicitly
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
+        treemap_data = treemap_data.dropna(subset=["KP_AdjEM"]) #drop rows that are now NaN.
+
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
+
+        if treemap_data.empty: #check if the dataframe is empty.
+            st.warning("Treemap data is empty after cleaning.")
+            return None
+
         treemap_data['hover_text'] = treemap_data.apply(
             lambda x: (
                 f"<b>{x['TM_KP']}</b><br>"
@@ -251,7 +267,7 @@ def create_treemap(df_notnull):
         )
         treemap.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
-            height=600,  # fixed height for Streamlit
+            height=600,
             coloraxis_colorbar=dict(
                 title="AdjEM", thicknessmode="pixels", thickness=15,
                 lenmode="pixels", len=300, yanchor="top", y=1, ticks="outside"
