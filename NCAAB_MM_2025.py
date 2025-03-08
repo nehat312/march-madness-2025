@@ -226,22 +226,17 @@ def create_treemap(df_notnull):
         treemap_data["CONFERENCE"] = treemap_data["CONFERENCE"].astype(str) #force conference to string.
         treemap_data = treemap_data.reset_index()
 
-        # --- **Crucial Correction:** ---
-        # Ensure "KP_AdjEM" is numeric and handle missing values robustly.
-        # Previously, non-numeric values were coerced to NaN and then dropped.
-        # Now, we will coerce to numeric, but *only* after confirming the column exists.
-        if "KP_AdjEM" in treemap_data.columns: # **Check if column exists to avoid errors**
+        if "KP_AdjEM" in treemap_data.columns:
             treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
-            treemap_data = treemap_data.dropna(subset=["KP_AdjEM"]) #drop rows that are now NaN.
+            treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         else:
             st.error("Error: 'KP_AdjEM' column is missing, cannot create treemap.")
-            return None # **Return None if critical column is missing**
-
+            return None
 
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
 
-        if treemap_data.empty: #check if the dataframe is empty.
+        if treemap_data.empty:
             st.warning("Treemap data is empty after cleaning.")
             return None
 
@@ -256,15 +251,6 @@ def create_treemap(df_notnull):
             ),
             axis=1
         )
-
-        # --- **Debugging Output:** ---
-        # Uncomment these lines to inspect the data being passed to px.treemap
-        # st.write("Treemap Data Sample:")
-        # st.dataframe(treemap_data.head())
-        # st.write("Treemap Data Info:")
-        # st.write(treemap_data.info())
-
-
         treemap = px.treemap(
             data_frame=treemap_data,
             path=["CONFERENCE", "TM_KP"],
@@ -297,15 +283,19 @@ def create_treemap(df_notnull):
 # 7) Pre-format Regional Heatmap Data
 # For metrics that should be integer, force conversion
 df_heat = df_main.copy()
-for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
-    if metric in df_heat.columns:
-        df_heat[metric] = pd.to_numeric(df_heat[metric], errors='coerce').round().astype("Int64")
 df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
+df_heat_T = df_heat.T  # Transpose so that index = metric names, columns = teams
 
-# Transpose for regional heatmap (rows = metrics, columns = teams)
-df_heat_T = df_heat.T
-
+# --- **Corrected Code for Integer Conversion in Heatmap Data:** ---
+# Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
+for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
+    if metric in df_heat_T.index:
+        # First, convert to numeric, coercing errors to NaN
+        df_heat_T.loc[metric] = pd.to_numeric(df_heat_T.loc[metric], errors='coerce')
+        # Then, fill NaN with 0 (or another appropriate default), and *then* convert to Int64
+        df_heat_T.loc[metric] = df_heat_T.loc[metric].fillna(0).astype("Int64")
 # ----------------------------------------------------------------------------
+
 # 8) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
@@ -478,10 +468,6 @@ with tab_regions:
         "AST/TO%": "Spectral",
         "STOCKS/GM": "Spectral"
     }
-    # Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
-    for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
-        if metric in df_heat_T.index:
-            df_heat_T.loc[metric] = df_heat_T.loc[metric].astype("Int64")
 
     selected_region = st.selectbox("Select Region", regions.keys(), index=0)
     if selected_region:
@@ -508,5 +494,5 @@ with tab_regions:
 with tab_tbd:
     st.header("More Features To Come...")
     st.write("Stay tuned for additional features and analyses!")
-
+    
 st.stop()

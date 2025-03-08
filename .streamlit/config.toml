@@ -39,7 +39,7 @@ monospaceFont = "Fira Mono, monospace"
 [layout]
 wideMode = true
 spacing = "large"
-padding = "1.5rem"
+#padding = "1.5rem"
 
 
 ## HARDWOOD THEME ##
