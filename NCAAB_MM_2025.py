@@ -25,6 +25,13 @@ def load_data():
 
 mm_database_2025 = load_data()
 
+# --- DEBUGGING DATA LOAD ---
+st.subheader("Data Load - Initial Inspection")
+st.write("First 5 rows of raw data:")
+st.dataframe(mm_database_2025.head())
+st.write("Data types of each column:")
+st.write(mm_database_2025.dtypes)
+
 # ----------------------------------------------------------------------------
 # 2) Select Relevant Columns (including radar metrics)
 core_cols = [
@@ -286,15 +293,25 @@ df_heat = df_main.copy()
 df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
 df_heat_T = df_heat.T  # Transpose so that index = metric names, columns = teams
 
-# --- **Corrected Code for Integer Conversion in Heatmap Data:** ---
-# Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
+# --- **Enhanced Code for Integer Conversion in Heatmap Data:** ---
 for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
     if metric in df_heat_T.index:
-        # First, convert to numeric, coercing errors to NaN
+        st.write(f"**Debugging {metric} column before conversion:**") # DEBUG
+        st.write(df_heat_T.loc[metric].dtype) # DEBUG
+        st.write(df_heat_T.loc[metric].head()) # DEBUG
+        # 1. Convert to string first to handle mixed types robustly
+        df_heat_T.loc[metric] = df_heat_T.loc[metric].astype(str)
+        # 2. Replace any non-numeric characters (except decimal and sign) with NaN
+        df_heat_T.loc[metric] = df_heat_T.loc[metric].str.replace(r'[^0-9\.\-]+', '', regex=True)
+        # 3. Convert to numeric, coercing errors to NaN
         df_heat_T.loc[metric] = pd.to_numeric(df_heat_T.loc[metric], errors='coerce')
-        # Then, fill NaN with 0 (or another appropriate default), and *then* convert to Int64
+        # 4. Fill NaN with 0, then convert to Int64
         df_heat_T.loc[metric] = df_heat_T.loc[metric].fillna(0).astype("Int64")
+        st.write(f"**Debugging {metric} column after conversion:**") # DEBUG
+        st.write(df_heat_T.loc[metric].dtype) # DEBUG
+        st.write(df_heat_T.loc[metric].head()) # DEBUG
 # ----------------------------------------------------------------------------
+
 
 # 8) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
@@ -384,7 +401,7 @@ with tab_eda:
         if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
             x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
             fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
-            fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
+            fig_scatter.add_vline(x_avg, line_dash="dash", line_color="white", opacity=0.4)
             quadrants = [
                 {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "Poor Both"},
                 {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "Good X Only"},
@@ -494,5 +511,5 @@ with tab_regions:
 with tab_tbd:
     st.header("More Features To Come...")
     st.write("Stay tuned for additional features and analyses!")
-    
+
 st.stop()
