@@ -131,7 +131,7 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     trace_ncaam = go.Scatterpolar(
         r=ncaam_scaled_circ, theta=metrics_circ, fill='toself',
         fillcolor='rgba(255,99,71,0.2)', name='NCAAM AVG',
-        line=dict(color='tomato', width=2, dash='dash'), showlegend=showlegend,
+        line=dict(color='tomato', width=2, dash='dash'), showlegend=show_legend,
         hoverinfo='skip'
     )
     trace_conf = go.Scatterpolar(
@@ -384,21 +384,37 @@ with tab_regions:
     st.write("Will be updated with actual tournament seeds/regions once available.")
     df_heat = df_main.copy()
     df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
-    df_heat_T = df_heat.T
+    df_heat_T = df_heat.T  # Transpose so that index = metric names, columns = teams
     east_teams_2025 = ["Alabama", "Houston", "Duke", "Tennessee", "TOURNEY AVG"]
     east_teams_found = [tm for tm in east_teams_2025 if tm in df_heat_T.columns]
     if east_teams_found:
         East_region_2025 = df_heat_T[east_teams_found]
         st.subheader("EAST REGION - EXAMPLE")
         styler_dict = {
-            "KP_Rank": "Spectral_r", "WIN_25": "YlGn", "LOSS_25": "YlOrRd_r",
-            "KP_AdjEM": "RdYlGn", "KP_SOS_AdjEM": "RdBu", "OFF EFF": "Blues",
-            "DEF EFF": "Reds_r", "AVG MARGIN": "RdYlGn", "TS%": "YlGn",
-            "OPP TS%": "YlOrRd_r", "AST/TO%": "Greens", "STOCKS/GM": "Purples"
+            "KP_Rank": "Spectral_r",
+            "WIN_25": "YlGn",
+            "LOSS_25": "YlOrRd_r",  # Inverted so lower is better
+            "KP_AdjEM": "RdYlGn",
+            "KP_SOS_AdjEM": "RdBu",
+            "OFF EFF": "Blues",
+            "DEF EFF": "Reds_r",  # Inverted so lower is better
+            "AVG MARGIN": "RdYlGn",
+            "TS%": "YlGn",
+            "OPP TS%": "YlOrRd_r",  # Inverted
+            "AST/TO%": "Greens",
+            "STOCKS/GM": "Purples"
         }
         east_styler = East_region_2025.style
+        # Use pd.IndexSlice to select rows (i.e. metric names) in the transposed table
         for row_label, cmap in styler_dict.items():
-            east_styler = east_styler.background_gradient(cmap=cmap, subset=[row_label])
+            east_styler = east_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
+        # Define a safe formatter that only formats numeric values
+        def safe_format(x):
+            try:
+                return "{:.2f}".format(float(x))
+            except (ValueError, TypeError):
+                return x
+        east_styler = east_styler.format(safe_format)
         st.dataframe(east_styler, use_container_width=True)
     else:
         st.info("No regional data available.")
