@@ -11,6 +11,25 @@ from PIL import Image
 import os
 import math
 
+
+# ----------------------------------------------------------------------------
+# 0) STREAMLIT PAGE CONFIG
+# ----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="NCAA BASKETBALL -- MARCH MADNESS 2025",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
+
+# Hide the Streamlit menu / watermark
+hide_menu_style = """
+    <style>
+    #MainMenu {visibility: hidden; }
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_menu_style, unsafe_allow_html=True)
+
 # ----------------------------------------------------------------------------
 # 1) PATH TO YOUR GITHUB-BASED CSV
 # ----------------------------------------------------------------------------
@@ -361,23 +380,6 @@ def create_treemap(df_notnull):
         return treemap
     return None
 
-# ----------------------------------------------------------------------------
-# 8) STREAMLIT PAGE CONFIG
-# ----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="NCAA BASKETBALL -- MARCH MADNESS 2025",
-    layout="wide",
-    initial_sidebar_state="auto"
-)
-
-# Hide the Streamlit menu / watermark
-hide_menu_style = """
-    <style>
-    #MainMenu {visibility: hidden; }
-    footer {visibility: hidden;}
-    </style>
-"""
-st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------
 # 9) HEADER & STYLING
