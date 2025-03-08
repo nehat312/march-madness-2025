@@ -28,7 +28,7 @@ mm_database_2025 = load_data()
 # ----------------------------------------------------------------------------
 # 2) Select Relevant Columns (including radar metrics)
 core_cols = [
-    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM", 
+    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
     "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "OFF REB/GM", "DEF REB/GM",
     "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
     "eFG%", "OPP eFG%", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM"
@@ -172,7 +172,7 @@ def create_radar_chart(selected_teams, full_df):
         rows=rows, cols=cols,
         specs=[[{'type': 'polar'}] * cols for _ in range(rows)],
         subplot_titles=subplot_titles,
-        horizontal_spacing=0.07, vertical_spacing=0.15
+        horizontal_spacing=0.07, vertical_spacing=0.25
     )
     fig.update_layout(
         height=400 if rows == 1 else 800,
@@ -225,10 +225,18 @@ def create_treemap(df_notnull):
         treemap_data = df_notnull.copy() #make copy before reseting index.
         treemap_data["CONFERENCE"] = treemap_data["CONFERENCE"].astype(str) #force conference to string.
         treemap_data = treemap_data.reset_index()
-        
-        # Ensure "KP_AdjEM" is numeric, handle non-numeric values explicitly
-        treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
-        treemap_data = treemap_data.dropna(subset=["KP_AdjEM"]) #drop rows that are now NaN.
+
+        # --- **Crucial Correction:** ---
+        # Ensure "KP_AdjEM" is numeric and handle missing values robustly.
+        # Previously, non-numeric values were coerced to NaN and then dropped.
+        # Now, we will coerce to numeric, but *only* after confirming the column exists.
+        if "KP_AdjEM" in treemap_data.columns: # **Check if column exists to avoid errors**
+            treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
+            treemap_data = treemap_data.dropna(subset=["KP_AdjEM"]) #drop rows that are now NaN.
+        else:
+            st.error("Error: 'KP_AdjEM' column is missing, cannot create treemap.")
+            return None # **Return None if critical column is missing**
+
 
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
@@ -248,6 +256,15 @@ def create_treemap(df_notnull):
             ),
             axis=1
         )
+
+        # --- **Debugging Output:** ---
+        # Uncomment these lines to inspect the data being passed to px.treemap
+        # st.write("Treemap Data Sample:")
+        # st.dataframe(treemap_data.head())
+        # st.write("Treemap Data Info:")
+        # st.write(treemap_data.info())
+
+
         treemap = px.treemap(
             data_frame=treemap_data,
             path=["CONFERENCE", "TM_KP"],
@@ -330,7 +347,7 @@ with tab_eda:
     if plot_type == "Histogram":
         hist_metric = st.selectbox("Select Metric", numeric_cols, index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0)
         fig_hist = px.histogram(df_main, x=hist_metric, nbins=25, marginal="box", color_discrete_sequence=["dodgerblue"],
-                                template="plotly_dark", title=f"Distribution of {hist_metric} (All Teams)")
+                                    template="plotly_dark", title=f"Distribution of {hist_metric} (All Teams)")
         fig_hist.update_layout(bargap=0.1)
         st.plotly_chart(fig_hist, use_container_width=True)
     elif plot_type == "Correlation Heatmap":
@@ -340,7 +357,7 @@ with tab_eda:
             df_for_corr = df_main[selected_corr_metrics].dropna()
             corr_mat = df_for_corr.corr().round(2)
             fig_corr = px.imshow(corr_mat, text_auto=True, color_continuous_scale="RdBu_r",
-                                 title="Correlation Matrix", template="plotly_dark")
+                                     title="Correlation Matrix", template="plotly_dark")
             fig_corr.update_layout(width=800, height=700)
             st.plotly_chart(fig_corr, use_container_width=True)
         else:
@@ -350,13 +367,13 @@ with tab_eda:
             conf_metric = st.selectbox("Select Metric for Conference Comparison", numeric_cols, index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0)
             conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean().dropna().sort_values(ascending=False)
             fig_conf = px.bar(conf_group, y=conf_group.index, x=conf_group.values, orientation='h',
-                              title=f"Average {conf_metric} by Conference", labels={"y": "Conference", "x": conf_metric},
-                              color=conf_group.values, color_continuous_scale="Viridis", template="plotly_dark")
+                                 title=f"Average {conf_metric} by Conference", labels={"y": "Conference", "x": conf_metric},
+                                 color=conf_group.values, color_continuous_scale="Viridis", template="plotly_dark")
             for conf in conf_group.index:
                 teams = df_main[df_main["CONFERENCE"] == conf]
                 fig_conf.add_trace(go.Scatter(x=teams[conf_metric], y=[conf] * len(teams),
-                                              mode="markers", marker=dict(color="white", size=6, opacity=0.7),
-                                              name=f"{conf} Teams"))
+                                                 mode="markers", marker=dict(color="white", size=6, opacity=0.7),
+                                                 name=f"{conf} Teams"))
             fig_conf.update_layout(showlegend=False)
             st.plotly_chart(fig_conf, use_container_width=True)
         else:
@@ -369,11 +386,11 @@ with tab_eda:
         df_main[y_metric] = pd.to_numeric(df_main[y_metric], errors='coerce')
         if "CONFERENCE" in df_main.columns:
             fig_scatter = px.scatter(df_main.reset_index(), x=x_metric, y=y_metric, color="CONFERENCE",
-                                     hover_name="TEAM", size="KP_AdjEM" if "KP_AdjEM" in df_main.columns else None,
-                                     size_max=15, opacity=0.8, template="plotly_dark", title=f"{y_metric} vs {x_metric}", height=700)
+                                         hover_name="TEAM", size="KP_AdjEM" if "KP_AdjEM" in df_main.columns else None,
+                                         size_max=15, opacity=0.8, template="plotly_dark", title=f"{y_metric} vs {x_metric}", height=700)
         else:
             fig_scatter = px.scatter(df_main.reset_index(), x=x_metric, y=y_metric, hover_name="TEAM", opacity=0.8,
-                                     template="plotly_dark", title=f"{y_metric} vs {x_metric}")
+                                         template="plotly_dark", title=f"{y_metric} vs {x_metric}")
         if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
             x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
             fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
@@ -386,7 +403,7 @@ with tab_eda:
             ]
             for q in quadrants:
                 fig_scatter.add_annotation(x=q["x"], y=q["y"], text=q["text"], showarrow=False,
-                                           font=dict(color="white", size=10), opacity=0.7)
+                                             font=dict(color="white", size=10), opacity=0.7)
         st.plotly_chart(fig_scatter, use_container_width=True)
 
 # --- Radar Charts Tab ---
@@ -407,7 +424,7 @@ with tab_radar:
             if not default_teams and all_teams:
                 default_teams = all_teams[:min(6, len(all_teams))]
             selected_teams = st.multiselect("Select Teams to Compare (4-8 recommended)",
-                                            options=sorted(all_teams), default=default_teams[:min(6, len(default_teams))])
+                                             options=sorted(all_teams), default=default_teams[:min(6, len(default_teams))])
             if selected_teams:
                 radar_fig = create_radar_chart(selected_teams, df_main)
                 if radar_fig:
@@ -422,9 +439,9 @@ These radar charts show team performance across 8 key metrics compared to:
 - **NCAAM Average** (red dashed line)
 - **Conference Average** (green dotted line)
 
-Each metric is scaled so that 5 represents the NCAA average. Values above 5 are better, and those below 5 are worse.  
+Each metric is scaled so that 5 represents the NCAA average. Values above 5 are better, and those below 5 are worse.
 The overall performance rating is calculated from the team's average z-score across all metrics.
-                """)
+                    """)
         else:
             st.warning("Team names (TM_KP column) not available in dataset.")
 
@@ -464,38 +481,32 @@ with tab_regions:
     # Apply uniform formatting to KP_Rank, WIN_25, LOSS_25 as integers
     for metric in ["KP_Rank", "WIN_25", "LOSS_25"]:
         if metric in df_heat_T.index:
-            df_heat_T.loc[metric] = df_heat_T.loc[metric].apply(lambda x: x if pd.isna(x) else int(round(float(x))))
-    # Enhanced safe formatting function for other metrics
-    def safe_format(x):
-        try:
-            val = float(x)
-            if 0 <= val < 1:
-                return f"{val*100:.1f}%"
+            df_heat_T.loc[metric] = df_heat_T.loc[metric].astype("Int64")
+
+    selected_region = st.selectbox("Select Region", regions.keys(), index=0)
+    if selected_region:
+        region_teams = regions[selected_region]
+        region_df = df_heat_T[region_teams].copy()
+        st.dataframe(region_df.style.background_gradient(cmap='RdBu_r', axis=1, subset=region_teams[:-1]), use_container_width=True)
+
+        selected_metrics_heat = st.multiselect("Select Metrics for Heatmap",
+                                                options=[m for m in core_cols if m in df_heat_T.index],
+                                                default=[m for m in ["KP_Rank", "KP_AdjEM", "OFF EFF", "DEF EFF"] if m in df_heat_T.index])
+        if selected_metrics_heat:
+            heat_df = region_df.loc[selected_metrics_heat, region_teams[:-1]] # Exclude "TOURNEY AVG" from heatmap columns
+            if not heat_df.empty:
+                # Determine uniform color scale based on the first selected metric, default to RdBu_r if not in dict
+                color_scale_name = region_color_dict.get(selected_metrics_heat[0], 'RdBu_r')
+                fig_heatmap_region = px.imshow(heat_df, labels=dict(x="Team", y="Metric"),
+                                                 color_continuous_scale=color_scale_name, aspect="auto",
+                                                 title=f"Heatmap of Selected Metrics for {selected_region}", template="plotly_dark")
+                st.plotly_chart(fig_heatmap_region, use_container_width=True)
             else:
-                return f"{val:.2f}"
-        except (ValueError, TypeError):
-            return x
-    for region_name, team_list in regions.items():
-        teams_found = [tm for tm in team_list if tm in df_heat_T.columns]
-        if teams_found:
-            region_df = df_heat_T[teams_found].copy()
-            st.subheader(region_name)
-            region_styler = region_df.style
-            for row_label, cmap in region_color_dict.items():
-                region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
-            region_styler = region_styler.format(safe_format)
-            st.dataframe(region_styler, use_container_width=True)
-        else:
-            st.info(f"No data available for {region_name}.")
+                st.warning("No data available for selected metrics in the region heatmap.")
 
 # --- TBD Tab ---
 with tab_tbd:
-    st.header("To Be Determined")
-    st.info("More visualizations and analysis coming soon.")
-
-# ----------------------------------------------------------------------------
-# 9) GitHub Link & App Footer
-st.markdown("---")
-st.markdown("App code available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+    st.header("More Features To Come...")
+    st.write("Stay tuned for additional features and analyses!")
 
 st.stop()
