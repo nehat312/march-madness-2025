@@ -57,6 +57,7 @@ logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
 
+
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
@@ -396,15 +397,15 @@ with tab_radar:
     else:
         if "TM_KP" in df_main.columns:
             all_teams = df_main["TM_KP"].dropna().unique().tolist()
-            default_teams = 
+            default_teams = all_teams.sort_values("KP_AdjEM", ascending=False).head(12)["TM_KP"].tolist()
             if "KP_AdjEM" in df_main.columns:
-                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(6)
+                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(12)
                 if "TM_KP" in top_teams.columns:
                     default_teams = top_teams["TM_KP"].tolist()
             if not default_teams and all_teams:
                 default_teams = all_teams[:min(6, len(all_teams))]
-            selected_teams = st.multiselect("Select Teams to Compare (4-8 recommended)",
-                                            options=sorted(all_teams), default=default_teams[:min(6, len(default_teams))])
+            selected_teams = st.multiselect("Select Teams to Compare:",
+                                            options=sorted(all_teams), default=default_teams[:min(12, len(default_teams))])
             if selected_teams:
                 radar_fig = create_radar_chart(selected_teams, df_main)
                 if radar_fig:
