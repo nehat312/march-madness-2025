@@ -68,7 +68,7 @@ viz_margin_dict = dict(l=20, r=20, t=50, b=20)
 viz_bg_color = '#0360CE'  # "LightSteelBlue"
 viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
-
+Icefire = px.colors.cyclical.Icefire
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
 def get_default_metrics():
@@ -263,7 +263,8 @@ def create_treemap(df_notnull):
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.RdYlGn,
+            color_continuous_scale=px.colors.diverging.Icefire, #RdYlGn,
+            
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
