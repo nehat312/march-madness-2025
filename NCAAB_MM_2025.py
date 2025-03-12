@@ -69,6 +69,94 @@ viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
 
 # ----------------------------------------------------------------------------
+# ENHANCED TABLE STYLING (ported from 2023)
+header = {
+    'selector': 'th',
+    'props': [
+        ('background-color', '#0360CE'),
+        ('color', 'white'),
+        ('text-align', 'center'),
+        ('vertical-align', 'middle'),
+        ('font-weight', 'bold'),
+        ('border-bottom', '2px solid #000000')
+    ]
+}
+header_level0 = {
+    'selector': 'th.col_heading.level0',
+    'props': [('font-size', '12px')]
+}
+index_style = {
+    'selector': 'th.row_heading',
+    'props': [
+        ('background-color', '#000000'),
+        ('color', 'white'),
+        ('text-align', 'center'),
+        ('vertical-align', 'middle'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+numbers = {
+    'selector': 'td.data',
+    'props': [
+        ('text-align', 'center'),
+        ('vertical-align', 'center'),
+        ('font-weight', 'bold')
+    ]
+}
+borders_right = {
+    'selector': '.row_heading.level1',
+    'props': [('border-right', '1px solid #FFFFFF')]
+}
+top_row = {
+    'selector': 'td.data.row0',
+    'props': [
+        ('border-bottom', '2px dashed #000000'),
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+# For brevity, only a few row and column styles are defined (from the 2023 code)
+table_row0 = {
+    'selector': '.row0',
+    'props': [
+        ('border-bottom', '2px dashed #000000'),
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row1 = {
+    'selector': '.row1',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_col0 = {
+    'selector': '.row0',
+    'props': [
+        ('border-left', '3px solid #000000'),
+        ('min-width', '75px'),
+        ('max-width', '75px'),
+        ('column-width', '75px')
+    ]
+}
+# Combine the detailed style dictionaries into one list
+detailed_table_styles = [
+    header,
+    header_level0,
+    index_style,
+    numbers,
+    borders_right,
+    top_row,
+    table_row0,
+    table_row1,
+    table_col0
+]
+# ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
 def get_default_metrics():
     return ['OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM', 'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM']
@@ -285,26 +373,6 @@ def create_treemap(df_notnull):
         return None
 
 # ----------------------------------------------------------------------------
-# Define table styles for styled DataFrame displays (modeled after 2023 enhancements)
-table_styles = [
-    {'selector': 'th', 'props': [('background-color', '#0360CE'),
-                                  ('color', 'white'),
-                                  ('text-align', 'center'),
-                                  ('vertical-align', 'middle'),
-                                  ('font-weight', 'bold'),
-                                  ('border-bottom', '2px solid #000000')]},
-    {'selector': 'th.row_heading', 'props': [('background-color', '#000000'),
-                                               ('color', 'white'),
-                                               ('text-align', 'center'),
-                                               ('vertical-align', 'middle'),
-                                               ('font-weight', 'bold'),
-                                               ('font-size', '12px')]},
-    {'selector': 'td', 'props': [('text-align', 'center'),
-                                  ('padding', '4px'),
-                                  ('border', '1px solid #ddd')]}
-]
-
-# ----------------------------------------------------------------------------
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
@@ -346,7 +414,7 @@ with tab_home:
             
             st.markdown("### COMPOSITE CONFERENCE POWER RATINGS")
             
-            # Create a styled DataFrame with formatted columns, background gradients and additional table styling.
+            # Create a styled DataFrame with formatted columns, background gradients, and detailed table styling.
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -355,9 +423,9 @@ with tab_home:
                     "Max AdjEM": "{:.2f}"
                 })
                 .background_gradient(cmap="RdYlGn", subset=["Avg AdjEM"])
-                .background_gradient(cmap="inferno", subset=["Min AdjEM"])  # "icefire" replaced with "inferno"
+                .background_gradient(cmap="inferno", subset=["Min AdjEM"])
                 .background_gradient(cmap="viridis", subset=["Max AdjEM"])
-                .set_table_styles(table_styles)
+                .set_table_styles(detailed_table_styles)
             )
             
             # Render the styled table as HTML in Streamlit.
@@ -516,7 +584,7 @@ with tab_regions:
             }.items():
                 region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
             # Augment with enhanced table styling from 2023 iteration
-            region_styler = region_styler.set_table_styles(table_styles)
+            region_styler = region_styler.set_table_styles(detailed_table_styles)
             st.markdown(region_styler.to_html(), unsafe_allow_html=True)
         else:
             st.info(f"No data available for {region_name}.")
