@@ -397,7 +397,7 @@ with tab_radar:
     else:
         if "TM_KP" in df_main.columns:
             all_teams = df_main["TM_KP"].dropna().unique().tolist()
-            default_teams = all_teams.sort_values("KP_AdjEM", ascending=False).head(12)["TM_KP"].tolist()
+            default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston'] #, 'Tennessee'
             if "KP_AdjEM" in df_main.columns:
                 top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(12)
                 if "TM_KP" in top_teams.columns:
