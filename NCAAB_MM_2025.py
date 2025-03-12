@@ -57,7 +57,6 @@ logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
 
-
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
@@ -263,8 +262,7 @@ def create_treemap(df_notnull):
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.RdYlGn, #RdYlGn,
-            
+            color_continuous_scale=px.colors.diverging.RdYlGn,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
@@ -285,6 +283,26 @@ def create_treemap(df_notnull):
     except Exception as e:
         st.error(f"An error occurred while generating treemap: {e}")
         return None
+
+# ----------------------------------------------------------------------------
+# Define table styles for styled DataFrame displays (modeled after 2023 enhancements)
+table_styles = [
+    {'selector': 'th', 'props': [('background-color', '#0360CE'),
+                                  ('color', 'white'),
+                                  ('text-align', 'center'),
+                                  ('vertical-align', 'middle'),
+                                  ('font-weight', 'bold'),
+                                  ('border-bottom', '2px solid #000000')]},
+    {'selector': 'th.row_heading', 'props': [('background-color', '#000000'),
+                                               ('color', 'white'),
+                                               ('text-align', 'center'),
+                                               ('vertical-align', 'middle'),
+                                               ('font-weight', 'bold'),
+                                               ('font-size', '12px')]},
+    {'selector': 'td', 'props': [('text-align', 'center'),
+                                  ('padding', '4px'),
+                                  ('border', '1px solid #ddd')]}
+]
 
 # ----------------------------------------------------------------------------
 # 7) App Header & Tabs
@@ -328,7 +346,7 @@ with tab_home:
             
             st.markdown("### COMPOSITE CONFERENCE POWER RATINGS")
             
-            # Create a styled DataFrame with formatted columns and background gradients.
+            # Create a styled DataFrame with formatted columns, background gradients and additional table styling.
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -337,15 +355,13 @@ with tab_home:
                     "Max AdjEM": "{:.2f}"
                 })
                 .background_gradient(cmap="RdYlGn", subset=["Avg AdjEM"])
-                .background_gradient(cmap="inferno", subset=["Min AdjEM"])  # Changed from "icefire" to "inferno"
+                .background_gradient(cmap="inferno", subset=["Min AdjEM"])  # "icefire" replaced with "inferno"
                 .background_gradient(cmap="viridis", subset=["Max AdjEM"])
-                .set_table_styles([{"selector": "td", "props": [("text-align", "center")]}])
+                .set_table_styles(table_styles)
             )
             
             # Render the styled table as HTML in Streamlit.
             st.markdown(styled_conf_stats.to_html(), unsafe_allow_html=True)
-
-
 
 # --- EDA & Plots Tab ---
 with tab_eda:
@@ -421,7 +437,7 @@ with tab_radar:
     else:
         if "TM_KP" in df_main.columns:
             all_teams = df_main["TM_KP"].dropna().unique().tolist()
-            default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston'] #, 'Tennessee'
+            default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston']
             if "KP_AdjEM" in df_main.columns:
                 top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(4)
                 if "TM_KP" in top_teams.columns:
@@ -482,7 +498,8 @@ with tab_regions:
         if teams_found:
             region_df = df_heat_T[teams_found].copy()
             st.subheader(region_name)
-            region_styler = region_df.style
+            region_styler = region_df.style.format(safe_format)
+            # Apply background gradients as defined in the original code
             for row_label, cmap in {
                 "KP_Rank": "Spectral_r",
                 "WIN_25": "YlGn",
@@ -498,8 +515,9 @@ with tab_regions:
                 "STOCKS/GM": "Purples"
             }.items():
                 region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
-            region_styler = region_styler.format(safe_format)
-            st.dataframe(region_styler, use_container_width=True)
+            # Augment with enhanced table styling from 2023 iteration
+            region_styler = region_styler.set_table_styles(table_styles)
+            st.markdown(region_styler.to_html(), unsafe_allow_html=True)
         else:
             st.info(f"No data available for {region_name}.")
 
