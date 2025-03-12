@@ -309,7 +309,7 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True)
     else:
-        st.warning("TREEMAP OVERHEATED.")
+        st.warning("TREEMAP OVERHEATED.")   
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["Conference", "# Teams"]
@@ -320,7 +320,16 @@ with tab_home:
             st.markdown("### Conference Power Ratings")
             st.dataframe(conf_stats.style.format({
                 "Avg AdjEM": "{:.2f}", "Min AdjEM": "{:.2f}", "Max AdjEM": "{:.2f}"
-            }), use_container_width=True)
+            }).background_gradient(cmap="RdYlGn", subset=["Avg AdjEM"]
+                                   ).background_gradient(cmap="icefire", subset=["Min AdjEM"]
+    ).background_gradient(cmap="viridis", subset=["Max AdjEM"]),
+    use_container_width=True)
+
+            # for col in required_cols:
+            #     conf_stats[col] = pd.to_numeric(conf_stats[col], errors='coerce')
+
+            # conf_stats = conf_stats.dropna(subset=required_cols, how='any')
+
 
 # --- EDA & Plots Tab ---
 with tab_eda:
