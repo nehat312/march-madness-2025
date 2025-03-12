@@ -52,9 +52,24 @@ else:
     df_main_notnull = df_main.copy()
 
 # ----------------------------------------------------------------------------
-# 4) Logo Loading
+# 4) Logo Loading / Syntax Configuration
 logo_path = "images/NCAA_logo1.png"
+FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
+Conferences25_logo_path = "images/ncaab_conferences_2025.png"
+
+
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
+FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
+Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
+
+# ----------------------------------------------------------------------------
+
+### GLOBAL VISUALIZATION SETTINGS ###
+viz_margin_dict = dict(l=20, r=20, t=50, b=20)
+viz_bg_color = '#0360CE' #"LightSteelBlue"
+viz_font_dict=dict(size=12, color='#FFFFFF')
+RdYlGn = px.colors.diverging.RdYlGn
+
 
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
@@ -216,17 +231,25 @@ def create_radar_chart(selected_teams, full_df):
         )
     return fig
 
-# ----------------------------------------------------------------------------
-# 6) Create Enhanced Treemap
 def create_treemap(df_notnull):
-    if all(c in df_notnull.columns for c in ["CONFERENCE", "TM_KP", "KP_AdjEM"]):
-        treemap_data = df_notnull.reset_index()
-        # Ensure KP_AdjEM is numeric
+    if df_notnull is None or df_notnull.empty:
+        st.warning("No data to display in treemap.")
+        return None
+
+    required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
+    if not all(col in df_notnull.columns for col in required_columns):
+        missing_cols = [col for col in required_columns if col not in df_notnull.columns]
+        st.error(f"Missing required columns for treemap: {missing_cols}")
+        return None
+
+    try:
+        treemap_data = df_notnull.copy()  # Avoid modifying original df
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
 
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
+
         # Create hover text that includes all necessary information
         treemap_data['hover_text'] = treemap_data.apply(
             lambda x: (
@@ -239,41 +262,56 @@ def create_treemap(df_notnull):
             ),
             axis=1
         )
-        # Use a diverging color scale for better visual distinction
+
         treemap = px.treemap(
             treemap_data,
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
             color_continuous_scale=px.colors.diverging.RdYlGn,
-            hover_data=["hover_text"],  # Use pre-formatted hover text
+            hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference</b>"
         )
-        # Update trace settings and layout
+
         treemap.update_traces(
             hovertemplate='%{customdata[0]}',
             texttemplate='<b>%{label}</b><br>%{value:.1f}',
             textfont=dict(size=11)
         )
+
         treemap.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
             coloraxis_colorbar=dict(
                 title="AdjEM", thicknessmode="pixels", thickness=15,
                 lenmode="pixels", len=300, yanchor="top", y=1, ticks="outside"
             ),
-            template="plotly_dark"  # Apply dark theme here for consistency
+            template="plotly_dark"
         )
+
         return treemap
-    return None
+
+    except Exception as e:
+        st.error(f"An error occurred while creating the treemap: {e}")
+        return None
 
 # ----------------------------------------------------------------------------
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
+#st.markdown("### Key Insights")
+st.write("Toggle tabs above to explore March Madness 2025 brackets, stats, visualizations:")
 col1, col2 = st.columns([6, 1])
-with col2:
+with col1:
+    if FinalFour25_logo:
+        st.image(FinalFour25_logo, width=150)
     if NCAA_logo:
         st.image(NCAA_logo, width=150)
+with col2:
+    if Conferences25_logo:
+        st.image(FinalFour25_logo, width=150)
+    # if NCAA_logo:
+    #     st.image(NCAA_logo, width=150)        
+
 treemap = create_treemap(df_main_notnull)
 tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
     "Home", "EDA & Plots", "Team Radar Charts", "Regional Heatmaps", "TBD"
@@ -281,13 +319,13 @@ tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
 
 # --- Home Tab ---
 with tab_home:
-    st.subheader("Conference Treemap Overview")
+    
+    st.subheader("CONFERENCE-LEVEL TREEMAP")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True)
     else:
-        st.warning("Treemap not available due to missing data in required columns.")
-    st.markdown("### Key Insights")
-    st.write("Use the tabs above to explore teams, stats, and visualizations for March Madness 2025.")
+        st.warning("TREEMAP OVERHEATED.")
+    
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["Conference", "# Teams"]
