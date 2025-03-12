@@ -57,19 +57,16 @@ logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
 
-
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
 
 # ----------------------------------------------------------------------------
-
 ### GLOBAL VISUALIZATION SETTINGS ###
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
-viz_bg_color = '#0360CE' #"LightSteelBlue"
-viz_font_dict=dict(size=12, color='#FFFFFF')
+viz_bg_color = '#0360CE'  # "LightSteelBlue"
+viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
-
 
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
@@ -232,24 +229,22 @@ def create_radar_chart(selected_teams, full_df):
     return fig
 
 def create_treemap(df_notnull):
-    if df_notnull is None or df_notnull.empty:
-        st.warning("No data to display in treemap.")
-        return None
-
-    required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
-    if not all(col in df_notnull.columns for col in required_columns):
-        missing_cols = [col for col in required_columns if col not in df_notnull.columns]
-        st.error(f"Missing required columns for treemap: {missing_cols}")
-        return None
-
     try:
-        treemap_data = df_notnull.copy()  # Avoid modifying original df
+        # Limit to top 100 teams based on KP_Rank
+        top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
+        if top_100_teams is None or top_100_teams.empty:
+            st.warning("No data to display in treemap.")
+            return None
+        required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
+        if not all(col in top_100_teams.columns for col in required_columns):
+            missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
+            st.error(f"Missing required columns for treemap: {missing_cols}")
+            return None
+        treemap_data = top_100_teams.copy()  # Avoid modifying original df
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
-
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
-
         # Create hover text that includes all necessary information
         treemap_data['hover_text'] = treemap_data.apply(
             lambda x: (
@@ -262,7 +257,6 @@ def create_treemap(df_notnull):
             ),
             axis=1
         )
-
         treemap = px.treemap(
             treemap_data,
             path=["CONFERENCE", "TM_KP"],
@@ -270,15 +264,13 @@ def create_treemap(df_notnull):
             color="KP_AdjEM",
             color_continuous_scale=px.colors.diverging.RdYlGn,
             hover_data=["hover_text"],
-            title="<b>2025 KenPom AdjEM by Conference</b>"
+            title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
-
         treemap.update_traces(
             hovertemplate='%{customdata[0]}',
             texttemplate='<b>%{label}</b><br>%{value:.1f}',
             textfont=dict(size=11)
         )
-
         treemap.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
             coloraxis_colorbar=dict(
@@ -287,9 +279,7 @@ def create_treemap(df_notnull):
             ),
             template="plotly_dark"
         )
-
         return treemap
-
     except Exception as e:
         st.error(f"An error occurred while creating the treemap: {e}")
         return None
@@ -298,7 +288,6 @@ def create_treemap(df_notnull):
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
-#st.markdown("### Key Insights")
 st.write("Toggle tabs above to explore March Madness 2025 brackets, stats, visualizations:")
 col1, col2 = st.columns([6, 1])
 with col1:
@@ -309,9 +298,6 @@ with col1:
 with col2:
     if Conferences25_logo:
         st.image(FinalFour25_logo, width=150)
-    # if NCAA_logo:
-    #     st.image(NCAA_logo, width=150)        
-
 treemap = create_treemap(df_main_notnull)
 tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
     "Home", "EDA & Plots", "Team Radar Charts", "Regional Heatmaps", "TBD"
@@ -319,13 +305,11 @@ tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
 
 # --- Home Tab ---
 with tab_home:
-    
     st.subheader("CONFERENCE-LEVEL TREEMAP")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True)
     else:
         st.warning("TREEMAP OVERHEATED.")
-    
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["Conference", "# Teams"]
@@ -412,7 +396,7 @@ with tab_radar:
     else:
         if "TM_KP" in df_main.columns:
             all_teams = df_main["TM_KP"].dropna().unique().tolist()
-            default_teams = []
+            default_teams = 
             if "KP_AdjEM" in df_main.columns:
                 top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(6)
                 if "TM_KP" in top_teams.columns:
@@ -434,7 +418,6 @@ with tab_radar:
 These radar charts show team performance across 8 key metrics compared to:
 - **NCAAM Average** (red dashed line)
 - **Conference Average** (green dotted line)
-
 Each metric is scaled so that 5 represents the NCAA average. Values above 5 are better, and those below 5 are worse.  
 The overall performance rating is calculated from the team's average z-score across all metrics.
                 """)
@@ -463,7 +446,6 @@ with tab_regions:
     def safe_format(x):
         try:
             val = float(x)
-            # If the value is a fraction (0 to 1), format as percentage; otherwise, two decimals.
             if 0 <= val < 1:
                 return f"{val*100:.1f}%"
             else:
@@ -505,5 +487,4 @@ with tab_tbd:
 # 9) GitHub Link & App Footer
 st.markdown("---")
 st.markdown("App code available on [GitHub](https://github.com/nehat312/march-madness-2025)")
-
 st.stop()
