@@ -282,26 +282,25 @@ def create_treemap(df_notnull):
         )
         return treemap
     except Exception as e:
-        st.error(f"An error occurred while creating the treemap: {e}")
+        st.error(f"An error occurred while generating treemap: {e}")
         return None
 
 # ----------------------------------------------------------------------------
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
-st.write("Toggle tabs above to explore March Madness 2025 brackets, stats, visualizations:")
+st.write("Toggle tabs above to explore March Madness 2025 brackets, stats, visualizations")
 col1, col2 = st.columns([6, 1])
 with col1:
     if FinalFour25_logo:
-        st.image(FinalFour25_logo, width=150)
+        st.image(FinalFour25_logo, width=250)
     if NCAA_logo:
-        st.image(NCAA_logo, width=150)
-with col2:
+        st.image(NCAA_logo, width=250)
     if Conferences25_logo:
-        st.image(FinalFour25_logo, width=150)
+        st.image(Conferences25_logo, width=250)
 treemap = create_treemap(df_main_notnull)
 tab_home, tab_eda, tab_radar, tab_regions, tab_tbd = st.tabs([
-    "Home", "EDA & Plots", "Team Radar Charts", "Regional Heatmaps", "TBD"
+    "HOME", "METRICS", "RADAR CHARTS", "REGIONAL HEATMAPS", "TBD"
 ])
 
 # --- Home Tab ---
@@ -393,19 +392,19 @@ with tab_radar:
     radar_metrics = get_default_metrics()
     available_radar_metrics = [m for m in radar_metrics if m in df_main.columns]
     if len(available_radar_metrics) < 3:
-        st.warning(f"Not enough radar metrics available. Need at least 3 of these: {', '.join(radar_metrics)}")
+        st.warning(f"Not enough radar metrics available. Need at least 4 radar metrics: {', '.join(radar_metrics)}")
     else:
         if "TM_KP" in df_main.columns:
             all_teams = df_main["TM_KP"].dropna().unique().tolist()
             default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston'] #, 'Tennessee'
             if "KP_AdjEM" in df_main.columns:
-                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(12)
+                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(4)
                 if "TM_KP" in top_teams.columns:
                     default_teams = top_teams["TM_KP"].tolist()
             if not default_teams and all_teams:
-                default_teams = all_teams[:min(6, len(all_teams))]
+                default_teams = all_teams[:min(4, len(all_teams))]
             selected_teams = st.multiselect("Select Teams to Compare:",
-                                            options=sorted(all_teams), default=default_teams[:min(12, len(default_teams))])
+                                            options=sorted(all_teams), default=default_teams[:min(4, len(default_teams))])
             if selected_teams:
                 radar_fig = create_radar_chart(selected_teams, df_main)
                 if radar_fig:
