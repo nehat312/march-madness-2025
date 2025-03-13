@@ -3,31 +3,31 @@
 base = "light"
 
 ## Modern Tech March Madness ##
-primaryColor = "#66FCF1"  # Bright Teal (Dynamic, modern primary)
-backgroundColor = "#1A1A1D" # Space Black (Sleek, dark background)
-secondaryBackgroundColor = "#2C3531" # Space Gray (Subtle secondary background)
-textColor = "#EEFCF7" # White Silver (Soft, readable text)
+primaryColor = "#50C878"  # Emerald Green (Sophisticated, vibrant primary)
+backgroundColor = "#1E1E1E" # Dark Charcoal (Deep, rich background)
+secondaryBackgroundColor = "#333333" # Medium Gray (Versatile secondary background)
+textColor = "#E0E0E0" # Light Gray (Soft, readable text)
 font = "sans serif"
 
 # Dark Mode Specific Overrides
 [theme.dark]
-primaryColor = "#2BDB6B" # Alien Green (Vibrant primary in dark mode)
+primaryColor = "#6495ED" # Cornflower Blue (Calm, engaging primary in dark mode)
 backgroundColor = "#121212" # Very Dark Gray (Deeper dark background)
-secondaryBackgroundColor = "#19181A" # Space Black (Dark secondary background)
-textColor = "#DADADA" # Football White (Readable text in dark mode)
+secondaryBackgroundColor = "#282828" # Darker Gray (Dark secondary background)
+textColor = "#D1D1D1" # Soft White (Readable text in dark mode)
 
 # Component Styling (Fine-Grained Control)
 [theme.components]
 # Buttons
-button = { primaryColor = "#66FCF1", textColor = "#1A1A1D", borderRadius = "25px", padding = "12px 25px", fontWeight = "600", boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)", border = "1px solid transparent" }
+button = { primaryColor = "#50C878", textColor = "#1E1E1E", borderRadius = "25px", padding = "12px 25px", fontWeight = "600", boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)", border = "1px solid transparent" }
 # Slider
-slider = { primaryColor = "#66FCF1", trackColor = "#2C3531", thumbColor = "#66FCF1", trackHeight = "6px", thumbSize = "18px" }
+slider = { primaryColor = "#50C878", trackColor = "#333333", thumbColor = "#50C878", trackHeight = "6px", thumbSize = "18px" }
 # Selectbox
-selectbox = { borderColor = "#2C3531", borderRadius = "25px", padding = "10px", focusBorderColor = "#66FCF1" }
+selectbox = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
 # Text Input
-textInput = { borderColor = "#2C3531", borderRadius = "25px", padding = "10px", focusBorderColor = "#66FCF1" }
+textInput = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
 # Expander
-expander = { borderColor = "#2C3531", borderRadius = "25px", border = "1px solid #2C3531"}
+expander = { borderColor = "#333333", borderRadius = "25px", border = "1px solid #333333"}
 
 # Font Customization (Advanced)
 [theme.fonts]
