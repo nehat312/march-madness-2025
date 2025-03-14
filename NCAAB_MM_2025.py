@@ -116,6 +116,11 @@ Patriot_logo_path = "images/Patriot_logo.png"
 SBC_logo_path = "images/SBC_logo.png"
 SEC_logo_path = "images/SEC_logo.png"
 SWAC_logo_path = "images/SWAC_logo.png"
+Summit_logo_path = "images/Summit_logo.png"
+SoCon_logo_path = "images/SoCon_logo.png"
+Southland_logo_path = "images/Southland_logo.png"
+WAC_logo_path = "images/WAC_logo.png"
+#WCC_logo_path = "images/WCC_logo.png"
 
 
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
@@ -146,7 +151,11 @@ Patriot_logo = Image.open(Patriot_logo_path) if os.path.exists(Patriot_logo_path
 SBC_logo = Image.open(SBC_logo_path) if os.path.exists(SBC_logo_path) else None
 SEC_logo = Image.open(SEC_logo_path) if os.path.exists(SEC_logo_path) else None
 SWAC_logo = Image.open(SWAC_logo_path) if os.path.exists(SWAC_logo_path) else None
-
+Summit_logo = Image.open(Summit_logo_path) if os.path.exists(Summit_logo_path) else None
+SoCon_logo = Image.open(SoCon_logo_path) if os.path.exists(SoCon_logo_path) else None
+Southland_logo = Image.open(Southland_logo_path) if os.path.exists(Southland_logo_path) else None
+WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
+#WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
@@ -461,56 +470,26 @@ with col1:
         st.image(NCAA_logo, width=250)
     if Conferences25_logo:
         st.image(Conferences25_logo, width=250)
-    if ACC_logo:
-        st.image(ACC_logo, width=150)
-    if AAC_logo:
-        st.image(AAC_logo, width=150)
-    if AEC_logo:
-        st.image(AEC_logo, width=150)
-    if ASUN_logo:
-        st.image(ASUN_logo, width=150)
-    if B10_logo:
-        st.image(B10_logo, width=150)
-    if B12_logo:
-        st.image(B12_logo, width=150)
-    if BE_logo:
-        st.image(BE_logo, width=150)
-    if BSouth_logo:
-        st.image(BSouth_logo, width=150)
-    if BSky_logo:
-        st.image(BSky_logo, width=150)
-    if BW_logo:
-        st.image(BW_logo, width=150)
-    if CAA_logo:
-        st.image(CAA_logo, width=150)
-    if CUSA_logo:
-        st.image(CUSA_logo, width=150)
-    if Horizon_logo:
-        st.image(Horizon_logo, width=150)
-    if Ivy_logo:
-        st.image(Ivy_logo, width=150)
-    if MAAC_logo:
-        st.image(MAAC_logo, width=150)
-    if MAC_logo:
-        st.image(MAC_logo, width=150)
-    if MEAC_logo:
-        st.image(MEAC_logo, width=150)
-    if MVC_logo:
-        st.image(MVC_logo, width=150)
-    if MWC_logo:
-        st.image(MWC_logo, width=150)
-    if NEC_logo:
-        st.image(NEC_logo, width=150)
-    if OVC_logo:
-        st.image(OVC_logo, width=150)
-    if Patriot_logo:
-        st.image(Patriot_logo, width=150)
-    if SBC_logo:
-        st.image(SBC_logo, width=150)
-    if SEC_logo:
-        st.image(SEC_logo, width=150)
-    if SWAC_logo:
-        st.image(SWAC_logo, width=150)
+
+# Conference Logos Grid (organized for better display)
+st.subheader("Conference Logos")  # Add a subheader for clarity
+
+# Group the logos for better grid layout
+conference_logos = [
+    [ACC_logo, AAC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo],
+    [BE_logo, BSouth_logo, BSky_logo, BW_logo, CAA_logo, CUSA_logo],
+    [Horizon_logo, Ivy_logo, MAAC_logo, MAC_logo, MEAC_logo, MVC_logo],
+    [MWC_logo, NEC_logo, OVC_logo, Patriot_logo, SBC_logo, SEC_logo],
+    [SWAC_logo, Summit_logo, WAC_logo] #Slnd_logo, WCC_logo
+]
+
+# Display the logos in a grid
+for row in conference_logos:
+    cols = st.columns(len(row))  # Create columns dynamically based on row length
+    for i, logo in enumerate(row):
+        if logo:
+            with cols[i]:
+                st.image(logo, width=100)  # Adjust width as needed
 
 st.write("Toggle tabs below to explore brackets, stats, visualizations for NCAAM March Madness 2025")
 st.write("DATA AS OF 3/12/2025")
