@@ -49,6 +49,10 @@ df_main = mm_database_2025[actual_cols].copy()
 if "TM_KP" not in df_main.columns:
     df_main["TM_KP"] = df_main.index
 
+# Create new column with absolute value of KP_AdjEM to avoid negative sizing issues
+if "KP_AdjEM" in df_main.columns:
+    df_main["KP_AdjEM_Pos"] = df_main["KP_AdjEM"].abs()
+
 # ----------------------------------------------------------------------------
 # 3) Clean Data for Treemap
 required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]  # must have these for the treemap
@@ -140,6 +144,70 @@ table_row1 = {
         ('font-size', '12px')
     ]
 }
+table_row2 = {
+    'selector': '.row2',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row3 = {
+    'selector': '.row3',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row4 = {
+    'selector': '.row4',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row5 = {
+    'selector': '.row5',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row6 = {
+    'selector': '.row6',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row7 = {
+    'selector': '.row7',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row8 = {
+    'selector': '.row8',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
+table_row9 = {
+    'selector': '.row9',
+    'props': [
+        ('text-align', 'center'),
+        ('font-weight', 'bold'),
+        ('font-size', '12px')
+    ]
+}
 table_col0 = {
     'selector': '.row0',
     'props': [
@@ -158,6 +226,14 @@ detailed_table_styles = [
     top_row,
     table_row0,
     table_row1,
+    table_row2,
+    table_row3,
+    table_row4,
+    table_row5,
+    table_row6,
+    table_row7,
+    table_row8,
+    table_row9,
     table_col0
 ]
 
@@ -257,13 +333,12 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     return [trace_team, trace_ncaam, trace_conf]
 
 def create_radar_chart(selected_teams, full_df):
-    # Use the more comprehensive radar tab logic from the original version:
+    # Use the comprehensive radar tab logic from the original version:
     radar_metrics = get_default_metrics()
     available_radar_metrics = [m for m in radar_metrics if m in full_df.columns]
     if len(available_radar_metrics) < 3:
         st.warning(f"Not enough radar metrics available. Need at least 4: {', '.join(radar_metrics)}")
         return None
-
     if "TM_KP" in full_df.columns:
         all_teams = full_df["TM_KP"].dropna().unique().tolist()
         default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston']
@@ -518,7 +593,6 @@ with tab_regions:
     df_heat = df_main.copy()
     df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
     df_heat_T = df_heat.T
-
     # Updated region seeds as requested (16 seeds each + "TOURNEY AVG")
     # W region
     east_teams_2025 = [
@@ -683,10 +757,11 @@ with tab_team:
         index=numeric_cols.index("DEF EFF") if "DEF EFF" in numeric_cols else 0
     )
     if "CONFERENCE" in df_main.columns:
+        # Use absolute KP_AdjEM for sizing to prevent negative values.
         fig_scatter = px.scatter(
             df_main.reset_index(), x=x_metric, y=y_metric, color="CONFERENCE",
             hover_name="TEAM",
-            size="KP_AdjEM" if "KP_AdjEM" in df_main.columns else None,
+            size="KP_AdjEM_Pos" if "KP_AdjEM_Pos" in df_main.columns else None,
             size_max=15, opacity=0.8, template="plotly_dark",
             title=f"{y_metric} vs {x_metric}", height=700
         )
