@@ -18,6 +18,27 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
+# Inject global CSS for all HTML tables (applies to all Pandas-styled tables)
+global_table_css = """
+<style>
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: Arial, sans-serif;
+}
+table, th, td {
+  border: 1px solid #000000;
+}
+th, td {
+  text-align: center;
+  padding: 5px;
+  font-weight: bold;
+  font-size: 12px;
+}
+</style>
+"""
+st.markdown(global_table_css, unsafe_allow_html=True)
+
 # ----------------------------------------------------------------------------
 # 1) Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
@@ -39,23 +60,24 @@ core_cols = [
     "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
     "eFG%", "OPP eFG%", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM"
 ]
-# Add columns needed for Treemap and new seed-based hover text
 extra_cols_for_treemap = ["CONFERENCE", "TM_KP", "SEED_25"]
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
 
-# Ensure team label (if "TM_KP" is missing, use index)
+# Ensure team label (if "TM_KP" is missing, use the index)
 if "TM_KP" not in df_main.columns:
     df_main["TM_KP"] = df_main.index
 
-# Create new column with absolute value of KP_AdjEM to avoid negative sizing issues
+# Instead of taking absolute value, compute an offset so that KP_AdjEM marker sizes are always positive.
 if "KP_AdjEM" in df_main.columns:
-    df_main["KP_AdjEM_Pos"] = df_main["KP_AdjEM"].abs()
+    min_adj = df_main["KP_AdjEM"].min()
+    offset = (-min_adj + 1) if min_adj < 0 else 0
+    df_main["KP_AdjEM_Offset"] = df_main["KP_AdjEM"] + offset
 
 # ----------------------------------------------------------------------------
 # 3) Clean Data for Treemap
-required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]  # must have these for the treemap
+required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]
 cols_that_exist = [c for c in required_path_cols if c in df_main.columns]
 if len(cols_that_exist) == len(required_path_cols):
     df_main_notnull = df_main.dropna(subset=cols_that_exist, how="any").copy()
@@ -80,6 +102,7 @@ RdYlGn = px.colors.diverging.RdYlGn
 
 # ----------------------------------------------------------------------------
 # ENHANCED TABLE STYLING (ported from 2023)
+# We extend styling to rows 0 through 9.
 header = {
     'selector': 'th',
     'props': [
@@ -91,10 +114,7 @@ header = {
         ('border-bottom', '2px solid #000000')
     ]
 }
-header_level0 = {
-    'selector': 'th.col_heading.level0',
-    'props': [('font-size', '12px')]
-}
+header_level0 = {'selector': 'th.col_heading.level0', 'props': [('font-size', '12px')]}
 index_style = {
     'selector': 'th.row_heading',
     'props': [
@@ -108,134 +128,29 @@ index_style = {
 }
 numbers = {
     'selector': 'td.data',
-    'props': [
-        ('text-align', 'center'),
-        ('vertical-align', 'center'),
-        ('font-weight', 'bold')
-    ]
+    'props': [('text-align', 'center'),
+              ('vertical-align', 'center'),
+              ('font-weight', 'bold')]
 }
-borders_right = {
-    'selector': '.row_heading.level1',
-    'props': [('border-right', '1px solid #FFFFFF')]
-}
-top_row = {
-    'selector': 'td.data.row0',
-    'props': [
-        ('border-bottom', '2px dashed #000000'),
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row0 = {
-    'selector': '.row0',
-    'props': [
-        ('border-bottom', '2px dashed #000000'),
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row1 = {
-    'selector': '.row1',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row2 = {
-    'selector': '.row2',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row3 = {
-    'selector': '.row3',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row4 = {
-    'selector': '.row4',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row5 = {
-    'selector': '.row5',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row6 = {
-    'selector': '.row6',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row7 = {
-    'selector': '.row7',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row8 = {
-    'selector': '.row8',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
-table_row9 = {
-    'selector': '.row9',
-    'props': [
-        ('text-align', 'center'),
-        ('font-weight', 'bold'),
-        ('font-size', '12px')
-    ]
-}
+borders_right = {'selector': '.row_heading.level1', 'props': [('border-right', '1px solid #FFFFFF')]}
+# Define styling for rows 0 through 9:
+rows_styles = []
+for i in range(10):
+    rows_styles.append({
+        'selector': f'.row{i}',
+        'props': [('text-align', 'center'),
+                  ('font-weight', 'bold'),
+                  ('font-size', '12px')]
+    })
+# Ensure left border on the first column
 table_col0 = {
     'selector': '.row0',
-    'props': [
-        ('border-left', '3px solid #000000'),
-        ('min-width', '75px'),
-        ('max-width', '75px'),
-        ('column-width', '75px')
-    ]
+    'props': [('border-left', '3px solid #000000'),
+              ('min-width', '75px'),
+              ('max-width', '75px'),
+              ('column-width', '75px')]
 }
-detailed_table_styles = [
-    header,
-    header_level0,
-    index_style,
-    numbers,
-    borders_right,
-    top_row,
-    table_row0,
-    table_row1,
-    table_row2,
-    table_row3,
-    table_row4,
-    table_row5,
-    table_row6,
-    table_row7,
-    table_row8,
-    table_row9,
-    table_col0
-]
+detailed_table_styles = [header, header_level0, index_style, numbers, borders_right] + rows_styles + [table_col0]
 
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
@@ -333,7 +248,6 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     return [trace_team, trace_ncaam, trace_conf]
 
 def create_radar_chart(selected_teams, full_df):
-    # Use the comprehensive radar tab logic from the original version:
     radar_metrics = get_default_metrics()
     available_radar_metrics = [m for m in radar_metrics if m in full_df.columns]
     if len(available_radar_metrics) < 3:
@@ -348,7 +262,6 @@ def create_radar_chart(selected_teams, full_df):
                 default_teams = top_teams["TM_KP"].tolist()
         if not default_teams and all_teams:
             default_teams = all_teams[:min(4, len(all_teams))]
-        # Here we assume selected_teams is already provided via multiselect
         team_mask = full_df['TM_KP'].isin(selected_teams)
         subset = full_df[team_mask].copy().reset_index()
         if subset.empty:
@@ -425,7 +338,6 @@ def create_radar_chart(selected_teams, full_df):
 # 6) Treemap Function
 def create_treemap(df_notnull):
     try:
-        # Limit to top 100 teams based on KP_Rank, if available
         if "KP_Rank" in df_notnull.columns:
             top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
         else:
@@ -438,12 +350,11 @@ def create_treemap(df_notnull):
             missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
             st.error(f"Missing required columns for treemap: {missing_cols}")
             return None
-        treemap_data = top_100_teams.copy()  # Avoid modifying original df
+        treemap_data = top_100_teams.copy()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
-        # Create advanced hover text
         def hover_text_func(x):
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
@@ -453,7 +364,6 @@ def create_treemap(df_notnull):
             )
             if "OFF EFF" in x and "DEF EFF" in x:
                 base += f"OFF EFF: {x['OFF EFF']:.1f}<br>DEF EFF: {x['DEF EFF']:.1f}<br>"
-            # Add seed if present
             if "SEED_25" in x and not pd.isna(x["SEED_25"]):
                 base += f"Seed: {int(x['SEED_25'])}"
             return base
@@ -501,7 +411,7 @@ with col1:
 
 treemap = create_treemap(df_main_notnull)
 
-# Final tab structure:
+# Tab Structure:
 # HOME, RADAR CHARTS, REGIONAL HEATMAPS, HISTOGRAM, CORRELATION HEATMAP, 
 # CONFERENCE COMPARISON, TEAM METRICS COMPARISON, TBD
 tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs([
@@ -528,6 +438,7 @@ with tab_home:
             conf_stats.columns = ["Conference", "Avg AdjEM", "Min AdjEM", "Max AdjEM", "Count"]
             conf_stats = conf_stats.sort_values("Avg AdjEM", ascending=False)
             st.markdown("### COMPOSITE CONFERENCE POWER RATINGS")
+            # Use a consistent diverging scale for all three metric columns
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -535,12 +446,16 @@ with tab_home:
                     "Min AdjEM": "{:.2f}",
                     "Max AdjEM": "{:.2f}"
                 })
-                .background_gradient(cmap="RdYlGn", subset=["Avg AdjEM"])
-                .background_gradient(cmap="inferno", subset=["Min AdjEM"])
-                .background_gradient(cmap="viridis", subset=["Max AdjEM"])
+                .background_gradient(cmap="RdYlGn", subset=["Avg AdjEM", "Min AdjEM", "Max AdjEM"])
                 .set_table_styles(detailed_table_styles)
             )
             st.markdown(styled_conf_stats.to_html(), unsafe_allow_html=True)
+            with st.expander("About Conference Treemap:"):
+                st.markdown("""
+                            Conference Treemap visualizes KenPom AdjEM at both team-level and conference-level:
+                            - TBU
+                            - TBU
+                            """)
 
 # --- Radar Charts Tab ---
 with tab_radar:
@@ -593,26 +508,22 @@ with tab_regions:
     df_heat = df_main.copy()
     df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
     df_heat_T = df_heat.T
-    # Updated region seeds as requested (16 seeds each + "TOURNEY AVG")
-    # W region
+    # Define region team seeds (16 seeds each + TOURNEY AVG)
     east_teams_2025 = [
         "Duke", "Tennessee", "Iowa St.", "Maryland", "Texas A&M", "Kansas", "UCLA", "Mississippi St.",
         "Georgia", "Ohio St.", "New Mexico", "Indiana", "Memphis", "Villanova", "Santa Clara", "Pittsburgh",
         "TOURNEY AVG"
     ]
-    # X region
     west_teams_2025 = [
         "Auburn", "Alabama", "Gonzaga", "Purdue", "Illinois", "Saint Mary's", "Marquette", "Michigan",
         "Connecticut", "Oklahoma", "Xavier", "Northwestern", "Boise St.", "West Virginia", "Drake", "Liberty",
         "TOURNEY AVG"
     ]
-    # Y region
     south_teams_2025 = [
         "Houston", "Texas Tech", "Kentucky", "St. John's", "Clemson", "Louisville", "Mississippi", "VCU",
         "North Carolina", "UC San Diego", "San Diego St.", "Vanderbilt", "Colorado St.", "Nebraska", "Penn St.", "Iowa",
         "TOURNEY AVG"
     ]
-    # Z region
     midwest_teams_2025 = [
         "Florida", "Michigan St.", "Wisconsin", "Arizona", "Missouri", "BYU", "Baylor", "Oregon",
         "Creighton", "Arkansas", "Texas", "SMU", "Utah St.", "Cincinnati", "McNeese", "USC",
@@ -676,7 +587,7 @@ with tab_hist:
     )
     fig_hist.update_layout(bargap=0.1)
     st.plotly_chart(fig_hist, use_container_width=True)
-    with st.expander("Glossary of Terms for Histogram Metrics:"):
+    with st.expander("About Histogram Metrics:"):
         st.markdown("""
         **Histogram Metric Description:**
         - **KP_AdjEM**: Adjusted efficiency margin from KenPom ratings.
@@ -699,7 +610,7 @@ with tab_corr:
         st.plotly_chart(fig_corr, use_container_width=True)
     else:
         st.warning("Please select at least 2 metrics for correlation analysis.")
-    with st.expander("Glossary of Terms for Correlation Metrics:"):
+    with st.expander("About Correlation Metrics:"):
         st.markdown("""
         **Correlation Heatmap Glossary:**
         - **Correlation Coefficient**: Measures linear relationship between two variables.
@@ -736,7 +647,7 @@ with tab_conf:
         st.plotly_chart(fig_conf, use_container_width=True)
     else:
         st.error("Conference data is not available.")
-    with st.expander("Glossary of Terms for Conference Comparison:"):
+    with st.expander("About Conference Comparisons:"):
         st.markdown("""
         **Conference Comparison Glossary:**
         - **Avg AdjEM**: Average Adjusted Efficiency Margin.
@@ -757,11 +668,11 @@ with tab_team:
         index=numeric_cols.index("DEF EFF") if "DEF EFF" in numeric_cols else 0
     )
     if "CONFERENCE" in df_main.columns:
-        # Use absolute KP_AdjEM for sizing to prevent negative values.
+        # Use KP_AdjEM_Offset (computed with an offset) for marker sizing
         fig_scatter = px.scatter(
             df_main.reset_index(), x=x_metric, y=y_metric, color="CONFERENCE",
             hover_name="TEAM",
-            size="KP_AdjEM_Pos" if "KP_AdjEM_Pos" in df_main.columns else None,
+            size="KP_AdjEM_Offset" if "KP_AdjEM_Offset" in df_main.columns else None,
             size_max=15, opacity=0.8, template="plotly_dark",
             title=f"{y_metric} vs {x_metric}", height=700
         )
@@ -771,7 +682,7 @@ with tab_team:
             hover_name="TEAM", opacity=0.8,
             template="plotly_dark", title=f"{y_metric} vs {x_metric}"
         )
-    # Add quadrant lines if metrics indicate Off vs Def comparisons
+    # Add quadrant lines for Off vs Def comparisons
     if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
         x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
         fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
