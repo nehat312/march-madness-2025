@@ -100,7 +100,7 @@ B12_logo_path = "images/B12_logo.png"
 BE_logo_path = "images/BE_logo.png"
 BSouth_logo_path = "images/BSouth_logo.png"
 BSky_logo_path = "images/BSky_logo.png"
-BW_logo_path = "images/BW_logo.png"
+BWest_logo_path = "images/BWest_logo.png"
 CAA_logo_path = "images/CAA_logo.png"
 CUSA_logo_path = "images/CUSA_logo.png"
 Horizon_logo_path = "images/Horizon_logo.png"
@@ -115,12 +115,12 @@ OVC_logo_path = "images/OVC_logo.png"
 Patriot_logo_path = "images/Patriot_logo.png"
 SBC_logo_path = "images/SBC_logo.png"
 SEC_logo_path = "images/SEC_logo.png"
-SWAC_logo_path = "images/SWAC_logo.png"
-Summit_logo_path = "images/Summit_logo.png"
 SoCon_logo_path = "images/SoCon_logo.png"
 Southland_logo_path = "images/Southland_logo.png"
+Summit_logo_path = "images/Summit_logo.png"
+SWAC_logo_path = "images/SWAC_logo.png"
 WAC_logo_path = "images/WAC_logo.png"
-#WCC_logo_path = "images/WCC_logo.png"
+WCC_logo_path = "images/WCC_logo.png"
 
 
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
@@ -135,7 +135,7 @@ B12_logo = Image.open(B12_logo_path) if os.path.exists(B12_logo_path) else None
 BE_logo = Image.open(BE_logo_path) if os.path.exists(BE_logo_path) else None
 BSouth_logo = Image.open(BSouth_logo_path) if os.path.exists(BSouth_logo_path) else None
 BSky_logo = Image.open(BSky_logo_path) if os.path.exists(BSky_logo_path) else None
-BW_logo = Image.open(BW_logo_path) if os.path.exists(BW_logo_path) else None
+BWest_logo = Image.open(BWest_logo_path) if os.path.exists(BWest_logo_path) else None
 CAA_logo = Image.open(CAA_logo_path) if os.path.exists(CAA_logo_path) else None
 CUSA_logo = Image.open(CUSA_logo_path) if os.path.exists(CUSA_logo_path) else None
 Horizon_logo = Image.open(Horizon_logo_path) if os.path.exists(Horizon_logo_path) else None
@@ -155,7 +155,7 @@ Summit_logo = Image.open(Summit_logo_path) if os.path.exists(Summit_logo_path) e
 SoCon_logo = Image.open(SoCon_logo_path) if os.path.exists(SoCon_logo_path) else None
 Southland_logo = Image.open(Southland_logo_path) if os.path.exists(Southland_logo_path) else None
 WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
-#WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
+WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
@@ -165,7 +165,7 @@ RdYlGn = px.colors.diverging.RdYlGn
 
 # ----------------------------------------------------------------------------
 # Additional table styling used in Pandas Styler
-# (Global CSS above already handles universal row styling.)
+# (Global CSS above already handles universal row styling)
 header = {
     'selector': 'th',
     'props': [
@@ -182,7 +182,7 @@ detailed_table_styles = [header]
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
 def get_default_metrics():
-    return ['OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM', 'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM']
+    return ['KP_AdjEM', 'AVG MARGIN', 'OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM', 'AST/TO%', 'STOCKS/GM'] #'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM'
 
 def compute_tournament_stats(df):
     metrics = get_default_metrics()
@@ -462,25 +462,25 @@ def create_treemap(df_notnull):
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
-col1, col2 = st.columns([6, 1])
-with col1:
-    if FinalFour25_logo:
-        st.image(FinalFour25_logo, width=250)
-    if NCAA_logo:
-        st.image(NCAA_logo, width=250)
-    if Conferences25_logo:
-        st.image(Conferences25_logo, width=250)
+#col1, col2 = st.columns([6, 1])
+#with col1:
+if FinalFour25_logo:
+    st.image(FinalFour25_logo, width=250)
+    # if NCAA_logo:
+    #     st.image(NCAA_logo, width=250)
+    # if Conferences25_logo:
+    #     st.image(Conferences25_logo, width=250)
 
 # Conference Logos Grid (organized for better display)
 st.subheader("Conference Logos")  # Add a subheader for clarity
 
 # Group the logos for better grid layout
 conference_logos = [
-    [ACC_logo, AAC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo],
-    [BE_logo, BSouth_logo, BSky_logo, BW_logo, CAA_logo, CUSA_logo],
+    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo],
+    [BE_logo, BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo],
     [Horizon_logo, Ivy_logo, MAAC_logo, MAC_logo, MEAC_logo, MVC_logo],
     [MWC_logo, NEC_logo, OVC_logo, Patriot_logo, SBC_logo, SEC_logo],
-    [SWAC_logo, Summit_logo, WAC_logo] #Slnd_logo, WCC_logo
+    [Summit_logo, SWAC_logo, WAC_logo, WCC_logo] #Slnd_logo, 
 ]
 
 # Display the logos in a grid
@@ -491,8 +491,9 @@ for row in conference_logos:
             with cols[i]:
                 st.image(logo, width=100)  # Adjust width as needed
 
-st.write("Toggle tabs below to explore brackets, stats, visualizations for NCAAM March Madness 2025")
+
 st.write("DATA AS OF 3/12/2025")
+st.write("Toggle tabs below to explore brackets, stats, visualizations for NCAAM March Madness 2025")
 
 treemap = create_treemap(df_main_notnull)
 
@@ -503,7 +504,7 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 
 # --- Home Tab ---
 with tab_home:
-    st.subheader("CONFERENCE-LEVEL TREEMAP")
+    st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True)
     else:
@@ -543,7 +544,7 @@ with tab_home:
 
 # --- Radar Charts Tab ---
 with tab_radar:
-    st.header("Team Radar Performance Charts")
+    st.header("TEAM RADAR CHARTS")
     radar_metrics = get_default_metrics()
     available_radar_metrics = [m for m in radar_metrics if m in df_main.columns]
     if len(available_radar_metrics) < 3:
