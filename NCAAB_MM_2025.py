@@ -91,10 +91,62 @@ else:
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
+ACC_logo_path = "images/ACC_logo.png"
+AAC_logo_path = "images/AAC_logo.png"
+AEC_logo_path = "images/AEC_logo.png"
+ASUN_logo_path = "images/ASUN_logo.png"
+B10_logo_path = "images/B10_logo.png"
+B12_logo_path = "images/B12_logo.png"
+BE_logo_path = "images/BE_logo.png"
+BSouth_logo_path = "images/BSouth_logo.png"
+BSky_logo_path = "images/BSky_logo.png"
+BW_logo_path = "images/BW_logo.png"
+CAA_logo_path = "images/CAA_logo.png"
+CUSA_logo_path = "images/CUSA_logo.png"
+Horizon_logo_path = "images/Horizon_logo.png"
+Ivy_logo_path = "images/Ivy_logo.png"
+MAAC_logo_path = "images/MAAC_logo.png"
+MAC_logo_path = "images/MAC_logo.png"
+MEAC_logo_path = "images/MEAC_logo.png"
+MVC_logo_path = "images/MVC_logo.png"
+MWC_logo_path = "images/MWC_logo.png"
+NEC_logo_path = "images/NEC_logo.png"
+OVC_logo_path = "images/OVC_logo.png"
+Patriot_logo_path = "images/Patriot_logo.png"
+SBC_logo_path = "images/SBC_logo.png"
+SEC_logo_path = "images/SEC_logo.png"
+SWAC_logo_path = "images/SWAC_logo.png"
+
 
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
+ACC_logo = Image.open(ACC_logo_path) if os.path.exists(ACC_logo_path) else None
+AAC_logo = Image.open(AAC_logo_path) if os.path.exists(AAC_logo_path) else None
+AEC_logo = Image.open(AEC_logo_path) if os.path.exists(AEC_logo_path) else None
+ASUN_logo = Image.open(ASUN_logo_path) if os.path.exists(ASUN_logo_path) else None
+B10_logo = Image.open(B10_logo_path) if os.path.exists(B10_logo_path) else None
+B12_logo = Image.open(B12_logo_path) if os.path.exists(B12_logo_path) else None
+BE_logo = Image.open(BE_logo_path) if os.path.exists(BE_logo_path) else None
+BSouth_logo = Image.open(BSouth_logo_path) if os.path.exists(BSouth_logo_path) else None
+BSky_logo = Image.open(BSky_logo_path) if os.path.exists(BSky_logo_path) else None
+BW_logo = Image.open(BW_logo_path) if os.path.exists(BW_logo_path) else None
+CAA_logo = Image.open(CAA_logo_path) if os.path.exists(CAA_logo_path) else None
+CUSA_logo = Image.open(CUSA_logo_path) if os.path.exists(CUSA_logo_path) else None
+Horizon_logo = Image.open(Horizon_logo_path) if os.path.exists(Horizon_logo_path) else None
+Ivy_logo = Image.open(Ivy_logo_path) if os.path.exists(Ivy_logo_path) else None
+MAAC_logo = Image.open(MAAC_logo_path) if os.path.exists(MAAC_logo_path) else None
+MAC_logo = Image.open(MAC_logo_path) if os.path.exists(MAC_logo_path) else None
+MEAC_logo = Image.open(MEAC_logo_path) if os.path.exists(MEAC_logo_path) else None
+MVC_logo = Image.open(MVC_logo_path) if os.path.exists(MVC_logo_path) else None
+MWC_logo = Image.open(MWC_logo_path) if os.path.exists(MWC_logo_path) else None
+NEC_logo = Image.open(NEC_logo_path) if os.path.exists(NEC_logo_path) else None
+OVC_logo = Image.open(OVC_logo_path) if os.path.exists(OVC_logo_path) else None
+Patriot_logo = Image.open(Patriot_logo_path) if os.path.exists(Patriot_logo_path) else None
+SBC_logo = Image.open(SBC_logo_path) if os.path.exists(SBC_logo_path) else None
+SEC_logo = Image.open(SEC_logo_path) if os.path.exists(SEC_logo_path) else None
+SWAC_logo = Image.open(SWAC_logo_path) if os.path.exists(SWAC_logo_path) else None
+
 
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
@@ -409,6 +461,56 @@ with col1:
         st.image(NCAA_logo, width=250)
     if Conferences25_logo:
         st.image(Conferences25_logo, width=250)
+    if ACC_logo:
+        st.image(ACC_logo, width=150)
+    if AAC_logo:
+        st.image(AAC_logo, width=150)
+    if AEC_logo:
+        st.image(AEC_logo, width=150)
+    if ASUN_logo:
+        st.image(ASUN_logo, width=150)
+    if B10_logo:
+        st.image(B10_logo, width=150)
+    if B12_logo:
+        st.image(B12_logo, width=150)
+    if BE_logo:
+        st.image(BE_logo, width=150)
+    if BSouth_logo:
+        st.image(BSouth_logo, width=150)
+    if BSky_logo:
+        st.image(BSky_logo, width=150)
+    if BW_logo:
+        st.image(BW_logo, width=150)
+    if CAA_logo:
+        st.image(CAA_logo, width=150)
+    if CUSA_logo:
+        st.image(CUSA_logo, width=150)
+    if Horizon_logo:
+        st.image(Horizon_logo, width=150)
+    if Ivy_logo:
+        st.image(Ivy_logo, width=150)
+    if MAAC_logo:
+        st.image(MAAC_logo, width=150)
+    if MAC_logo:
+        st.image(MAC_logo, width=150)
+    if MEAC_logo:
+        st.image(MEAC_logo, width=150)
+    if MVC_logo:
+        st.image(MVC_logo, width=150)
+    if MWC_logo:
+        st.image(MWC_logo, width=150)
+    if NEC_logo:
+        st.image(NEC_logo, width=150)
+    if OVC_logo:
+        st.image(OVC_logo, width=150)
+    if Patriot_logo:
+        st.image(Patriot_logo, width=150)
+    if SBC_logo:
+        st.image(SBC_logo, width=150)
+    if SEC_logo:
+        st.image(SEC_logo, width=150)
+    if SWAC_logo:
+        st.image(SWAC_logo, width=150)
 
 st.write("Toggle tabs below to explore brackets, stats, visualizations for NCAAM March Madness 2025")
 st.write("DATA AS OF 3/12/2025")
