@@ -1,100 +1,57 @@
 [theme]
-# Base Theme (light or dark)
 base = "light"
-
-## Modern Tech March Madness ##
-primaryColor = "#50C878"  # Emerald Green (Sophisticated, vibrant primary)
-backgroundColor = "#1E1E1E" # Dark Charcoal (Deep, rich background)
-secondaryBackgroundColor = "#333333" # Medium Gray (Versatile secondary background)
-textColor = "#E0E0E0" # Light Gray (Soft, readable text)
+primaryColor = "#50C878"
+backgroundColor = "#1E1E1E"
+secondaryBackgroundColor = "#333333"
+textColor = "#E0E0E0"
 font = "sans serif"
 
-# Dark Mode Specific Overrides
 [theme.dark]
-primaryColor = "#6495ED" # Cornflower Blue (Calm, engaging primary in dark mode)
-backgroundColor = "#121212" # Very Dark Gray (Deeper dark background)
-secondaryBackgroundColor = "#282828" # Darker Gray (Dark secondary background)
-textColor = "#D1D1D1" # Soft White (Readable text in dark mode)
+primaryColor = "#6495ED"
+backgroundColor = "#121212"
+secondaryBackgroundColor = "#282828"
+textColor = "#D1D1D1"
 
-
-# Component Styling (Fine-Grained Control)
 [theme.components]
-# Buttons
-button = { primaryColor = "#50C878", textColor = "#1E1E1E", borderRadius = "25px", padding = "12px 25px", fontWeight = "600", boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)", border = "1px solid transparent" }
-# Slider
-slider = { primaryColor = "#50C878", trackColor = "#333333", thumbColor = "#50C878", trackHeight = "6px", thumbSize = "18px" }
-# Selectbox
-selectbox = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
-# Text Input
-textInput = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
-# Expander
-expander = { borderColor = "#333333", borderRadius = "25px", border = "1px solid #333333"}
+button = { 
+    primaryColor = "#50C878",
+    textColor = "#1E1E1E",
+    borderRadius = "25px",
+    padding = "12px 25px",
+    fontWeight = "600",
+    boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)",
+    border = "1px solid transparent"
+}
+slider = {
+    primaryColor = "#50C878",
+    trackColor = "#333333",
+    thumbColor = "#50C878",
+    trackHeight = "6px",
+    thumbSize = "18px"
+}
+selectbox = {
+    borderColor = "#333333",
+    borderRadius = "25px",
+    padding = "10px",
+    focusBorderColor = "#50C878"
+}
+textInput = {
+    borderColor = "#333333",
+    borderRadius = "25px",
+    padding = "10px",
+    focusBorderColor = "#50C878"
+}
+expander = {
+    borderColor = "#333333",
+    borderRadius = "25px",
+    border = "1px solid #333333"
+}
 
-# Font Customization (Advanced)
 [theme.fonts]
 bodyFont = "Roboto, sans-serif"
 headingFont = "Montserrat, sans-serif"
 monospaceFont = "Fira Mono, monospace"
 
-# Layout and Spacing
 [layout]
 wideMode = true
 spacing = "large"
-#padding = "1.5rem"
-
-
-## HARDWOOD THEME ##
-#primaryColor="#DADADA"
-#backgroundColor= "#1A1A1D" #"" #hardwoodlightbrown attempts: #"#E9D0AF" #E4C49B  #DEB887 
-#secondaryBackgroundColor="#DADADA"
-#textColor= "#FFFFFF"
-#font="sans serif"
-
-#[theme]
-#base = "light"
-#primaryColor = "#50C878"
-#backgroundColor = "#1E1E1E"
-#secondaryBackgroundColor = "#333333"
-#textColor = "#E0E0E0"
-#font = "sans serif"
-
-[theme.dark]
-#primaryColor = "#6495ED"
-#backgroundColor = "#121212"
-#secondaryBackgroundColor = "#282828"
-#textColor = "#D1D1D1"
-
-#[theme.components]
-#button = { 
-#    primaryColor = "#50C878",
-#    textColor = "#1E1E1E",
-#    borderRadius = "25px",
-#    padding = "12px 25px",
-#    fontWeight = "600",
-#    boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)",
-#    border = "1px solid transparent"
-#}
-#slider = {
-#    primaryColor = "#50C878",
-#    trackColor = "#333333",
-#    thumbColor = "#50C878",
-#    trackHeight = "6px",
-#    thumbSize = "18px"
-#}
-#selectbox = {
-#    borderColor = "#333333",
-#    borderRadius = "25px",
-#    padding = "10px",
-#    focusBorderColor = "#50C878"
-#}
-#textInput = {
-#    borderColor = "#333333",
-#    borderRadius = "25px",
-#    padding = "10px",
-#    focusBorderColor = "#50C878"
-#}
-#expander = {
-#    borderColor = "#333333",
-#    borderRadius = "25px",
-#    border = "1px solid #333333"
-v}
