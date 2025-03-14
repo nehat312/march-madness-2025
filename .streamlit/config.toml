@@ -13,39 +13,11 @@ secondaryBackgroundColor = "#282828"
 textColor = "#D1D1D1"
 
 [theme.components]
-button = { 
-    primaryColor = "#50C878",
-    textColor = "#1E1E1E",
-    borderRadius = "25px",
-    padding = "12px 25px",
-    fontWeight = "600",
-    boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)",
-    border = "1px solid transparent"
-}
-slider = {
-    primaryColor = "#50C878",
-    trackColor = "#333333",
-    thumbColor = "#50C878",
-    trackHeight = "6px",
-    thumbSize = "18px"
-}
-selectbox = {
-    borderColor = "#333333",
-    borderRadius = "25px",
-    padding = "10px",
-    focusBorderColor = "#50C878"
-}
-textInput = {
-    borderColor = "#333333",
-    borderRadius = "25px",
-    padding = "10px",
-    focusBorderColor = "#50C878"
-}
-expander = {
-    borderColor = "#333333",
-    borderRadius = "25px",
-    border = "1px solid #333333"
-}
+button = { primaryColor = "#50C878", textColor = "#1E1E1E", borderRadius = "25px", padding = "12px 25px", fontWeight = "600", boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)", border = "1px solid transparent" }
+slider = { primaryColor = "#50C878", trackColor = "#333333", thumbColor = "#50C878", trackHeight = "6px", thumbSize = "18px" }
+selectbox = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
+textInput = { borderColor = "#333333", borderRadius = "25px", padding = "10px", focusBorderColor = "#50C878" }
+expander = { borderColor = "#333333", borderRadius = "25px", border = "1px solid #333333" }
 
 [theme.fonts]
 bodyFont = "Roboto, sans-serif"
