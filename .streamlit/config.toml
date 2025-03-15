@@ -23,7 +23,7 @@ messageFormat = "%(asctime)s %(message)s"
 
 [client]
 # Developer Tools
-showErrorDetails = "none", # "full", "stacktrace", "type"
+showErrorDetails = "none" # "full", "stacktrace", "type"
 #toolbarMode = "auto" #"developer", "viewer", "minimal"
 #showSidebarNavigation = true
 
@@ -38,7 +38,7 @@ showErrorDetails = "none", # "full", "stacktrace", "type"
 #headless = false
 #runOnSave = false
 
-# SECURITY
+#SECURITY
 #address = 
 #port = 8501
 #baseUrlPath = ""
@@ -51,8 +51,7 @@ showErrorDetails = "none", # "full", "stacktrace", "type"
 #maxMessageSize = 200
 #disconnectedSessionTTL = 120
 
-
 #[browser]
 #serverAddress = "localhost"
-#gatherUsageStats = true
+gatherUsageStats = true
 #serverPort = 8501
