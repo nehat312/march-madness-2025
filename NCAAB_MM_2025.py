@@ -487,7 +487,7 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
-    st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
+    st.subheader(":orange[_NCAAM BASKETBALL CONFERENCE TREEMAP_]", divider='orange')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
@@ -500,13 +500,14 @@ with tab_home:
         if "KP_AdjEM" in df_main.columns:
             conf_stats = (
                 df_main.groupby("CONFERENCE")["KP_AdjEM"]
-                .agg(["mean", "min", "max", "count"])
+                .agg([ "count", "max", "mean", "min"])
                 .reset_index()
             )
             conf_stats.columns = ["CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
-            st.markdown("### CONFERENCE POWER RANKINGS")
+            #st.markdown("### CONFERENCE POWER RANKINGS")
+            st.subheader(":orange[_NCAAM BASKETBALL CONFERENCE POWER RANKINGS_]", divider='orange')
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -545,10 +546,10 @@ with tab_home:
                 with cols[i]:
                     st.image(logo, width=75)
 
-    col1, col2 = st.columns([6, 1])
-    with col1:
-        if FinalFour25_logo:
-            st.image(FinalFour25_logo, width=750)
+    #col1, col2 = st.columns([6, 1])
+    #with col1:
+    if FinalFour25_logo:
+        st.image(FinalFour25_logo, width=750)
         # if NCAA_logo:
         #     st.image(NCAA_logo, width=250)
         # if Conferences25_logo:
@@ -814,12 +815,12 @@ with tab_team:
 
 # --- TBD Tab ---
 with tab_tbd:
-    st.header("To Be Determined")
-    st.info("Additional visualizations, bracket analysis, simulations coming soon.")
+    st.header("BRACKET SIMULATIONS -- TO BE UPDATED")
+    st.info("Additional visualizations, bracket simulations coming soon.")
 
 # ----------------------------------------------------------------------------
 # GitHub Link & App Footer
 st.markdown("---")
-st.markdown("Code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+st.caption(":green[_Code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)_]")
 
 st.stop()
