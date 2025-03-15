@@ -497,32 +497,10 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
-    # st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
-    # st.caption("_DATA AS OF:_ :green[3/12/2025]")
-    # if treemap is not None:
-    #     st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-    # else:
-    #     st.warning("TREEMAP OVERHEATED.")
-
-    #with st.container():
     st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
     st.caption("_DATA AS OF:_ :green[3/12/2025]")
-
     if treemap is not None:
-        click_events = plotly_events(treemap, click_event=True, key="treemap_events")
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-        if click_events: # If click event is detected, extract team details
-            clicked_point = click_events[0]
-            team_label = clicked_point.get("label")
-            if team_label:
-                if team_label in df_main.index:
-                    team_info = df_main.loc[team_label]
-                    st.markdown(f"### Team Details: {team_label}")
-                    st.write(team_info)
-                else:
-                    st.info("Clicked node does not match a team entry.")
-            else:
-                st.info("Please click on a team node to view details.")
     else:
         st.warning("TREEMAP OVERHEATED.")
 
@@ -536,17 +514,17 @@ with tab_home:
                 .reset_index()
             )
             conf_stats.columns = ["CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
-            conf_stats = conf_stats.sort_values("Avg AdjEM", ascending=False)
+            conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
-            st.markdown("### CONFERENCE POWER RANKING")
+            st.markdown("### CONFERENCE POWER RANKINGS")
             styled_conf_stats = (
                 conf_stats.style
                 .format({
-                    "Avg AdjEM": "{:.2f}",
-                    "Min AdjEM": "{:.2f}",
-                    "Max AdjEM": "{:.2f}"
+                    "MEAN AdjEM": "{:.2f}",
+                    "MIN AdjEM": "{:.2f}",
+                    "MAX AdjEM": "{:.2f}"
                 })
-                .background_gradient(cmap="RdYlGn", subset=["Avg AdjEM", "Min AdjEM", "Max AdjEM"])
+                .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
                 .set_table_styles(detailed_table_styles)
             )
             st.markdown(styled_conf_stats.to_html(), unsafe_allow_html=True)
