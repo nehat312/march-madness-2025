@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_plotly_events import plotly_events
 import pandas as pd
 import numpy as np
 import plotly.express as px
