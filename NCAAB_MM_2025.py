@@ -475,7 +475,13 @@ def create_treemap(df_notnull):
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs --- #
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
-st.write("2025 MARCH MADNESS RESEARCH HUB")
+st.write(":yellow[2025 MARCH MADNESS RESEARCH HUB]") #"_DATA AS OF:_ :green[3/12/2025]"
+st.write("Explore visualizations across the tabs below and watch your bracket soar to the top of your pool's leaderboard.")
+
+tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs([
+    "HOME", "RADAR CHARTS", "REGIONAL HEATMAPS", "HISTOGRAM",
+    "CORRELATION HEATMAP", "CONFERENCE COMPARISON", "TEAM METRICS COMPARISON", "TBD"
+])
 col1, col2 = st.columns([6, 1])
 with col1:
     if FinalFour25_logo:
@@ -486,19 +492,12 @@ with col1:
     #     st.image(Conferences25_logo, width=250)
 
 
-st.write("Toggle tabs below to explore NCAAM March Madness 2025 brackets and informational visualizations.")
-
-tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs([
-    "HOME", "RADAR CHARTS", "REGIONAL HEATMAPS", "HISTOGRAM",
-    "CORRELATION HEATMAP", "CONFERENCE COMPARISON", "TEAM METRICS COMPARISON", "TBD"
-])
-
 # --- Home Tab --- #
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
     st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
-    st.caption("_DATA AS OF:_ :green[3/12/2025]")
+    st.caption(":green[_DATA AS OF: 3/12/2025_]")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     else:
