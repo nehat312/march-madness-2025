@@ -475,22 +475,13 @@ def create_treemap(df_notnull):
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs --- #
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
-st.write(":yellow[2025 MARCH MADNESS RESEARCH HUB]") #"_DATA AS OF:_ :green[3/12/2025]"
-st.write("Explore visualizations across the tabs below and watch your bracket soar to the top of your pool's leaderboard.")
+st.caption(":yellow[2025 MARCH MADNESS RESEARCH HUB]") #st.caption(":green[_DATA AS OF: 3/12/2025_]")
+st.caption(":yellow[_Explore visualizations across the tabs below and watch your bracket soar to the top of your pool's leaderboard._")
 
 tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs([
     "HOME", "RADAR CHARTS", "REGIONAL HEATMAPS", "HISTOGRAM",
-    "CORRELATION HEATMAP", "CONFERENCE COMPARISON", "TEAM METRICS COMPARISON", "TBD"
-])
-col1, col2 = st.columns([6, 1])
-with col1:
-    if FinalFour25_logo:
-        st.image(FinalFour25_logo, width=250)
-    if NCAA_logo:
-        st.image(NCAA_logo, width=250)
-    # if Conferences25_logo:
-    #     st.image(Conferences25_logo, width=250)
-
+    "CORRELATION HEATMAP", "CONFERENCE COMPARISON", "TEAM METRICS COMPARISON", "TBU",
+    ])
 
 # --- Home Tab --- #
 treemap = create_treemap(df_main_notnull)
@@ -521,7 +512,8 @@ with tab_home:
                 .format({
                     "MEAN AdjEM": "{:.2f}",
                     "MIN AdjEM": "{:.2f}",
-                    "MAX AdjEM": "{:.2f}"
+                    "MAX AdjEM": "{:.2f}",
+                    "# TEAMS": "{:.0f}",
                 })
                 .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
                 .set_table_styles(detailed_table_styles)
@@ -536,7 +528,33 @@ with tab_home:
                     - **Count**: Number of teams in the conference
                 """)
 
-# --- Radar Charts Tab ---
+    
+    # CONFERENCE LOGOS GRID
+    # st.subheader("CONFERENCE LOGOS")
+    conference_logos = [
+        [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
+        [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
+        [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
+        [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
+        ]
+
+    for row in conference_logos:
+        cols = st.columns(len(row))
+        for i, logo in enumerate(row):
+            if logo:
+                with cols[i]:
+                    st.image(logo, width=75)
+
+    col1, col2 = st.columns([6, 1])
+    with col1:
+        if FinalFour25_logo:
+            st.image(FinalFour25_logo, width=750)
+        # if NCAA_logo:
+        #     st.image(NCAA_logo, width=250)
+        # if Conferences25_logo:
+        #     st.image(Conferences25_logo, width=250)
+
+# --- Radar Charts Tab --- #
 with tab_radar:
     st.header("TEAM RADAR CHARTS")
     radar_metrics = get_default_metrics()
@@ -582,7 +600,7 @@ with tab_radar:
         else:
             st.warning("Team names not available in dataset.")
 
-# --- Regional Heatmaps Tab ---
+# --- Regional Heatmaps Tab --- #
 with tab_regions:
     st.header("BRACKET ANALYSIS")
     st.write("REGIONAL HEATFRAMES (W, X, Y, Z)")
@@ -659,7 +677,7 @@ with tab_regions:
         else:
             st.info(f"No data available for {region_name}.")
 
-# --- Histogram Tab ---
+# --- Histogram Tab --- #
 with tab_hist:
     st.header("Histogram")
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
@@ -683,7 +701,7 @@ with tab_hist:
         - Other metrics follow similar definitions as per NCAA advanced statistics.
         """)
 
-# --- Correlation Heatmap Tab ---
+# --- Correlation Heatmap Tab --- #
 with tab_corr:
     st.header("Correlation Heatmap")
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
@@ -712,7 +730,7 @@ with tab_corr:
         - **Metrics**: Derived from advanced team statistics.
         """)
 
-# --- Conference Comparison Tab ---
+# --- Conference Comparison Tab --- #
 with tab_conf:
     st.header("Conference Comparison")
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
@@ -750,7 +768,7 @@ with tab_conf:
         - Metrics provide insight into relative conference strength.
         """)
 
-# --- Team Metrics Comparison Tab ---
+# --- Team Metrics Comparison Tab --- #
 with tab_team:
     st.header("Team Metrics Comparison")
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
@@ -782,10 +800,10 @@ with tab_team:
         fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
         fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
         quadrants = [
-            {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "Poor Both"},
-            {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "Good X Only"},
-            {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "Good Y Only"},
-            {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "Elite Both"}
+            {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
+            {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/DEF"},
+            {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "SOLID DEF"},
+            {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "SOLID OFF"}
         ]
         for q in quadrants:
             fig_scatter.add_annotation(
@@ -803,21 +821,5 @@ with tab_tbd:
 # GitHub Link & App Footer
 st.markdown("---")
 st.markdown("Code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
-
-# CONFERENCE LOGOS GRID
-# st.subheader("CONFERENCE LOGOS")
-conference_logos = [
-    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
-    [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
-    [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
-    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
-    ]
-
-for row in conference_logos:
-    cols = st.columns(len(row))
-    for i, logo in enumerate(row):
-        if logo:
-            with cols[i]:
-                st.image(logo, width=65)
 
 st.stop()
