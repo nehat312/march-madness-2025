@@ -10,7 +10,8 @@ import os, math
 
 # --- Streamlit Setup ---
 st.set_page_config(page_title="NCAA BASKETBALL -- MARCH MADNESS 2025",
-                   layout="wide", initial_sidebar_state="auto")
+                   layout="wide", initial_sidebar_state="auto",
+                   page_icon="🏀",)
 
 # Hide default Streamlit menu/footer
 hide_menu_style = """
@@ -22,27 +23,142 @@ hide_menu_style = """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # Inject global CSS for all HTML tables
-global_table_css = """
+# global_table_css = """
+# <style>
+# table {
+#   border-collapse: collapse;
+#   width: 100%;
+#   font-family: Arial, sans-serif;
+# }
+# table, th, td {
+#   border: 1px solid #000000;
+# }
+# th, td {
+#   text-align: center;
+#   padding: 6px 8px;
+#   font-weight: bold;
+#   font-size: 12px;
+#   vertical-align: middle;
+# }
+# </style>
+# """
+
+PRIMARY_COLOR = "#0360CE"  #  blue
+SECONDARY_COLOR = "#FF9800"  # Complementary orange for highlights
+BACKGROUND_COLOR = "#0E1117"  # Dark background
+TEXT_COLOR = "#FFFFFF"  # White text
+ACCENT_COLOR = "#4CAF50"  # Green accent
+
+# Enhanced CSS with better typography and spacing
+custom_css = """
 <style>
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: Arial, sans-serif;
-}
-table, th, td {
-  border: 1px solid #000000;
-}
-th, td {
-  text-align: center;
-  padding: 6px 8px;
-  font-weight: bold;
-  font-size: 12px;
-  vertical-align: middle;
-}
+    /* Typography improvements */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Arial', sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Table styling enhancements */
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        font-family: Arial, sans-serif;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    table, th, td {
+        border: 1px solid #222;
+    }
+    
+    th, td {
+        text-align: center;
+        padding: 8px 10px;
+        font-weight: bold;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+    
+    th {
+        background-color: """ + PRIMARY_COLOR + """;
+        color: white;
+        font-weight: 800;
+    }
+    
+    tr:nth-child(even) {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    tr:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Card-like containers for better visual hierarchy */
+    .stat-card {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Hidden Streamlit elements */
+    #MainMenu {visibility: hidden; }
+    footer {visibility: hidden;}
+    
+    /* Custom badges for team performance */
+    .badge-elite {
+        background-color: gold;
+        color: black;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 11px;
+    }
+    
+    .badge-solid {
+        background-color: #4CAF50;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 11px;
+    }
+    
+    .badge-mid {
+        background-color: #2196F3;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 11px;
+    }
+    
+    .badge-subpar {
+        background-color: #FF9800;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 11px;
+    }
+    
+    .badge-weak {
+        background-color: #F44336;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 11px;
+    }
 </style>
 """
-st.markdown(global_table_css, unsafe_allow_html=True)
 
+#st.markdown(global_table_css, unsafe_allow_html=True)
+st.markdown(custom_css, unsafe_allow_html=True)
 # ----------------------------------------------------------------------------
 # Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
@@ -169,7 +285,7 @@ viz_bg_color = '#0360CE'
 viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
 Spectral = px.colors.diverging.Spectral
-
+RdBu_r = px.colors.diverging.RdBu_r
 # ----------------------------------------------------------------------------
 # Additional table styling used in Pandas Styler
 # (Global CSS above already handles universal row styling)
@@ -215,18 +331,20 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
                 z = -z
             z_vals.append(z)
     if not z_vals:
-        return "No Data"
+        return {"text": "NO DATA", "class": "badge-mid"}
+    
     avg_z = sum(z_vals) / len(z_vals)
+    
     if avg_z > 1.5:
-        return "ELITE"
+        return {"text": "ELITE", "class": "badge-elite"}
     elif avg_z > 0.5:
-        return "SOLID"
+        return {"text": "SOLID", "class": "badge-solid"}
     elif avg_z > -0.5:
-        return "MID"
+        return {"text": "MID", "class": "badge-mid"}
     elif avg_z > -1.5:
-        return "SUBPAR"
+        return {"text": "SUBPAR", "class": "badge-subpar"}
     else:
-        return "WEAK"
+        return {"text": "WEAK", "class": "badge-weak"}
 
 def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     metrics = get_default_metrics()
@@ -306,25 +424,123 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     )
     return [trace_team, trace_ncaam, trace_conf]
 
+# def create_radar_chart(selected_teams, full_df):
+#     metrics = get_default_metrics()
+#     available_radar_metrics = [m for m in metrics if m in full_df.columns]
+#     if len(available_radar_metrics) < 3:
+#         return None
+
+#     team_mask = full_df['TM_KP'].isin(selected_teams)
+#     subset = full_df[team_mask].copy().reset_index()
+#     if subset.empty:
+#         return None
+
+#     t_avgs, t_stdevs = compute_tournament_stats(full_df)
+#     n_teams = len(subset)
+#     # Increase overall figure height to reduce cramping
+#     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
+#     # Adjust spacing for better readability
+#     row_count = 1 if n_teams <= 4 else 2
+#     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
+
+#     subplot_titles = []
+#     for i, row in subset.iterrows():
+#         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
+#         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
+#         seed_str = ""
+#         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
+#             seed_str = f" - Seed {int(row['SEED_25'])}"
+#         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
+
+#     fig = make_subplots(
+#         rows=row_count,
+#         cols=col_count,
+#         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
+#         subplot_titles=subplot_titles,
+#         horizontal_spacing=0.10,
+#         vertical_spacing=0.20
+#     )
+#     fig.update_layout(
+#         height=fig_height,
+#         title="Radar Dashboards for Selected Teams",
+#         template='plotly_dark',
+#         font=dict(size=12),
+#         showlegend=True,
+#         margin=dict(l=50, r=50, t=80, b=50)
+#     )
+#     # Slightly larger fonts and no angular tilt
+#     fig.update_polars(
+#         radialaxis=dict(
+#             tickmode='array',
+#             tickvals=[0, 2, 4, 6, 8, 10],
+#             ticktext=['0', '2', '4', '6', '8', '10'],
+#             tickfont=dict(size=11),
+#             showline=False,
+#             gridcolor='gray'
+#         ),
+#         angularaxis=dict(
+#             tickfont=dict(size=11),
+#             tickangle=0,
+#             showline=False,
+#             gridcolor='gray'
+#         )
+#     )
+
+#     for idx, team_row in subset.iterrows():
+#         r = idx // col_count + 1
+#         c = idx % col_count + 1
+#         show_legend = (idx == 0)
+#         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
+#         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
+
+#         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
+#         for tr in traces:
+#             fig.add_trace(tr, row=r, col=c)
+
+#         perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
+#         polar_idx = (r - 1) * col_count + c
+#         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
+#         # Place performance text near top-left of each subplot
+#         if polar_key in fig.layout:
+#             domain_x = fig.layout[polar_key].domain.x
+#             domain_y = fig.layout[polar_key].domain.y
+#             x_annot = domain_x[0] + 0.02
+#             y_annot = domain_y[1] - 0.02
+#         else:
+#             x_annot, y_annot = 0.05, 0.95
+#         fig.add_annotation(
+#             x=x_annot,
+#             y=y_annot,
+#             xref="paper",
+#             yref="paper",
+#             text=f"<b>{perf_text}</b>",
+#             showarrow=False,
+#             font=dict(size=12, color="gold")
+#         )
+
+#     return fig
+
 def create_radar_chart(selected_teams, full_df):
     metrics = get_default_metrics()
     available_radar_metrics = [m for m in metrics if m in full_df.columns]
     if len(available_radar_metrics) < 3:
         return None
-
+        
     team_mask = full_df['TM_KP'].isin(selected_teams)
     subset = full_df[team_mask].copy().reset_index()
     if subset.empty:
         return None
-
+        
     t_avgs, t_stdevs = compute_tournament_stats(full_df)
     n_teams = len(subset)
+    
     # Increase overall figure height to reduce cramping
     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
+    
     # Adjust spacing for better readability
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
-
+    
     subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
@@ -332,8 +548,12 @@ def create_radar_chart(selected_teams, full_df):
         seed_str = ""
         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
             seed_str = f" - Seed {int(row['SEED_25'])}"
+        
+        # Create more attractive subplot titles with performance rating
+        perf_data = compute_performance_text(row, t_avgs, t_stdevs)
+        
         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
-
+    
     fig = make_subplots(
         rows=row_count,
         cols=col_count,
@@ -342,47 +562,71 @@ def create_radar_chart(selected_teams, full_df):
         horizontal_spacing=0.10,
         vertical_spacing=0.20
     )
+    
+    # Enhanced radar chart styling
     fig.update_layout(
         height=fig_height,
-        title="Radar Dashboards for Selected Teams",
+        title={
+            'text': "Team Performance Radar Charts",
+            'font': {'size': 24, 'family': 'Arial, sans-serif', 'color': 'white'},
+            'y': 0.98,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
         template='plotly_dark',
-        font=dict(size=12),
+        font=dict(family="Arial, sans-serif", size=12),
         showlegend=True,
-        margin=dict(l=50, r=50, t=80, b=50)
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            bgcolor="rgba(0,0,0,0.1)"
+        ),
+        margin=dict(l=50, r=50, t=80, b=50),
+        paper_bgcolor="rgba(0,0,0,0.1)",
+        plot_bgcolor="rgba(0,0,0,0.1)"
     )
-    # Slightly larger fonts and no angular tilt
+    
+    # Enhanced polar styles
     fig.update_polars(
         radialaxis=dict(
             tickmode='array',
             tickvals=[0, 2, 4, 6, 8, 10],
             ticktext=['0', '2', '4', '6', '8', '10'],
-            tickfont=dict(size=11),
+            tickfont=dict(size=11, family="Arial, sans-serif"),
             showline=False,
-            gridcolor='gray'
+            gridcolor='rgba(255,255,255,0.2)'
         ),
         angularaxis=dict(
-            tickfont=dict(size=11),
+            tickfont=dict(size=12, family="Arial, sans-serif", color="white"),
             tickangle=0,
             showline=False,
-            gridcolor='gray'
-        )
+            gridcolor='rgba(255,255,255,0.2)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        bgcolor="rgba(0,0,0,0.2)"
     )
-
+    
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
         c = idx % col_count + 1
         show_legend = (idx == 0)
+        
         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
-
+        
         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
-
-        perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
+        
+        perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
         polar_idx = (r - 1) * col_count + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
-        # Place performance text near top-left of each subplot
+        
+        # Place performance text near top-left of each subplot with badge styling
         if polar_key in fig.layout:
             domain_x = fig.layout[polar_key].domain.x
             domain_y = fig.layout[polar_key].domain.y
@@ -390,16 +634,29 @@ def create_radar_chart(selected_teams, full_df):
             y_annot = domain_y[1] - 0.02
         else:
             x_annot, y_annot = 0.05, 0.95
+        
+        # Badge-style annotation with appropriate color based on performance
         fig.add_annotation(
             x=x_annot,
             y=y_annot,
             xref="paper",
             yref="paper",
-            text=f"<b>{perf_text}</b>",
+            text=f"<b>{perf_data['text']}</b>",
             showarrow=False,
-            font=dict(size=12, color="gold")
+            font=dict(size=12, color="white"),
+            bgcolor={
+                "badge-elite": "gold",
+                "badge-solid": "#4CAF50",
+                "badge-mid": "#2196F3",
+                "badge-subpar": "#FF9800", 
+                "badge-weak": "#F44336"
+            }.get(perf_data['class'], "#2196F3"),
+            bordercolor="white",
+            borderwidth=1,
+            borderpad=4,
+            opacity=0.9
         )
-
+    
     return fig
 
 # ----------------------------------------------------------------------------
@@ -443,7 +700,7 @@ def create_treemap(df_notnull):
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.Spectral,
+            color_continuous_scale=px.colors.diverging.RdBu_r,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
@@ -662,6 +919,14 @@ with tab_regions:
                     region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
 
             region_styler = region_styler.set_table_styles(detailed_table_styles)
+            with st.expander("📊 Key Metrics Explained"):
+                st.markdown("""
+                            - **KP_Rank**: KenPom team ranking (lower is better)
+                            - **KP_AdjEM**: Adjusted efficiency margin (higher is better)
+                            - **WIN% CLOSE GM**: Win percentage in games decided by 5 points or less
+                            - **OFF/DEF EFF**: Points scored/allowed per 100 possessions
+                            - **eFG%/TS%**: Effective field goal & true shooting percentages
+                            """)
             st.markdown(region_styler.to_html(), unsafe_allow_html=True)
         else:
             st.info(f"No data available for {region_name}.")
