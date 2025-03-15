@@ -403,77 +403,9 @@ def create_radar_chart(selected_teams, full_df):
     return fig
 
 # ----------------------------------------------------------------------------
-# 6) Treemap Function
-# def create_treemap(df_notnull):
-#     try:
-#         if "KP_Rank" in df_notnull.columns:
-#             top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
-#         else:
-#             top_100_teams = df_notnull.copy()
-#         if top_100_teams.empty:
-#             st.warning("No data to display in treemap.")
-#             return None
-#         required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
-#         if not all(col in top_100_teams.columns for col in required_columns):
-#             missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
-#             st.error(f"Missing required columns for treemap: {missing_cols}")
-#             return None
-#         treemap_data = top_100_teams.copy()
-#         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
-#         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
-#         if "TM_KP" not in treemap_data.columns:
-#             treemap_data["TM_KP"] = treemap_data["TEAM"]
-
-#         def hover_text_func(x):
-#             base = (
-#                 f"<b>{x['TM_KP']}</b><br>"
-#                 f"KP Rank: {int(x['KP_Rank'])}<br>"
-#                 f"Record: {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
-#                 f"AdjEM: {x['KP_AdjEM']:.1f}<br>"
-#             )
-#             if "OFF EFF" in x and "DEF EFF" in x:
-#                 base += f"OFF EFF: {x['OFF EFF']:.1f}<br>DEF EFF: {x['DEF EFF']:.1f}<br>"
-#             if "SEED_25" in x and not pd.isna(x["SEED_25"]):
-#                 base += f"Seed: {int(x['SEED_25'])}"
-#             return base
-
-#         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
-#         treemap = px.treemap(
-#             treemap_data,
-#             path=["CONFERENCE", "TM_KP"],
-#             values="KP_AdjEM",
-#             color="KP_AdjEM",
-#             color_continuous_scale=px.colors.diverging.Spectral,
-#             hover_data=["hover_text"],
-#             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
-#         )
-#         treemap.update_traces(
-#             hovertemplate='%{customdata[0]}',
-#             texttemplate='<b>%{label}</b><br>%{value:.1f}',
-#             textfont=dict(size=11)
-#         )
-#         treemap.update_layout(
-#             margin=dict(l=10, r=10, t=50, b=10),
-#             coloraxis_colorbar=dict(
-#                 title="AdjEM",
-#                 thicknessmode="pixels",
-#                 thickness=15,
-#                 lenmode="pixels",
-#                 len=300,
-#                 yanchor="top",
-#                 y=1,
-#                 ticks="outside"
-#             ),
-#             template="plotly_dark"
-#         )
-#         return treemap
-#     except Exception as e:
-#         st.error(f"An error occurred while generating treemap: {e}")
-#         return None
-
+#6) Treemap Function
 def create_treemap(df_notnull):
     try:
-        # Limit to top 100 teams based on KP_Rank if available
         if "KP_Rank" in df_notnull.columns:
             top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
         else:
@@ -486,14 +418,12 @@ def create_treemap(df_notnull):
             missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
             st.error(f"Missing required columns for treemap: {missing_cols}")
             return None
-
         treemap_data = top_100_teams.copy()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
 
-        # Build a hover text string with key details
         def hover_text_func(x):
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
@@ -508,9 +438,7 @@ def create_treemap(df_notnull):
             return base
 
         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
-
-        # Create the Treemap. The path shows Conference then Team.
-        fig = px.treemap(
+        treemap = px.treemap(
             treemap_data,
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
@@ -519,27 +447,33 @@ def create_treemap(df_notnull):
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
-        fig.update_traces(
+        treemap.update_traces(
             hovertemplate='%{customdata[0]}',
             texttemplate='<b>%{label}</b><br>%{value:.1f}',
             textfont=dict(size=11)
         )
-        fig.update_layout(
+        treemap.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
             coloraxis_colorbar=dict(
                 title="AdjEM",
-                thicknessmode="pixels", thickness=15,
-                lenmode="pixels", len=300, yanchor="top", y=1, ticks="outside"
+                thicknessmode="pixels",
+                thickness=15,
+                lenmode="pixels",
+                len=300,
+                yanchor="top",
+                y=1,
+                ticks="outside"
             ),
             template="plotly_dark"
         )
-        return fig
+        return treemap
     except Exception as e:
         st.error(f"An error occurred while generating treemap: {e}")
-        return None    
+        return None
+
 
 # ----------------------------------------------------------------------------
-# 7) App Header & Tabs
+# --- App Header & Tabs --- #
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
 col1, col2 = st.columns([6, 1])
@@ -559,38 +493,38 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
     "CORRELATION HEATMAP", "CONFERENCE COMPARISON", "TEAM METRICS COMPARISON", "TBD"
 ])
 
-# --- Home Tab ---
+# --- Home Tab --- #
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
     # st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
     # st.caption("_DATA AS OF:_ :green[3/12/2025]")
     # if treemap is not None:
-    #     st.plotly_chart(treemap, use_container_width=True)
+    #     st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     # else:
     #     st.warning("TREEMAP OVERHEATED.")
 
-    with st.container():
-        st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
-        st.caption("_DATA AS OF:_ :green[3/12/2025]")
+    #with st.container():
+    st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
+    st.caption("_DATA AS OF:_ :green[3/12/2025]")
 
-        if treemap is not None:
-            click_events = plotly_events(treemap, click_event=True, key="treemap_events")
-            st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-            if click_events: # If click event is detected, extract team details
-                clicked_point = click_events[0]
-                team_label = clicked_point.get("label")
-                if team_label:
-                    if team_label in df_main.index:
-                        team_info = df_main.loc[team_label]
-                        st.markdown(f"### Team Details: {team_label}")
-                        st.write(team_info)
-                    else:
-                        st.info("Clicked node does not match a team entry.")
+    if treemap is not None:
+        click_events = plotly_events(treemap, click_event=True, key="treemap_events")
+        st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+        if click_events: # If click event is detected, extract team details
+            clicked_point = click_events[0]
+            team_label = clicked_point.get("label")
+            if team_label:
+                if team_label in df_main.index:
+                    team_info = df_main.loc[team_label]
+                    st.markdown(f"### Team Details: {team_label}")
+                    st.write(team_info)
                 else:
-                    st.info("Please click on a team node to view details.")
-        else:
-            st.warning("TREEMAP OVERHEATED.")
+                    st.info("Clicked node does not match a team entry.")
+            else:
+                st.info("Please click on a team node to view details.")
+    else:
+        st.warning("TREEMAP OVERHEATED.")
 
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
@@ -601,7 +535,7 @@ with tab_home:
                 .agg(["mean", "min", "max", "count"])
                 .reset_index()
             )
-            conf_stats.columns = ["Conference", "Avg AdjEM", "Min AdjEM", "Max AdjEM", "Count"]
+            conf_stats.columns = ["CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
             conf_stats = conf_stats.sort_values("Avg AdjEM", ascending=False)
 
             st.markdown("### CONFERENCE POWER RANKING")
