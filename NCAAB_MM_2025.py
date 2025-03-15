@@ -44,7 +44,7 @@ th, td {
 st.markdown(global_table_css, unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------
-# 1) Load Data from GitHub CSV
+# Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
 mm_database_csv = abs_path + '/data/mm_2025_database.csv'
 
@@ -57,7 +57,7 @@ def load_data():
 mm_database_2025 = load_data()
 
 # ----------------------------------------------------------------------------
-# 2) Select Relevant Columns (including radar metrics)
+# Select Relevant Columns (including radar metrics)
 core_cols = [
     "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
     "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "OFF REB/GM", "DEF REB/GM",
@@ -80,7 +80,7 @@ if "KP_AdjEM" in df_main.columns:
     df_main["KP_AdjEM_Offset"] = df_main["KP_AdjEM"] + offset
 
 # ----------------------------------------------------------------------------
-# 3) Clean Data for Treemap
+# Clean Data for Treemap
 required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]
 if all(col in df_main.columns for col in required_path_cols):
     df_main_notnull = df_main.dropna(subset=required_path_cols, how="any").copy()
@@ -88,7 +88,7 @@ else:
     df_main_notnull = df_main.copy()
 
 # ----------------------------------------------------------------------------
-# 4) Logo Loading / Syntax Configuration
+# Logo Loading / Syntax Configuration
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
@@ -187,7 +187,7 @@ header = {
 detailed_table_styles = [header]
 
 # ----------------------------------------------------------------------------
-# 5) Radar Chart Functions
+# Radar Chart Functions
 def get_default_metrics():
     return ['AVG MARGIN',
             'KP_AdjEM',
@@ -403,7 +403,7 @@ def create_radar_chart(selected_teams, full_df):
     return fig
 
 # ----------------------------------------------------------------------------
-#6) Treemap Function
+# Treemap Function
 def create_treemap(df_notnull):
     try:
         if "KP_Rank" in df_notnull.columns:
@@ -471,12 +471,11 @@ def create_treemap(df_notnull):
         st.error(f"An error occurred while generating treemap: {e}")
         return None
 
-
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs --- #
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]") #st.caption(":green[_DATA AS OF: 3/12/2025_]")
-st.caption(":primary[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_")
+st.caption(":green[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
                                                                                              "REGIONAL HEATMAPS",
@@ -490,10 +489,11 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
-    st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE TREEMAP_]", divider='grey')
+    st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+        st.caption(":green[_DATA AS OF: 3/12/2025_]")
     else:
         st.warning("TREEMAP OVERHEATED.")
 
@@ -510,7 +510,16 @@ with tab_home:
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
             #st.markdown("### CONFERENCE POWER RANKINGS")
-            st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE POWER RANKINGS_]", divider='grey')
+            st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
+
+            with st.expander("*About Conference Power Rankings:*"):
+                st.markdown("""
+                            Simple-average rollup of each conference:
+                            - **# TEAMS**: Number of teams in conference
+                            - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
+                            - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
+                            """)
+            
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -531,32 +540,8 @@ with tab_home:
                     - **Min/Max**: Range of AdjEM values among teams in that conference
                     - **Count**: Number of teams in the conference
                 """)
-
-    
-    # CONFERENCE LOGOS GRID
-    # st.subheader("CONFERENCE LOGOS")
-    conference_logos = [
-        [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
-        [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
-        [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
-        [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
-        ]
-
-    for row in conference_logos:
-        cols = st.columns(len(row))
-        for i, logo in enumerate(row):
-            if logo:
-                with cols[i]:
-                    st.image(logo, width=75)
-
-    #col1, col2 = st.columns([6, 1])
-    #with col1:
-    if FinalFour25_logo:
-        st.image(FinalFour25_logo, width=750)
-        # if NCAA_logo:
-        #     st.image(NCAA_logo, width=250)
-        # if Conferences25_logo:
-        #     st.image(Conferences25_logo, width=250)
+            
+            st.caption(":green[_DATA AS OF: 3/12/2025_]")
 
 # --- Radar Charts Tab --- #
 with tab_radar:
@@ -822,8 +807,33 @@ with tab_tbd:
     st.info("Additional visualizations, bracket simulations coming soon.")
 
 # ----------------------------------------------------------------------------
+# CONFERENCE LOGOS GRID
+    # st.subheader("CONFERENCE LOGOS")
+conference_logos = [
+    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
+    [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
+    [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
+    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
+    ]
+
+for row in conference_logos:
+    cols = st.columns(len(row))
+    for i, logo in enumerate(row):
+        if logo:
+            with cols[i]:
+                st.image(logo, width=75)
+
+#col1, col2 = st.columns([6, 1])
+#with col1:
+if FinalFour25_logo:
+    st.image(FinalFour25_logo, use_container_width=True) #width=1000
+    # if NCAA_logo:
+    #     st.image(NCAA_logo, width=250)
+    # if Conferences25_logo:
+    #     st.image(Conferences25_logo, width=250)
+
 # GitHub Link & App Footer
 st.markdown("---")
-st.caption(":green[_Code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)_]")
+st.caption(":white[_Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)_]")
 
 st.stop()
