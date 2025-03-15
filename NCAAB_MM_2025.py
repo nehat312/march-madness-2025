@@ -575,7 +575,7 @@ with tab_home:
         st.caption("_DATA AS OF:_ :green[3/12/2025]")
 
         if treemap is not None:
-            click_events = st.plotly_events(treemap, click_event=True, key="treemap_events")
+            click_events = plotly_events(treemap, click_event=True, key="treemap_events")
             st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
             if click_events: # If click event is detected, extract team details
                 clicked_point = click_events[0]
