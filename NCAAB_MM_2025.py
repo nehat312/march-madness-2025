@@ -122,6 +122,11 @@ SWAC_logo_path = "images/SWAC_logo.png"
 WAC_logo_path = "images/WAC_logo.png"
 WCC_logo_path = "images/WCC_logo.png"
 
+# CONFERENCE_logo_paths = [AAC_logo_path, ACC_logo_path, AEC_logo_path, ASUN_logo_path, B10_logo_path, B12_logo_path, BE_logo_path,
+#                          BSouth_logo_path, BSky_logo_path, BWest_logo_path, CAA_logo_path, CUSA_logo_path, Horizon_logo_path, Ivy_logo_path,
+#                          MAAC_logo_path, MAC_logo_path, MEAC_logo_path, MVC_logo_path, MWC_logo_path, NEC_logo_path, OVC_logo_path,
+#                          Patriot_logo_path, SBC_logo_path, SEC_logo_path, SoCon_logo_path, Southland_logo_path, Summit_logo_path,
+#                          SWAC_logo_path, WAC_logo_path, WCC_logo_path]
 
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
@@ -162,6 +167,7 @@ viz_margin_dict = dict(l=20, r=20, t=50, b=20)
 viz_bg_color = '#0360CE'
 viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
+Spectral = px.colors.diverging.Spectral
 
 # ----------------------------------------------------------------------------
 # Additional table styling used in Pandas Styler
@@ -182,7 +188,13 @@ detailed_table_styles = [header]
 # ----------------------------------------------------------------------------
 # 5) Radar Chart Functions
 def get_default_metrics():
-    return ['KP_AdjEM', 'AVG MARGIN', 'OFF EFF', 'DEF EFF', 'OFF REB/GM', 'DEF REB/GM', 'AST/TO%', 'STOCKS/GM'] #'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM'
+    return ['AVG MARGIN',
+            'KP_AdjEM',
+            'OFF EFF', 'DEF EFF',
+            'OFF REB/GM', 'DEF REB/GM',
+            'AST/TO%', 'STOCKS/GM',
+            #'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM',
+            ]
 
 def compute_tournament_stats(df):
     metrics = get_default_metrics()
@@ -205,15 +217,15 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         return "No Data"
     avg_z = sum(z_vals) / len(z_vals)
     if avg_z > 1.5:
-        return "Elite"
+        return "ELITE"
     elif avg_z > 0.5:
-        return "Above Average"
+        return "SOLID"
     elif avg_z > -0.5:
-        return "Average"
+        return "MID"
     elif avg_z > -1.5:
-        return "Below Average"
+        return "SUBPAR"
     else:
-        return "Poor"
+        return "WEAK"
 
 def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     metrics = get_default_metrics()
@@ -391,8 +403,76 @@ def create_radar_chart(selected_teams, full_df):
 
 # ----------------------------------------------------------------------------
 # 6) Treemap Function
+# def create_treemap(df_notnull):
+#     try:
+#         if "KP_Rank" in df_notnull.columns:
+#             top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
+#         else:
+#             top_100_teams = df_notnull.copy()
+#         if top_100_teams.empty:
+#             st.warning("No data to display in treemap.")
+#             return None
+#         required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
+#         if not all(col in top_100_teams.columns for col in required_columns):
+#             missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
+#             st.error(f"Missing required columns for treemap: {missing_cols}")
+#             return None
+#         treemap_data = top_100_teams.copy()
+#         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
+#         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
+#         if "TM_KP" not in treemap_data.columns:
+#             treemap_data["TM_KP"] = treemap_data["TEAM"]
+
+#         def hover_text_func(x):
+#             base = (
+#                 f"<b>{x['TM_KP']}</b><br>"
+#                 f"KP Rank: {int(x['KP_Rank'])}<br>"
+#                 f"Record: {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
+#                 f"AdjEM: {x['KP_AdjEM']:.1f}<br>"
+#             )
+#             if "OFF EFF" in x and "DEF EFF" in x:
+#                 base += f"OFF EFF: {x['OFF EFF']:.1f}<br>DEF EFF: {x['DEF EFF']:.1f}<br>"
+#             if "SEED_25" in x and not pd.isna(x["SEED_25"]):
+#                 base += f"Seed: {int(x['SEED_25'])}"
+#             return base
+
+#         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
+#         treemap = px.treemap(
+#             treemap_data,
+#             path=["CONFERENCE", "TM_KP"],
+#             values="KP_AdjEM",
+#             color="KP_AdjEM",
+#             color_continuous_scale=px.colors.diverging.Spectral,
+#             hover_data=["hover_text"],
+#             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
+#         )
+#         treemap.update_traces(
+#             hovertemplate='%{customdata[0]}',
+#             texttemplate='<b>%{label}</b><br>%{value:.1f}',
+#             textfont=dict(size=11)
+#         )
+#         treemap.update_layout(
+#             margin=dict(l=10, r=10, t=50, b=10),
+#             coloraxis_colorbar=dict(
+#                 title="AdjEM",
+#                 thicknessmode="pixels",
+#                 thickness=15,
+#                 lenmode="pixels",
+#                 len=300,
+#                 yanchor="top",
+#                 y=1,
+#                 ticks="outside"
+#             ),
+#             template="plotly_dark"
+#         )
+#         return treemap
+#     except Exception as e:
+#         st.error(f"An error occurred while generating treemap: {e}")
+#         return None
+
 def create_treemap(df_notnull):
     try:
+        # Limit to top 100 teams based on KP_Rank if available
         if "KP_Rank" in df_notnull.columns:
             top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
         else:
@@ -405,12 +485,14 @@ def create_treemap(df_notnull):
             missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
             st.error(f"Missing required columns for treemap: {missing_cols}")
             return None
+
         treemap_data = top_100_teams.copy()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
 
+        # Build a hover text string with key details
         def hover_text_func(x):
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
@@ -425,77 +507,51 @@ def create_treemap(df_notnull):
             return base
 
         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
-        treemap = px.treemap(
+
+        # Create the Treemap. The path shows Conference then Team.
+        fig = px.treemap(
             treemap_data,
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.RdYlGn,
+            color_continuous_scale=px.colors.diverging.Spectral,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
-        treemap.update_traces(
+        fig.update_traces(
             hovertemplate='%{customdata[0]}',
             texttemplate='<b>%{label}</b><br>%{value:.1f}',
             textfont=dict(size=11)
         )
-        treemap.update_layout(
+        fig.update_layout(
             margin=dict(l=10, r=10, t=50, b=10),
             coloraxis_colorbar=dict(
                 title="AdjEM",
-                thicknessmode="pixels",
-                thickness=15,
-                lenmode="pixels",
-                len=300,
-                yanchor="top",
-                y=1,
-                ticks="outside"
+                thicknessmode="pixels", thickness=15,
+                lenmode="pixels", len=300, yanchor="top", y=1, ticks="outside"
             ),
             template="plotly_dark"
         )
-        return treemap
+        return fig
     except Exception as e:
         st.error(f"An error occurred while generating treemap: {e}")
-        return None
+        return None    
 
 # ----------------------------------------------------------------------------
 # 7) App Header & Tabs
 st.title("NCAA BASKETBALL -- MARCH MADNESS 2025")
 st.write("2025 MARCH MADNESS RESEARCH HUB")
-#col1, col2 = st.columns([6, 1])
-#with col1:
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, width=250)
-    # if NCAA_logo:
-    #     st.image(NCAA_logo, width=250)
+col1, col2 = st.columns([6, 1])
+with col1:
+    if FinalFour25_logo:
+        st.image(FinalFour25_logo, width=250)
+    if NCAA_logo:
+        st.image(NCAA_logo, width=250)
     # if Conferences25_logo:
     #     st.image(Conferences25_logo, width=250)
 
-# Conference Logos Grid (organized for better display)
-st.subheader("Conference Logos")  # Add a subheader for clarity
 
-# Group the logos for better grid layout
-conference_logos = [
-    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo],
-    [BE_logo, BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo],
-    [Horizon_logo, Ivy_logo, MAAC_logo, MAC_logo, MEAC_logo, MVC_logo],
-    [MWC_logo, NEC_logo, OVC_logo, Patriot_logo, SBC_logo, SEC_logo],
-    [Summit_logo, SWAC_logo, WAC_logo, WCC_logo] #Slnd_logo, 
-]
-
-# Display the logos in a grid
-for row in conference_logos:
-    cols = st.columns(len(row))  # Create columns dynamically based on row length
-    for i, logo in enumerate(row):
-        if logo:
-            with cols[i]:
-                st.image(logo, width=100)  # Adjust width as needed
-
-
-st.write("DATA AS OF 3/12/2025")
-st.write("Toggle tabs below to explore brackets, stats, visualizations for NCAAM March Madness 2025")
-
-treemap = create_treemap(df_main_notnull)
+st.write("Toggle tabs below to explore NCAAM March Madness 2025 brackets and informational visualizations.")
 
 tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs([
     "HOME", "RADAR CHARTS", "REGIONAL HEATMAPS", "HISTOGRAM",
@@ -503,12 +559,38 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 ])
 
 # --- Home Tab ---
+treemap = create_treemap(df_main_notnull)
+
 with tab_home:
-    st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
-    if treemap is not None:
-        st.plotly_chart(treemap, use_container_width=True)
-    else:
-        st.warning("TREEMAP OVERHEATED.")
+    # st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
+    # st.caption("_DATA AS OF:_ :green[3/12/2025]")
+    # if treemap is not None:
+    #     st.plotly_chart(treemap, use_container_width=True)
+    # else:
+    #     st.warning("TREEMAP OVERHEATED.")
+
+    with st.container():
+        st.subheader("NCAAM BASKETBALL CONFERENCE TREEMAP")
+        st.caption("_DATA AS OF:_ :green[3/12/2025]")
+
+        if treemap is not None:
+            click_events = st.plotly_events(treemap, click_event=True, key="treemap_events")
+            st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+            if click_events: # If click event is detected, extract team details
+                clicked_point = click_events[0]
+                team_label = clicked_point.get("label")
+                if team_label:
+                    if team_label in df_main.index:
+                        team_info = df_main.loc[team_label]
+                        st.markdown(f"### Team Details: {team_label}")
+                        st.write(team_info)
+                    else:
+                        st.info("Clicked node does not match a team entry.")
+                else:
+                    st.info("Please click on a team node to view details.")
+        else:
+            st.warning("TREEMAP OVERHEATED.")
+
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["Conference", "# Teams"]
@@ -521,7 +603,7 @@ with tab_home:
             conf_stats.columns = ["Conference", "Avg AdjEM", "Min AdjEM", "Max AdjEM", "Count"]
             conf_stats = conf_stats.sort_values("Avg AdjEM", ascending=False)
 
-            st.markdown("### COMPOSITE CONFERENCE POWER RATINGS")
+            st.markdown("### CONFERENCE POWER RANKING")
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -534,7 +616,7 @@ with tab_home:
             )
             st.markdown(styled_conf_stats.to_html(), unsafe_allow_html=True)
 
-            with st.expander("About Conference Treemap:"):
+            with st.expander("*About Conference Treemap:*"):
                 st.markdown("""
                     This table shows a summary of each conference:
                     - **Avg AdjEM**: Average KenPom Adjusted Efficiency Margin for the conference
@@ -808,5 +890,22 @@ with tab_tbd:
 # ----------------------------------------------------------------------------
 # GitHub Link & App Footer
 st.markdown("---")
-st.markdown("App code available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+st.markdown("Code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+
+# CONFERENCE LOGOS GRID
+# st.subheader("CONFERENCE LOGOS")
+conference_logos = [
+    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
+    [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
+    [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
+    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
+    ]
+
+for row in conference_logos:
+    cols = st.columns(len(row))
+    for i, logo in enumerate(row):
+        if logo:
+            with cols[i]:
+                st.image(logo, width=65)
+
 st.stop()

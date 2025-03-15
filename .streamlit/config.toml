@@ -2,16 +2,57 @@
 # Base Theme
 base = "light"
 
-# Main Theme - March Madness Basketball Inspired
+# LIGHT MODE LAYOUT
 primaryColor = "#FF6B00"          # Vibrant Orange (Basketball color)
 backgroundColor = "#1A1A1D"        # Deep Court Black
 secondaryBackgroundColor = "#2C2C34" # Subtle Dark Gray
 textColor = "#F5F5F5"             # Bright White for readability
 font = "sans serif"
 
-# Dark Mode Specific Overrides
+# DARK MODE LAYOUT
 [theme.dark]
 primaryColor = "#FF6B00"          # Consistent basketball orange
 backgroundColor = "#121212"        # Deeper dark
 secondaryBackgroundColor = "#232328" # Darker secondary
 textColor = "#FFFFFF"             # Pure white for dark mode
+
+[logger]
+# Logging Info
+level = "info" #"debug"
+messageFormat = "%(asctime)s %(message)s"
+
+[client]
+# Developer Tools
+showErrorDetails = "none", # "full", "stacktrace", "type"
+#toolbarMode = "auto" #"developer", "viewer", "minimal"
+#showSidebarNavigation = true
+
+#[runner]
+#magicEnabled = true
+#fastReruns = true
+
+#[server]
+#folderWatchBlacklist = []
+#fileWatcherType = "auto" #"watchdog", "poll", "none"
+#cookieSecret = ""
+#headless = false
+#runOnSave = false
+
+# SECURITY
+#address = 
+#port = 8501
+#baseUrlPath = ""
+#enableCORS = true
+#enableXsrfProtection = true
+#sslCertFile = 
+#sslKeyFile = 
+
+#maxUploadSize = 200
+#maxMessageSize = 200
+#disconnectedSessionTTL = 120
+
+
+#[browser]
+#serverAddress = "localhost"
+#gatherUsageStats = true
+#serverPort = 8501
