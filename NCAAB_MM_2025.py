@@ -474,15 +474,13 @@ def create_treemap(df_notnull):
 
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs --- #
-st.title(":blue[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
-st.subheader(":blue[2025 MARCH MADNESS RESEARCH HUB]") #st.caption(":green[_DATA AS OF: 3/12/2025_]")
-st.caption(":blue[_Check out the tabs below to propel your bracket up the leaderboard._")
+st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
+st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]") #st.caption(":green[_DATA AS OF: 3/12/2025_]")
+st.caption(":primary[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_")
 
-tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME",
-                                                                                             "RADAR CHARTS",
+tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
                                                                                              "REGIONAL HEATMAPS",
-                                                                                             "HISTOGRAM",
-                                                                                             "CORRELATION HEATMAP",
+                                                                                             "HISTOGRAM", "CORRELATION HEATMAP",
                                                                                              "CONFERENCE COMPARISON",
                                                                                              "TEAM METRICS COMPARISON",
                                                                                              "TBU",
@@ -492,7 +490,7 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 treemap = create_treemap(df_main_notnull)
 
 with tab_home:
-    st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE TREEMAP_]", divider='primary')
+    st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE TREEMAP_]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
@@ -512,7 +510,7 @@ with tab_home:
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
             #st.markdown("### CONFERENCE POWER RANKINGS")
-            st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE POWER RANKINGS_]", divider='primary')
+            st.subheader(":primary[_NCAAM BASKETBALL CONFERENCE POWER RANKINGS_]", divider='grey')
             styled_conf_stats = (
                 conf_stats.style
                 .format({
