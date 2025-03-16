@@ -638,6 +638,7 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
         
+
         # Add an interactive team selection based on treemap clicks
         st.subheader("🔍 Team Spotlight", divider='grey')
         selected_team = st.selectbox(
@@ -702,6 +703,24 @@ with tab_home:
                         radar_fig = create_radar_chart([selected_team], df_main)
                         if radar_fig:
                             st.plotly_chart(radar_fig, use_container_width=True)
+                
+                if "CONFERENCE" in df_main.columns:
+                    conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+                    conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
+                    if "KP_AdjEM" in df_main.columns:             # Compute aggregated KP_AdjEM statistics by conference
+                        conf_stats = (
+                            df_main.groupby("CONFERENCE")["KP_AdjEM"]
+                            .agg(["count", "max", "mean", "min"])
+                            .reset_index()
+                        )
+                        conf_stats = conf_stats.rename(columns={
+                            "count": "# TEAMS",
+                            "max": "MAX AdjEM",
+                            "mean": "MEAN AdjEM",
+                            "min": "MIN AdjEM"
+                        })
+                        conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
                 
                 # Show more detailed metrics in an expandable section
                 with st.expander("View All Team Metrics"):
