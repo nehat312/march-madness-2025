@@ -23,7 +23,7 @@ lxml>=4.9.0
 nltk>=3.8.0
 
 # Logging and Utilities
-rich==13.7.1
+#rich==13.7.1
 logging>=0.5.1.2
 
 # Data Handling
