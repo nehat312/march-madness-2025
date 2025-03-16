@@ -427,7 +427,7 @@ def create_radar_chart(selected_teams, full_df):
         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
         subplot_titles=subplot_titles,
         horizontal_spacing=0.10,
-        vertical_spacing=0.20
+        vertical_spacing=0.15
     )
     fig.update_layout(
         height=fig_height,
@@ -451,8 +451,10 @@ def create_radar_chart(selected_teams, full_df):
             bgcolor="rgba(0,0,0,0.1)"
         ),
         margin=dict(l=50, r=50, t=80, b=50),
-        paper_bgcolor="rgba(0,0,0,0.1)",
-        plot_bgcolor="rgba(0,0,0,0.1)"
+        # Keep the paper background transparent or very light
+        paper_bgcolor="rgba(0,0,0,0.0)",  # Or a very light shade: "rgba(240,240,240,0.1)" 
+        # Set the plot background to a darker shade
+        plot_bgcolor="rgba(0,0,0,0.8)"  # Darker background for contrast
     )
     fig.update_polars(
         radialaxis=dict(
@@ -470,7 +472,8 @@ def create_radar_chart(selected_teams, full_df):
             gridcolor='rgba(255,255,255,0.2)',
             linecolor='rgba(255,255,255,0.2)'
         ),
-        bgcolor="rgba(0,0,0,0.2)"
+        # Set polar chart background to darker
+        bgcolor="rgba(0,0,0,0.8)"  # Darker background for contrast
     )
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
@@ -503,7 +506,7 @@ def create_radar_chart(selected_teams, full_df):
                 "badge-elite": "gold",
                 "badge-solid": "#4CAF50",
                 "badge-mid": "#2196F3",
-                "badge-subpar": "#FF9800", 
+                "badge-subpar": "#FF9800",
                 "badge-weak": "#F44336"
             }.get(perf_data['class'], "#2196F3"),
             bordercolor="white",
@@ -512,7 +515,6 @@ def create_radar_chart(selected_teams, full_df):
             opacity=0.9
         )
     return fig
-
 # ----------------------------------------------------------------------------
 # Treemap Function
 def create_treemap(df_notnull):
