@@ -19,11 +19,11 @@ base = "light"
 # backgroundColor: Off-white with a cool undertone for freshness
 # secondaryBackgroundColor: Light gray with a hint of blue
 # textColor: Dark navy blue for a clean, professional look
-primaryColor = "#FF9933"
-backgroundColor = "#F8F8FF"
-secondaryBackgroundColor = "#E8E8F0"
-textColor = "#191970"
-font = "sans serif"
+# primaryColor = "#FF9933"
+# backgroundColor = "#F8F8FF"
+# secondaryBackgroundColor = "#E8E8F0"
+# textColor = "#191970"
+# font = "sans serif"
 
 # Color Combo 3: Muted Earth
 # primaryColor: Terracotta orange, subdued and natural
@@ -41,11 +41,11 @@ font = "sans serif"
 # backgroundColor: Light slate gray for a contemporary look
 # secondaryBackgroundColor: Medium gray with a subtle texture
 # textColor: Pure black for maximum contrast
-# primaryColor = "#FF8C00"
-# backgroundColor = "#F0F8FF"
-# secondaryBackgroundColor = "#D3D3D3"
-# textColor = "#000000"
-# font = "sans serif"
+primaryColor = "#FF8C00"
+backgroundColor = "#F0F8FF"
+secondaryBackgroundColor = "#D3D3D3"
+textColor = "#000000"
+font = "sans serif"
 
 # Color Combo 5: Golden Hour
 # primaryColor: Rich gold-orange, reminiscent of sunset
