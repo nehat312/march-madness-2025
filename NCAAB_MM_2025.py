@@ -13,7 +13,7 @@ from PIL import Image
 import os, math
 
 # --- Streamlit Setup ---
-st.set_page_config(page_title="NCAA BASKETBALL -- MARCH MADNESS 2025",
+st.set_page_config(page_title="MARCH MADNESS 2025 -- NCAAM BASKETBALL",
                    layout="wide", initial_sidebar_state="auto",
                    page_icon="🏀",)
 
@@ -292,9 +292,7 @@ def get_default_metrics():
     return ['AVG MARGIN',
             'KP_AdjEM', 
             'OFF EFF', 'DEF EFF',
-            #'OFF REB/GM', 'DEF REB/GM',
             'AST/TO%', 'STOCKS-TOV/GM',
-            #'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM',
             ]
 
 def compute_tournament_stats(df):
@@ -431,14 +429,6 @@ def create_radar_chart(selected_teams, full_df):
     )
     fig.update_layout(
         height=fig_height,
-        # title={
-        #     'text': "Team Performance Radar Charts",
-        #     'font': {'size': 24, 'family': 'Arial, sans-serif', 'color': 'white'},
-        #     'y': 0.98,
-        #     'x': 0.5,
-        #     'xanchor': 'center',
-        #     'yanchor': 'top'
-        # },
         template='plotly_dark',
         font=dict(family="Arial, sans-serif", size=12),
         showlegend=True,
@@ -451,10 +441,8 @@ def create_radar_chart(selected_teams, full_df):
             bgcolor="rgba(0,0,0,0.1)"
         ),
         margin=dict(l=50, r=50, t=80, b=50),
-        # Keep the paper background transparent or very light
-        paper_bgcolor="rgba(0,0,0,0.0)",  # Or a very light shade: "rgba(240,240,240,0.1)" 
-        # Set the plot background to a darker shade
-        plot_bgcolor="rgba(0,0,0,0.8)"  # Darker background for contrast
+        paper_bgcolor="rgba(0,0,0,0.0)",
+        plot_bgcolor="rgba(0,0,0,0.8)"
     )
     fig.update_polars(
         radialaxis=dict(
@@ -472,8 +460,7 @@ def create_radar_chart(selected_teams, full_df):
             gridcolor='rgba(255,255,255,0.2)',
             linecolor='rgba(255,255,255,0.2)'
         ),
-        # Set polar chart background to darker
-        bgcolor="rgba(0,0,0,0.8)"  # Darker background for contrast
+        bgcolor="rgba(0,0,0,0.8)"
     )
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
@@ -515,6 +502,7 @@ def create_radar_chart(selected_teams, full_df):
             opacity=0.9
         )
     return fig
+
 # ----------------------------------------------------------------------------
 # Treemap Function
 def create_treemap(df_notnull):
@@ -538,7 +526,6 @@ def create_treemap(df_notnull):
             treemap_data["TM_KP"] = treemap_data["TEAM"]
         
         def hover_text_func(x):
-            # Enhanced hover text with more metrics and better formatting
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
                 f"<b>KP Rank:</b> {int(x['KP_Rank'])}<br>"
@@ -547,20 +534,14 @@ def create_treemap(df_notnull):
             )
             if "OFF EFF" in x and "DEF EFF" in x:
                 base += f"<b>OFF EFF:</b> {x['OFF EFF']:.1f}<br><b>DEF EFF:</b> {x['DEF EFF']:.1f}<br>"
-            
-            # Add more detailed metrics
             if "AVG MARGIN" in x:
                 base += f"<b>AVG MARGIN:</b> {x['AVG MARGIN']:.1f}<br>"
-            
             if "TS%" in x and "OPP TS%" in x:
                 base += f"<b>TS%:</b> {x['TS%']:.1f}% | <b>OPP TS%:</b> {x['OPP TS%']:.1f}%<br>"
-            
             if "AST/TO%" in x:
                 base += f"<b>AST/TO%:</b> {x['AST/TO%']:.1f}<br>"
-                
             if "SEED_25" in x and not pd.isna(x["SEED_25"]):
                 base += f"<b>Seed:</b> {int(x['SEED_25'])}"
-                
             return base
             
         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
@@ -608,81 +589,353 @@ def create_treemap(df_notnull):
         return None
 
 # ----------------------------------------------------------------------------
-# --- App Header & Tabs --- #
+# ------------------ BRACKET SIMULATION FUNCTIONS ------------------
+# (Integrated Simulation Code)
+
+# Set up logging for simulation (suppress detailed logs in Streamlit)
+sim_logger = logging.getLogger("simulation")
+if sim_logger.hasHandlers():
+    sim_logger.handlers.clear()
+sim_logger.setLevel(logging.WARNING)
+sim_handler = logging.StreamHandler()
+sim_handler.setLevel(logging.WARNING)
+sim_handler.setFormatter(logging.Formatter("%(message)s"))
+sim_logger.addHandler(sim_handler)
+
+# ANSI color codes for simulation rounds
+BLUE     = '\033[94m'
+CYAN     = '\033[96m'
+GREEN    = '\033[92m'
+YELLOW   = '\033[93m'
+MAGENTA  = '\033[95m'
+RED      = '\033[91m'
+RESET    = '\033[0m'
+round_colors = {
+    "Round of 64": BLUE,
+    "Round of 32": CYAN,
+    "Sweet 16": GREEN,
+    "Elite 8": YELLOW,
+    "Final Four": MAGENTA,
+    "Championship": RED
+}
+
+# For simulation, we use TR_df; here we simply set it equal to df_main.
+# (Make sure that df_main contains the necessary columns for simulation.)
+TR_df = df_main.copy()
+
+# Prepare simulation teams (top 64 by KP_Rank)
+complete_records = TR_df.dropna(subset=['KP_Rank', 'KP_AdjEM', 'OFF EFF', 'DEF EFF']).copy()
+df_teams_sorted = complete_records.sort_values(by='KP_Rank').head(64).copy()
+df_teams_sorted.reset_index(drop=True, inplace=True)
+if 'TM_KP' not in df_teams_sorted.columns:
+    df_teams_sorted['TM_KP'] = df_teams_sorted['TM_TR']
+
+# Historical tournament success (example bonus)
+df_teams_sorted['TOURNEY_SUCCESS'] = 0.0
+for team in ["Duke", "Kentucky", "Kansas", "North Carolina", "Gonzaga", "Michigan St."]:
+    if team in df_teams_sorted['TM_KP'].values:
+        df_teams_sorted.loc[df_teams_sorted['TM_KP'] == team, 'TOURNEY_SUCCESS'] = 2.0
+
+# Tournament experience bonus (if available)
+df_teams_sorted['TOURNEY_EXPERIENCE'] = 0.0
+if 'SEED_23' in df_teams_sorted.columns:
+    df_teams_sorted.loc[df_teams_sorted['SEED_23'] <= 16, 'TOURNEY_EXPERIENCE'] = 1.0
+    df_teams_sorted.loc[df_teams_sorted['SEED_23'] <= 4, 'TOURNEY_EXPERIENCE'] = 2.0
+
+# Assign Regions – simple round-robin assignment
+region_names = ['East', 'West', 'South', 'Midwest']
+assigned_regions = [region_names[i % 4] for i in range(len(df_teams_sorted))]
+df_teams_sorted['Region'] = assigned_regions
+
+# Assign Seeds (1 to 16 within each region)
+df_teams_sorted['Seed'] = 0
+for reg in region_names:
+    region_df = df_teams_sorted[df_teams_sorted['Region'] == reg]
+    seeds_for_region = list(range(1, len(region_df) + 1))
+    df_teams_sorted.loc[df_teams_sorted['Region'] == reg, 'Seed'] = seeds_for_region
+
+# Build region_teams dictionary
+region_teams = {}
+for reg in region_names:
+    df_reg = df_teams_sorted[df_teams_sorted['Region'] == reg].sort_values('Seed')
+    teams_list = df_reg.apply(lambda row: {
+        'Team': row['TM_KP'],
+        'Seed': int(row['Seed']),
+        'KP_Rank': row['KP_Rank'],
+        'KP_AdjEM': row['KP_AdjEM'],
+        'OFF EFF': row['OFF EFF'],
+        'DEF EFF': row['DEF EFF'],
+        'KP_AdjO': row.get('KP_AdjO', 0),
+        'KP_AdjD': row.get('KP_AdjD', 0),
+        'TOURNEY_SUCCESS': row.get('TOURNEY_SUCCESS', 0),
+        'TOURNEY_EXPERIENCE': row.get('TOURNEY_EXPERIENCE', 0),
+        'WIN_PCT': row.get('WIN% ALL GM', 0.5),
+        'CLOSE_GAME_PCT': row.get('WIN% CLOSE GM', 0.5),
+        'SOS': row.get('KP_SOS_AdjEM', 0),
+        'Region': row['Region']
+    }, axis=1).tolist()
+    region_teams[reg] = teams_list
+
+def calculate_win_probability(team1, team2):
+    team1_off = team1.get('OFF EFF', 1.0) if not pd.isna(team1.get('OFF EFF', 1.0)) else 1.0
+    team1_def = team1.get('DEF EFF', 1.0) if not pd.isna(team1.get('DEF EFF', 1.0)) else 1.0
+    team2_off = team2.get('OFF EFF', 1.0) if not pd.isna(team2.get('OFF EFF', 1.0)) else 1.0
+    team2_def = team2.get('DEF EFF', 1.0) if not pd.isna(team2.get('DEF EFF', 1.0)) else 1.0
+    kp_diff = team1['KP_AdjEM'] - team2['KP_AdjEM']
+    matchup_adv = (team1_off - team2_def) - (team2_off - team1_def)
+    exp_diff = (team1.get('TOURNEY_EXPERIENCE', 0) - team2.get('TOURNEY_EXPERIENCE', 0)) + \
+               (team1.get('TOURNEY_SUCCESS', 0) - team2.get('TOURNEY_SUCCESS', 0))
+    weight_kp = 1.0
+    weight_matchup = 0.5
+    weight_exp = 0.2
+    combined_factor = (weight_kp * kp_diff +
+                       weight_matchup * matchup_adv +
+                       weight_exp * exp_diff)
+    base_prob = 1 / (1 + np.exp(-0.1 * combined_factor))
+    seed_diff = team2['Seed'] - team1['Seed']
+    if seed_diff > 0:
+        if team1['Seed'] <= 4 and team2['Seed'] >= 12:
+            upset_factor = 0.05
+            base_prob = max(0.65, min(0.95, base_prob - upset_factor))
+    win_prob = max(0.05, min(0.95, base_prob))
+    return win_prob
+
+def generate_bracket_round(teams, round_num, region, use_analytics=True):
+    winners = []
+    if round_num == 1:
+        pairings = [(0, 15), (7, 8), (4, 11), (3, 12), (5, 10), (2, 13), (6, 9), (1, 14)]
+    else:
+        pairings = [(i, i+1) for i in range(0, len(teams), 2)]
+    for i, j in pairings:
+        teamA = teams[i]
+        teamB = teams[j]
+        if use_analytics:
+            pA = calculate_win_probability(teamA, teamB)
+            pB = 1 - pA
+        else:
+            diff = teamA['KP_AdjEM'] - teamB['KP_AdjEM']
+            pA = 1 / (1 + np.exp(-diff/10))
+            pB = 1 - pA
+        rand_val = random.random()
+        winner = teamA if rand_val < pA else teamB
+        winner = winner.copy()
+        winner['win_prob'] = pA if winner == teamA else pB
+        winners.append(winner)
+    return winners
+
+def simulate_region_bracket(teams, region_name, use_analytics=True):
+    rounds = {}
+    current_round_teams = teams
+    num_rounds = int(math.log(len(teams), 2))
+    all_games = []
+    for r in range(1, num_rounds + 1):
+        rounds[r] = current_round_teams
+        winners = generate_bracket_round(current_round_teams, r, region_name, use_analytics)
+        for i, winner in enumerate(winners):
+            if r == 1:
+                matchup_idx = [(0, 15), (7, 8), (4, 11), (3, 12), (5, 10), (2, 13), (6, 9), (1, 14)][i]
+                team1, team2 = current_round_teams[matchup_idx[0]], current_round_teams[matchup_idx[1]]
+            else:
+                team1, team2 = current_round_teams[i*2], current_round_teams[i*2+1]
+            game_info = {
+                'round': r,
+                'round_name': {1: "Round of 64", 2: "Round of 32", 3: "Sweet 16", 4: "Elite 8"}[r],
+                'region': region_name,
+                'team1': team1['Team'],
+                'seed1': team1['Seed'],
+                'team2': team2['Team'],
+                'seed2': team2['Seed'],
+                'winner': winner['Team'],
+                'winner_seed': winner['Seed'],
+                'win_prob': winner.get('win_prob', 0.5)
+            }
+            all_games.append(game_info)
+        current_round_teams = winners
+    rounds[num_rounds + 1] = current_round_teams
+    return rounds, all_games
+
+def run_simulation(use_analytics=True, simulations=1):
+    all_results = []
+    for sim in range(simulations):
+        region_results = {}
+        region_champions = {}
+        all_games = []
+        for reg in region_names:
+            rounds, games = simulate_region_bracket(region_teams[reg], reg, use_analytics)
+            region_results[reg] = rounds
+            region_champions[reg] = rounds[max(rounds.keys())][0]
+            all_games.extend(games)
+        semifinal_pairs = [('East', 'West'), ('South', 'Midwest')]
+        semifinal_results = {}
+        final_four_winners = []
+        for idx, (regA, regB) in enumerate(semifinal_pairs, start=1):
+            team1 = region_champions[regA]
+            team2 = region_champions[regB]
+            if use_analytics:
+                pA = calculate_win_probability(team1, team2)
+            else:
+                diff = team1['KP_AdjEM'] - team2['KP_AdjEM']
+                pA = 1 / (1 + np.exp(-diff/10))
+            winner = team1 if random.random() < pA else team2
+            winner = winner.copy()
+            winner['win_prob'] = pA if winner == team1 else (1-pA)
+            semifinal_results[idx] = {'team1': team1, 'team2': team2, 'winner': winner}
+            final_four_winners.append(winner)
+            all_games.append({
+                'round': 5,
+                'round_name': "Final Four",
+                'region': "National",
+                'team1': team1['Team'],
+                'seed1': team1['Seed'],
+                'team2': team2['Team'],
+                'seed2': team2['Seed'],
+                'winner': winner['Team'],
+                'winner_seed': winner['Seed'],
+                'win_prob': winner.get('win_prob', 0.5)
+            })
+        teamA, teamB = final_four_winners[0], final_four_winners[1]
+        if use_analytics:
+            pA = calculate_win_probability(teamA, teamB)
+        else:
+            diff = teamA['KP_AdjEM'] - teamB['KP_AdjEM']
+            pA = 1 / (1 + np.exp(-diff/10))
+        champion = teamA if random.random() < pA else teamB
+        all_games.append({
+            'round': 6,
+            'round_name': "Championship",
+            'region': "National",
+            'team1': teamA['Team'],
+            'seed1': teamA['Seed'],
+            'team2': teamB['Team'],
+            'seed2': teamB['Seed'],
+            'winner': champion['Team'],
+            'winner_seed': champion['Seed'],
+            'win_prob': pA if champion == teamA else (1-pA)
+        })
+        sim_result = {
+            'region_champions': region_champions,
+            'semifinal_results': semifinal_results,
+            'champion': champion,
+            'all_games': all_games
+        }
+        all_results.append(sim_result)
+    return all_results
+
+def analyze_simulation_results(all_results):
+    num_simulations = len(all_results)
+    if num_simulations == 0:
+        return {}
+    champion_counts = {}
+    for result in all_results:
+        champion_team = result['champion']['Team']
+        champion_counts[champion_team] = champion_counts.get(champion_team, 0) + 1
+    champion_probabilities = {team: count / num_simulations for team, count in champion_counts.items()}
+    df_champion_probs = pd.DataFrame(list(champion_probabilities.items()), columns=['Team', 'Championship_Probability']).sort_values(by='Championship_Probability', ascending=False)
+    region_champion_data = []
+    for region in region_names:
+        region_champion_counts = {}
+        for result in all_results:
+            region_champ_team = result['region_champions'][region]['Team']
+            region_champion_counts[region_champ_team] = region_champion_counts.get(region_champ_team, 0) + 1
+        region_champion_probs = {team: count / num_simulations for team, count in region_champion_counts.items()}
+        region_champion_data.append(pd.DataFrame(list(region_champion_probs.items()), columns=['Team', f'{region}_Region_Win_Probability']).sort_values(by=f'{region}_Region_Win_Probability', ascending=False))
+    df_region_probs = region_champion_data[0]
+    for i in range(1, len(region_champion_data)):
+        df_region_probs = pd.merge(df_region_probs, region_champion_data[i], on='Team', how='outer')
+    df_region_probs.fillna(0, inplace=True)
+    all_games_combined = []
+    for result in all_results:
+        all_games_combined.extend(result['all_games'])
+    games_df_aggregated = pd.DataFrame(all_games_combined)
+    games_df_aggregated['upset'] = games_df_aggregated.apply(lambda row: row['winner_seed'] > min(row['seed1'], row['seed2']), axis=1)
+    upset_summary_aggregated = games_df_aggregated.groupby(['round_name', 'upset']).size().unstack().fillna(0)
+    upset_pct_aggregated = upset_summary_aggregated[True] / (upset_summary_aggregated[True] + upset_summary_aggregated[False]) * 100
+    return {
+        'champion_probabilities': df_champion_probs,
+        'region_probabilities': df_region_probs,
+        'games_aggregated': games_df_aggregated,
+        'upset_summary_aggregated': upset_summary_aggregated,
+        'upset_pct_aggregated': upset_pct_aggregated
+    }
+
+def visualize_aggregated_results(analysis_results):
+    plt.figure(figsize=(14, 12))
+    gs = plt.GridSpec(2, 2)
+    champ_probs_df = analysis_results['champion_probabilities'].head(10)
+    ax1 = plt.subplot(gs[0, 0])
+    sns.barplot(x='Championship_Probability', y='Team', data=champ_probs_df, palette="viridis", ax=ax1)
+    ax1.set_title('Top Teams Championship Win Probability')
+    ax1.set_xlabel('Probability')
+    ax1.set_ylabel('Team')
+    upset_pct_aggregated = analysis_results['upset_pct_aggregated']
+    ax2 = plt.subplot(gs[0, 1])
+    upset_pct_aggregated.plot(kind='bar', color='coral', ax=ax2)
+    ax2.set_title('Aggregated Upset Percentage by Round')
+    ax2.set_ylabel('Percentage of Games (%)')
+    ax2.set_xlabel('Tournament Round')
+    ax2.tick_params(axis='x', rotation=45)
+    east_region_probs_df = analysis_results['region_probabilities'][['Team', 'East_Region_Win_Probability']].sort_values(by='East_Region_Win_Probability', ascending=False).head(10)
+    ax3 = plt.subplot(gs[1, :])
+    sns.barplot(x='East_Region_Win_Probability', y='Team', data=east_region_probs_df, palette="cividis", ax=ax3)
+    ax3.set_title('Top Teams East Region Win Probability')
+    ax3.set_xlabel('Probability')
+    ax3.set_ylabel('Team')
+    plt.tight_layout()
+    return plt.gcf()
+
+def run_tournament_simulation(num_simulations=100, use_analytics=True):
+    all_simulation_results = run_simulation(use_analytics=use_analytics, simulations=num_simulations)
+    analysis = analyze_simulation_results(all_simulation_results)
+    return analysis
+
+# ----------------------------------------------------------------------------
+# ------------------ END OF SIMULATION FUNCTIONS ------------------
+
+# ----------------------------------------------------------------------------
+# --- App Header & Tabs ---
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
 st.caption(":green[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_]")
 
-# tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
-#                                                                                              "REGIONAL HEATMAPS",
-#                                                                                              "HISTOGRAM", "CORRELATION HEATMAP",
-#                                                                                              "CONFERENCE COMPARISON",
-#                                                                                              "TEAM METRICS COMPARISON",
-#                                                                                              "TBU",
-#                                                                                              ])
+tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["📊 HOME", 
+                                                                          "📡 RADAR CHARTS",
+                                                                          "🔥 REGIONAL HEATMAPS",
+                                                                          "📈 TEAM METRICS",
+                                                                          "🏆 CONFERENCE STATS",
+                                                                          "🔮 PREDICTIONS"])
 
-tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_tbd = st.tabs(["📊 HOME", 
-                                                                            "📡 RADAR CHARTS",
-                                                                            "🔥 REGIONAL HEATMAPS",
-                                                                            "📈 TEAM METRICS",
-                                                                            "🏆 CONFERENCE STATS",
-                                                                            "🔮 PREDICTIONS",
-                                                                            ])
-
-# --- Home Tab --- #
+# --- Home Tab ---
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
-    
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-        
-
-        # Add an interactive team selection based on treemap clicks
         st.subheader("🔍 Team Spotlight", divider='grey')
         selected_team = st.selectbox(
             "Select a team to view detailed metrics:",
             options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
             index=0
         )
-        
         if selected_team:
             team_data = df_main[df_main["TM_KP"] == selected_team].copy()
-            
             if not team_data.empty:
-                # Create a two-column layout for team metrics
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     st.markdown(f"### {selected_team}")
-                    
-                    # Team overview
-                    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-                    
-                    # Conference and record
                     conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
                     record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
-                    
-                    # Seed (if available)
-                    seed_info = ""
-                    if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
-                        seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}"
-                    
+                    seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}" if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]) else ""
                     kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}" if "KP_Rank" in team_data.columns else ""
-                    
                     st.markdown(f"""
                     **Conference:** {conf}  
                     **Record:** {record}  
                     {seed_info}  
                     {kp_rank}
                     """)
-                    
-                    # Performance rating
                     if all(m in team_data.columns for m in get_default_metrics()):
                         t_avgs, t_stdevs = compute_tournament_stats(df_main)
                         perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
-                        
                         st.markdown(f"""
                         <div style='text-align: center; margin: 20px 0;'>
                             <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
@@ -690,20 +943,13 @@ with tab_home:
                             </span>
                         </div>
                         """, unsafe_allow_html=True)
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
                 with col2:
-                    # Team key metrics
                     key_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"]
                     available_metrics = [m for m in key_metrics if m in team_data.columns]
-                    
                     if available_metrics:
-                        # Create a radar chart for this single team
                         radar_fig = create_radar_chart([selected_team], df_main)
                         if radar_fig:
                             st.plotly_chart(radar_fig, use_container_width=True)
-                
                 with st.expander("View All Team Metrics"):
                     detailed_metrics = [
                         "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
@@ -713,29 +959,20 @@ with tab_home:
                         "AST/GM", "TO/GM", "AST/TO%", 
                         "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", "STOCKS/GM", "STOCKS-TOV/GM"
                     ]
-                    
                     available_detailed = [m for m in detailed_metrics if m in team_data.columns]
-                    
-                    # Transpose the data for better viewing
                     detail_df = team_data[available_detailed].T.reset_index()
                     detail_df.columns = ["Metric", "Value"]
-                    
-                    # Format the values appropriately
                     detail_df["Value"] = detail_df.apply(
                         lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'],
                         axis=1
                     )
-                    
-                    # Display in a clean format
                     st.table(detail_df)
             else:
-                st.warning("No data available for the selected team.")            
-                        
+                st.warning("No data available for the selected team.")
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["CONFERENCE", "# TEAMS"]
-
-        if "KP_AdjEM" in df_main.columns:             # Compute aggregated KP_AdjEM statistics by conference
+        if "KP_AdjEM" in df_main.columns:
             conf_stats = (
                 df_main.groupby("CONFERENCE")["KP_AdjEM"]
                 .agg(["count", "max", "mean", "min"])
@@ -748,7 +985,6 @@ with tab_home:
                 "min": "MIN AdjEM"
             })
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-
             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
             with st.expander("*About Conference Power Rankings:*"):
                 st.markdown("""
@@ -756,10 +992,7 @@ with tab_home:
                             - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
                             - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
                             """)
-
-            # Replace the conference name with an HTML snippet including the logo
             conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -771,10 +1004,8 @@ with tab_home:
                 .set_table_styles(detailed_table_styles)
             )
             st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-                
-                
 
-# --- Radar Charts Tab --- #
+# --- Radar Charts Tab ---
 with tab_radar:
     st.header("TEAM RADAR CHARTS")
     radar_metrics = get_default_metrics()
@@ -816,19 +1047,16 @@ with tab_radar:
         else:
             st.warning("Team names not available in dataset.")
 
-# --- Regional Heatmaps Tab --- #
+# --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header("BRACKET ANALYSIS")
     st.write("REGIONAL HEATFRAMES (W, X, Y, Z)")
     df_heat = df_main.copy()
-    # Compute mean for numeric columns and reindex to match all columns to avoid index length mismatches
     numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
     mean_series = df_heat.mean(numeric_only=True)
     mean_series = mean_series.reindex(df_heat.columns, fill_value=np.nan)
     df_heat.loc["TOURNEY AVG"] = mean_series
     df_heat_T = df_heat.T
-
-    # Region seeds
     east_teams_2025 = [
         "Duke", "Tennessee", "Iowa St.", "Maryland", "Texas A&M", "Kansas", "UCLA", "Mississippi St.",
         "Georgia", "Ohio St.", "New Mexico", "Indiana", "Memphis", "Villanova", "Santa Clara", "Pittsburgh",
@@ -855,7 +1083,6 @@ with tab_regions:
         "Y Region": south_teams_2025,
         "Z Region": midwest_teams_2025
     }
-
     def safe_format(x):
         try:
             val = float(x)
@@ -865,7 +1092,6 @@ with tab_regions:
                 return f"{val:.2f}"
         except (ValueError, TypeError):
             return x
-
     color_map_dict = {
         "KP_Rank": "RdBu_r",
         "WIN_25": "RdBu",
@@ -880,7 +1106,6 @@ with tab_regions:
         "AST/TO%": "RdBu",
         "STOCKS/GM": "RdBu"
     }
-
     for region_name, team_list in regions.items():
         teams_found = [tm for tm in team_list if tm in df_heat_T.columns]
         if teams_found:
@@ -902,6 +1127,291 @@ with tab_regions:
             st.markdown(region_styler.to_html(), unsafe_allow_html=True)
         else:
             st.info(f"No data available for {region_name}.")
+
+# --- Conference Comparison Tab ---
+with tab_conf:
+    st.header("Conference Comparison")
+    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
+    if "CONFERENCE" in df_main.columns:
+        conf_metric = st.selectbox(
+            "Select Metric for Conference Comparison", numeric_cols,
+            index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
+        )
+        conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean().dropna().sort_values(ascending=False)
+        fig_conf = px.bar(
+            conf_group, y=conf_group.index, x=conf_group.values, orientation='h',
+            title=f"Average {conf_metric} by Conference",
+            labels={"y": "Conference", "x": conf_metric},
+            color=conf_group.values, color_continuous_scale="Viridis",
+            template="plotly_dark"
+        )
+        for conf_val in conf_group.index:
+            teams = df_main[df_main["CONFERENCE"] == conf_val]
+            fig_conf.add_trace(go.Scatter(
+                x=teams[conf_metric], y=[conf_val] * len(teams),
+                mode="markers", marker=dict(color="white", size=6, opacity=0.7),
+                name=f"{conf_val} Teams"
+            ))
+        fig_conf.update_layout(showlegend=False)
+        st.plotly_chart(fig_conf, use_container_width=True)
+    else:
+        st.error("Conference data is not available.")
+    with st.expander("*About Conference Comparisons:*"):
+        st.markdown("""
+        **Conference Comparison Glossary:**
+        - **Avg AdjEM**: Average Adjusted Efficiency Margin.
+        - **Conference**: Grouping of teams by their athletic conferences.
+        - Metrics intended to afford insight into relative conference strength.
+        """)
+
+# --- Team Metrics Comparison Tab ---
+with tab_team:
+    st.header("🏀 TEAM METRICS COMPARISON")
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    if "TM_KP" in df_main.columns:
+        all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            selected_teams = st.multiselect(
+                "👉 SELECT TEAMS TO COMPARE:",
+                options=all_teams,
+                default=['Duke', 'Kansas', 'Auburn', 'Houston', 'Tennessee', 'Alabama',
+                         'Michigan St', 'Texas Tech', 'Florida', 'Iowa State']
+            )
+        with col2:
+            view_option = st.radio(
+                "PERSPECTIVE:",
+                options=["HEATMAP", "RADAR"],
+                index=0,
+                horizontal=True
+            )
+        if selected_teams:
+            selected_df = df_main[df_main["TM_KP"].isin(selected_teams)].copy()
+            if view_option == "HEATMAP":
+                metrics_to_display = [
+                    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
+                    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", 
+                    "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"
+                ]
+                metrics_to_display = [m for m in metrics_to_display if m in selected_df.columns]
+                display_df = selected_df[metrics_to_display].copy()
+                ncaa_avg = df_main[metrics_to_display].mean().to_frame().T
+                ncaa_avg.index = ["NCAA AVERAGE"]
+                display_df = pd.concat([display_df, ncaa_avg])
+                format_dict = {
+                    "KP_Rank": "{:.0f}",
+                    "WIN_25": "{:.0f}", 
+                    "LOSS_25": "{:.0f}",
+                    "WIN% ALL GM": "{:.1%}",
+                    "WIN% CLOSE GM": "{:.1%}",
+                    "KP_AdjEM": "{:.1f}",
+                    "KP_SOS_AdjEM": "{:.1f}",
+                    "OFF EFF": "{:.1f}", 
+                    "DEF EFF": "{:.1f}",
+                    "TS%": "{:.1f}%", 
+                    "OPP TS%": "{:.1f}%",
+                    "AST/TO%": "{:.2f}",
+                    "STOCKS/GM": "{:.1f}",
+                    "AVG MARGIN": "{:.1f}"
+                }
+                color_scales = {
+                    "KP_Rank": "RdBu_r",
+                    "WIN_25": "RdBu", 
+                    "LOSS_25": "RdBu_r",
+                    "AVG MARGIN": "RdBu",
+                    "WIN% ALL GM": "RdBu",
+                    "WIN% CLOSE GM": "RdBu",
+                    "KP_AdjEM": "RdBu",
+                    "KP_SOS_AdjEM": "RdBu",
+                    "OFF EFF": "RdBu", 
+                    "DEF EFF": "RdBu_r",
+                    "TS%": "RdBu", 
+                    "OPP TS%": "RdBu_r",
+                    "AST/TO%": "RdBu",
+                    "STOCKS/GM": "RdBu", 
+                }
+                styled_table = display_df.style.format({col: fmt for col, fmt in format_dict.items() if col in display_df.columns})
+                for col, cmap in color_scales.items():
+                    if col in display_df.columns:
+                        styled_table = styled_table.background_gradient(cmap=cmap, subset=[col])
+                styled_table = styled_table.set_table_styles([
+                    {'selector': 'th', 'props': [
+                        ('background-color', '#0360CE'),
+                        ('color', 'white'),
+                        ('font-weight', 'bold'),
+                        ('text-align', 'center'),
+                        ('padding', '10px'),
+                        ('border', '1px solid #444')
+                    ]},
+                    {'selector': 'td', 'props': [
+                        ('text-align', 'center'),
+                        ('padding', '8px'),
+                        ('border', '1px solid #444')
+                    ]},
+                    {'selector': 'tr:last-child', 'props': [
+                        ('font-weight', 'bold'),
+                        ('background-color', 'rgba(255,255,255,0.1)')
+                    ]}
+                ])
+                styled_table = styled_table.set_caption("Team Performance Metrics Comparison")
+                st.markdown(styled_table.to_html(), unsafe_allow_html=True)
+                st.markdown("""
+                <div style="margin: 15px 0; font-size: 0.9em; opacity: 0.8; text-align: right;">
+                    Hover over metrics for definitions:
+                    <span class="tooltip">KP_AdjEM
+                        <span class="tooltiptext">KenPom Adjusted Efficiency Margin</span>
+                    </span> |
+                    <span class="tooltip">OFF EFF
+                        <span class="tooltiptext">Offensive Efficiency</span>
+                    </span> |
+                    <span class="tooltip">DEF EFF
+                        <span class="tooltiptext">Defensive Efficiency</span>
+                    </span> |
+                    <span class="tooltip">TS%
+                        <span class="tooltiptext">True Shooting Percentage</span>
+                    </span> |
+                    <span class="tooltip">AST/TO%
+                        <span class="tooltiptext">Assist to Turnover Ratio</span>
+                    </span> |
+                    <span class="tooltip">STOCKS/GM
+                        <span class="tooltiptext">Combined Steals & Blocks per Game</span>
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                radar_fig = create_radar_chart(selected_teams, df_main)
+                if radar_fig:
+                    st.plotly_chart(radar_fig, use_container_width=True)
+                st.subheader("Metric Correlation Analysis")
+                col1, col2 = st.columns(2)
+                with col1:
+                    x_metric = st.selectbox("X-Axis Metric", core_cols, index=core_cols.index("OFF EFF") if "OFF EFF" in core_cols else 0)
+                with col2:
+                    y_metric = st.selectbox("Y-Axis Metric", core_cols, index=core_cols.index("DEF EFF") if "DEF EFF" in core_cols else 0)
+                fig_scatter = px.scatter(
+                    df_main.reset_index(), 
+                    x=x_metric, 
+                    y=y_metric, 
+                    color="CONFERENCE" if "CONFERENCE" in df_main.columns else None,
+                    hover_name="TEAM",
+                    size="KP_AdjEM_Offset" if "KP_AdjEM_Offset" in df_main.columns else None,
+                    size_max=15, 
+                    opacity=0.6, 
+                    template="plotly_dark",
+                    title=f"{y_metric} vs {x_metric} - Selected Teams Highlighted",
+                    height=600
+                )
+                if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
+                    x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
+                    fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
+                    fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
+                    quadrants = [
+                        {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/WEAK DEF"},
+                        {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "WEAK OFF/SOLID DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "ELITE OFF/DEF"}
+                    ]
+                    for q in quadrants:
+                        fig_scatter.add_annotation(
+                            x=q["x"], y=q["y"], text=q["text"], showarrow=False,
+                            font=dict(color="white", size=12, family="Arial"), 
+                            opacity=0.8,
+                            bgcolor="rgba(0,0,0,0.5)",
+                            bordercolor="white",
+                            borderwidth=1,
+                            borderpad=4
+                        )
+                selected_team_data = df_main[df_main["TM_KP"].isin(selected_teams)]
+                for team in selected_teams:
+                    team_data = df_main[df_main["TM_KP"] == team]
+                    if not team_data.empty:
+                        fig_scatter.add_trace(go.Scatter(
+                            x=team_data[x_metric],
+                            y=team_data[y_metric],
+                            mode="markers+text",
+                            marker=dict(size=14, color="yellow", line=dict(width=2, color="white")),
+                            text=team,
+                            textposition="top center",
+                            name=team,
+                            textfont=dict(color="white", size=12, family="Arial"),
+                            hoverinfo="name+x+y"
+                        ))
+                fig_scatter.update_layout(
+                    hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=14, font_family="Arial"),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1,
+                        bgcolor="rgba(0,0,0,0.5)"
+                    )
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
+        else:
+            st.info("👈 Please select at least one team for comparison")
+    else:
+        st.error("Team data not available in the dataset.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    with st.expander("📊 Explanation of Metrics"):
+        st.markdown("""
+        #### Efficiency Metrics
+        - **KP_AdjEM**: KenPom's Adjusted Efficiency Margin
+        - **OFF EFF**: Offensive Efficiency
+        - **DEF EFF**: Defensive Efficiency (lower is better)
+        
+        #### Shooting Metrics
+        - **TS%**: True Shooting Percentage
+        - **eFG%**: Effective Field Goal Percentage
+        
+        #### Ball Control Metrics
+        - **AST/TO%**: Assist to Turnover Ratio
+        - **STOCKS/GM**: Combined Steals and Blocks per game
+        
+        #### Performance Metrics
+        - **WIN% CLOSE GM**: Clutch win percentage in close games
+        - **AVG MARGIN**: Average scoring margin
+        """)
+        
+# --- 🔮 PREDICTIONS Tab (Bracket Simulation) ---
+with tab_pred:
+    st.header("Bracket Simulation")
+    st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
+    if st.button("Run Bracket Simulation"):
+        with st.spinner("Simulating tournament..."):
+            # Run simulation (using 100 simulations as an example; adjust as needed)
+            aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
+        st.success("Simulation complete!")
+        st.subheader("Championship Win Probabilities")
+        st.dataframe(aggregated_analysis['champion_probabilities'])
+        st.subheader("Regional Win Probabilities")
+        st.dataframe(aggregated_analysis['region_probabilities'])
+        st.subheader("Aggregated Upset Analysis")
+        upset_summary_df = pd.DataFrame({
+            'Round': aggregated_analysis['upset_pct_aggregated'].index,
+            'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
+        })
+        st.dataframe(upset_summary_df)
+        try:
+            agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
+            st.pyplot(agg_viz_fig)
+        except Exception as e:
+            st.error(f"Could not generate aggregated visualizations: {e}")
+
+# --- TBD Tab ---
+with tab_pred:
+    pass  # Already using tab_pred for simulation; you may add further prediction content here.
+
+if FinalFour25_logo:
+    st.image(FinalFour25_logo, width=750)
+
+st.markdown("---")
+st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
+st.stop()
+
+## ----- EXTRA ----- ##
+
 
 # --- Histogram Tab --- #
 # with tab_hist:
@@ -953,359 +1463,3 @@ with tab_regions:
 #         - **Positive/Negative Correlation**: Indicates the direction of the relationship.
 #         - **Metrics**: Derived from advanced team statistics.
 #         """)
-
-# --- Conference Comparison Tab --- #
-with tab_conf:
-    st.header("Conference Comparison")
-    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
-    if "CONFERENCE" in df_main.columns:
-        conf_metric = st.selectbox(
-            "Select Metric for Conference Comparison", numeric_cols,
-            index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
-        )
-        conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean().dropna().sort_values(ascending=False)
-        fig_conf = px.bar(
-            conf_group, y=conf_group.index, x=conf_group.values, orientation='h',
-            title=f"Average {conf_metric} by Conference",
-            labels={"y": "Conference", "x": conf_metric},
-            color=conf_group.values, color_continuous_scale="Viridis",
-            template="plotly_dark"
-        )
-        for conf_val in conf_group.index:
-            teams = df_main[df_main["CONFERENCE"] == conf_val]
-            fig_conf.add_trace(go.Scatter(
-                x=teams[conf_metric], y=[conf_val] * len(teams),
-                mode="markers", marker=dict(color="white", size=6, opacity=0.7),
-                name=f"{conf_val} Teams"
-            ))
-        fig_conf.update_layout(showlegend=False)
-        st.plotly_chart(fig_conf, use_container_width=True)
-    else:
-        st.error("Conference data is not available.")
-    with st.expander("About Conference Comparisons:"):
-        st.markdown("""
-        **Conference Comparison Glossary:**
-        - **Avg AdjEM**: Average Adjusted Efficiency Margin.
-        - **Conference**: Grouping of teams by their athletic conferences.
-        - Metrics intended to afford insight into relative conference strength.
-        """)
-
-# --- Team Metrics Comparison Tab --- #
-with tab_team:
-    st.header("🏀 TEAM METRICS COMPARISON")
-    
-    # Create a container with custom styling
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    
-    # Team selection
-    if "TM_KP" in df_main.columns:
-        all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
-        
-        # Create two columns for team selection
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            selected_teams = st.multiselect(
-                "👉 Select Teams to Compare:",
-                options=all_teams,
-                default=all_teams[:4] if len(all_teams) >= 4 else all_teams
-            )
-        
-        with col2:
-            view_option = st.radio(
-                "View Format:",
-                options=["Table", "Chart"],
-                index=0,
-                horizontal=True
-            )
-    
-        if selected_teams:
-            # Filter the main DataFrame for the selected teams
-            selected_df = df_main[df_main["TM_KP"].isin(selected_teams)].copy()
-            
-            if view_option == "Table":
-                # Table view - Create an enhanced table with custom styling
-                metrics_to_display = [
-                    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-                    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", 
-                    "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"
-                ]
-                
-                # Filter to only columns that exist in the dataframe
-                metrics_to_display = [m for m in metrics_to_display if m in selected_df.columns]
-                
-                # Create the display dataframe
-                display_df = selected_df[metrics_to_display].copy()
-                
-                # Add NCAA Average for comparison
-                ncaa_avg = df_main[metrics_to_display].mean().to_frame().T
-                ncaa_avg.index = ["NCAA AVERAGE"]
-                
-                # Combine selected teams with NCAA average
-                display_df = pd.concat([display_df, ncaa_avg])
-                
-                # Define formatting for different metric types
-                format_dict = {
-                    "KP_Rank": "{:.0f}",
-                    "WIN_25": "{:.0f}", 
-                    "LOSS_25": "{:.0f}",
-                    "WIN% ALL GM": "{:.1%}",
-                    "WIN% CLOSE GM": "{:.1%}",
-                    "KP_AdjEM": "{:.1f}",
-                    "KP_SOS_AdjEM": "{:.1f}",
-                    "OFF EFF": "{:.1f}", 
-                    "DEF EFF": "{:.1f}",
-                    "TS%": "{:.1f}%", 
-                    "OPP TS%": "{:.1f}%",
-                    "AST/TO%": "{:.2f}",
-                    "STOCKS/GM": "{:.1f}",
-                    "AVG MARGIN": "{:.1f}"
-                }
-                
-                # Define which columns should have which color scales
-                color_scales = {
-                    "KP_Rank": "RdBu_r",
-                    "NET_25": "RdBu_r",
-                    "SEED_25": "RdBu_r",
-                    "WIN_25": "RdBu", 
-                    "LOSS_25": "RdBu_r",
-                    "AVG MARGIN": "RdBu",
-                    "WIN% ALL GM": "RdBu",
-                    "WIN% CLOSE GM": "RdBu",
-                    "KP_AdjEM": "RdBu",
-                    "KP_SOS_AdjEM": "RdBu",
-                    "OFF EFF": "RdBu", 
-                    "DEF EFF": "RdBu_r",
-                    "TS%": "RdBu", 
-                    "OPP TS%": "RdBu_r",
-                    "AST/TO%": "RdBu",
-                    "STOCKS/GM": "RdBu", 
-                }
-                
-                # Apply formatting and coloring to table
-                styled_table = display_df.style.format(
-                    {col: fmt for col, fmt in format_dict.items() if col in display_df.columns}
-                )
-                
-                # Apply color gradients for each metric
-                for col, cmap in color_scales.items():
-                    if col in display_df.columns:
-                        styled_table = styled_table.background_gradient(cmap=cmap, subset=[col])
-                
-                # Set additional styling
-                styled_table = styled_table.set_table_styles([
-                    {'selector': 'th', 'props': [
-                        ('background-color', '#0360CE'),
-                        ('color', 'white'),
-                        ('font-weight', 'bold'),
-                        ('text-align', 'center'),
-                        ('padding', '10px'),
-                        ('border', '1px solid #444')
-                    ]},
-                    {'selector': 'td', 'props': [
-                        ('text-align', 'center'),
-                        ('padding', '8px'),
-                        ('border', '1px solid #444')
-                    ]},
-                    {'selector': 'tr:last-child', 'props': [
-                        ('font-weight', 'bold'),
-                        ('background-color', 'rgba(255,255,255,0.1)')
-                    ]}
-                ])
-                
-                # Highlight selected teams
-                styled_table = styled_table.set_caption("Team Performance Metrics Comparison")
-                
-                # Display the table
-                st.markdown(styled_table.to_html(), unsafe_allow_html=True)
-                
-                # Add tooltips for metric definitions
-                st.markdown("""
-                <div style="margin: 15px 0; font-size: 0.9em; opacity: 0.8; text-align: right;">
-                    Hover over metrics for definitions:
-                    <span class="tooltip">KP_AdjEM
-                        <span class="tooltiptext">KenPom Adjusted Efficiency Margin - Points per 100 possessions a team is better/worse than average</span>
-                    </span> |
-                    <span class="tooltip">OFF EFF
-                        <span class="tooltiptext">Offensive Efficiency - Points scored per 100 possessions</span>
-                    </span> |
-                    <span class="tooltip">DEF EFF
-                        <span class="tooltiptext">Defensive Efficiency - Points allowed per 100 possessions</span>
-                    </span> |
-                    <span class="tooltip">TS%
-                        <span class="tooltiptext">True Shooting % - Shooting efficiency including FG, 3PT and FT</span>
-                    </span> |
-                    <span class="tooltip">AST/TO%
-                        <span class="tooltiptext">Assist to Turnover Ratio - Higher values indicate better ball control</span>
-                    </span> |
-                    <span class="tooltip">STOCKS/GM
-                        <span class="tooltiptext">Combined steals and blocks per game</span>
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-            else:  # Chart view
-                # Create a Radar Chart for the selected teams
-                radar_fig = create_radar_chart(selected_teams, df_main)
-                if radar_fig:
-                    st.plotly_chart(radar_fig, use_container_width=True)
-                
-                # Add a comparison scatter plot beneath the radar chart
-                st.subheader("Metric Correlation Analysis")
-                
-                # Create two columns for metric selection
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    x_metric = st.selectbox(
-                        "X-Axis Metric", 
-                        core_cols,
-                        index=core_cols.index("OFF EFF") if "OFF EFF" in core_cols else 0
-                    )
-                
-                with col2:
-                    y_metric = st.selectbox(
-                        "Y-Axis Metric", 
-                        core_cols,
-                        index=core_cols.index("DEF EFF") if "DEF EFF" in core_cols else 0
-                    )
-                
-                # Create a scatter plot highlighting the selected teams
-                fig_scatter = px.scatter(
-                    df_main.reset_index(), 
-                    x=x_metric, 
-                    y=y_metric, 
-                    color="CONFERENCE" if "CONFERENCE" in df_main.columns else None,
-                    hover_name="TEAM",
-                    size="KP_AdjEM_Offset" if "KP_AdjEM_Offset" in df_main.columns else None,
-                    size_max=15, 
-                    opacity=0.6, 
-                    template="plotly_dark",
-                    title=f"{y_metric} vs {x_metric} - Selected Teams Highlighted",
-                    height=600
-                )
-                
-                # Add quadrant lines and labels if appropriate
-                if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
-                    x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
-                    fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
-                    fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
-                    
-                    # Define quadrants with improved labels
-                    quadrants = [
-                        {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
-                        {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/WEAK DEF"},
-                        {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "WEAK OFF/SOLID DEF"},
-                        {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "ELITE OFF/DEF"}
-                    ]
-                    
-                    for q in quadrants:
-                        fig_scatter.add_annotation(
-                            x=q["x"], y=q["y"], text=q["text"], showarrow=False,
-                            font=dict(color="white", size=12, family="Arial"), 
-                            opacity=0.8,
-                            bgcolor="rgba(0,0,0,0.5)",
-                            bordercolor="white",
-                            borderwidth=1,
-                            borderpad=4
-                        )
-                
-                # Highlight the selected teams in the scatter plot
-                selected_team_data = df_main[df_main["TM_KP"].isin(selected_teams)]
-                
-                for team in selected_teams:
-                    team_data = df_main[df_main["TM_KP"] == team]
-                    if not team_data.empty:
-                        fig_scatter.add_trace(go.Scatter(
-                            x=team_data[x_metric],
-                            y=team_data[y_metric],
-                            mode="markers+text",
-                            marker=dict(size=14, color="yellow", line=dict(width=2, color="white")),
-                            text=team,
-                            textposition="top center",
-                            name=team,
-                            textfont=dict(color="white", size=12, family="Arial"),
-                            hoverinfo="name+x+y"
-                        ))
-                
-                fig_scatter.update_layout(
-                    hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=14, font_family="Arial"),
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="right",
-                        x=1,
-                        bgcolor="rgba(0,0,0,0.5)"
-                    )
-                )
-                
-                st.plotly_chart(fig_scatter, use_container_width=True)
-        
-        else:
-            st.info("👈 Please select at least one team for comparison")
-    
-    else:
-        st.error("Team data not available in the dataset.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Add an expander with information about metrics
-    with st.expander("📊 Understanding Basketball Metrics"):
-        st.markdown("""
-        ### Key Metrics Explained
-        
-        #### Efficiency Metrics
-        - **KP_AdjEM**: KenPom's Adjusted Efficiency Margin - Points per 100 possessions above/below average
-        - **OFF EFF**: Offensive Efficiency - Points scored per 100 possessions
-        - **DEF EFF**: Defensive Efficiency - Points allowed per 100 possessions (lower is better)
-        
-        #### Shooting Metrics
-        - **TS%**: True Shooting Percentage - Shooting efficiency including FG, 3PT and FT
-        - **eFG%**: Effective Field Goal Percentage - Adjusts for 3PT being worth more
-        
-        #### Ball Control Metrics
-        - **AST/TO%**: Assist to Turnover Ratio - Higher values indicate better ball control
-        - **STOCKS/GM**: Combined steals and blocks per game - Defensive playmaking
-        - **STOCKS-TOV/GM**: Steals + Blocks - Turnovers per game - Net defensive impact
-        
-        #### Performance Metrics
-        - **WIN% CLOSE GM**: Win percentage in games decided by 5 points or less - Clutch performance
-        - **AVG MARGIN**: Average scoring margin - Point differential per game
-        
-        ### How to Interpret Radar Charts
-        - The **blue area** represents the selected team's performance
-        - The **red dashed line** represents NCAA average (baseline)
-        - The **green dotted line** represents conference average
-        - Higher values (further from center) are better for all metrics
-        - The overall team rating is derived from the average z-score across all metrics
-        """)
-
-# --- TBD Tab ---
-with tab_tbd:
-    st.header("BRACKET SIMULATIONS -- TO BE UPDATED")
-    st.info("Additional visualizations, bracket simulations coming soon.")
-
-# ----------------------------------------------------------------------------
-# CONFERENCE LOGOS GRID
-# conference_logos = [
-#     [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
-#     [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
-#     [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
-#     [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo],
-# ]
-# for row in conference_logos:
-#     cols = st.columns(len(row))
-#     for i, logo in enumerate(row):
-#         if logo:
-#             with cols[i]:
-#                 st.image(logo, width=75)
-
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, use_container_width=True)
-
-# GitHub Link & App Footer
-st.markdown("---")
-st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
-st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
-st.stop()
