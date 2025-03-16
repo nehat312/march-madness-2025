@@ -142,13 +142,17 @@ mm_database_2025 = load_data()
 
 # ----------------------------------------------------------------------------
 # Select Relevant Columns (including radar metrics)
-core_cols = [
-    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", "OFF REB/GM", "DEF REB/GM",
-    "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
-    "eFG%", "OPP eFG%", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM"
-]
-extra_cols_for_treemap = ["CONFERENCE", "TM_KP", "SEED_25"]
+core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
+             "KP_Rank", "NET_25", "SEED_25",
+             "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
+             "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
+             "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+             "OFF REB/GM", "DEF REB/GM",
+             "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", 
+             "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
+             ]
+
+extra_cols_for_treemap = ["CONFERENCE", "TM_KP"] #, "SEED_25"
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
@@ -860,29 +864,83 @@ def analyze_simulation_results(all_results):
     }
 
 def visualize_aggregated_results(analysis_results):
-    plt.figure(figsize=(14, 12))
-    gs = plt.GridSpec(2, 2)
+    plt.style.use('dark_background')
+    fig = plt.figure(constrained_layout=True, figsize=(14, 12))
+    gs = fig.add_gridspec(2, 2)
+    
+    # Top Teams Championship Win Probability
+    ax1 = fig.add_subplot(gs[0, 0])
     champ_probs_df = analysis_results['champion_probabilities'].head(10)
-    ax1 = plt.subplot(gs[0, 0])
     sns.barplot(x='Championship_Probability', y='Team', data=champ_probs_df, palette="viridis", ax=ax1)
-    ax1.set_title('Top Teams Championship Win Probability')
-    ax1.set_xlabel('Probability')
-    ax1.set_ylabel('Team')
+    ax1.set_title('Top Teams Championship Win Probability', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Probability', fontsize=12)
+    ax1.set_ylabel('Team', fontsize=12)
+    ax1.grid(True, linestyle='--', alpha=0.5)
+    
+    # Aggregated Upset Percentage by Round
+    ax2 = fig.add_subplot(gs[0, 1])
     upset_pct_aggregated = analysis_results['upset_pct_aggregated']
-    ax2 = plt.subplot(gs[0, 1])
     upset_pct_aggregated.plot(kind='bar', color='coral', ax=ax2)
-    ax2.set_title('Aggregated Upset Percentage by Round')
-    ax2.set_ylabel('Percentage of Games (%)')
-    ax2.set_xlabel('Tournament Round')
+    ax2.set_title('Aggregated Upset Percentage by Round', fontsize=14, fontweight='bold')
+    ax2.set_ylabel('Percentage of Games (%)', fontsize=12)
+    ax2.set_xlabel('Tournament Round', fontsize=12)
     ax2.tick_params(axis='x', rotation=45)
-    east_region_probs_df = analysis_results['region_probabilities'][['Team', 'East_Region_Win_Probability']].sort_values(by='East_Region_Win_Probability', ascending=False).head(10)
-    ax3 = plt.subplot(gs[1, :])
-    sns.barplot(x='East_Region_Win_Probability', y='Team', data=east_region_probs_df, palette="cividis", ax=ax3)
-    ax3.set_title('Top Teams East Region Win Probability')
-    ax3.set_xlabel('Probability')
-    ax3.set_ylabel('Team')
-    plt.tight_layout()
-    return plt.gcf()
+    ax2.grid(True, linestyle='--', alpha=0.5)
+    
+    # # East Region Win Probability
+    # ax3 = fig.add_subplot(gs[1, :])
+    # region_probs_df = analysis_results['region_probabilities']
+    # if 'East_Region_Win_Probability' in region_probs_df.columns:
+    #     east_region_probs_df = region_probs_df[['Team', 'East_Region_Win_Probability']].sort_values(
+    #         by='East_Region_Win_Probability', ascending=False).head(10)
+    #     sns.barplot(x='East_Region_Win_Probability', y='Team', data=east_region_probs_df, palette="cividis", ax=ax3)
+    #     ax3.set_title('Top Teams East Region Win Probability', fontsize=14, fontweight='bold')
+    #     ax3.set_xlabel('Probability', fontsize=12)
+    #     ax3.set_ylabel('Team', fontsize=12)
+    #     ax3.grid(True, linestyle='--', alpha=0.5)
+    # else:
+    #     ax3.text(0.5, 0.5, "No East Region data", horizontalalignment='center',
+    #              verticalalignment='center', fontsize=14, color='white')
+    
+    # return fig
+
+def create_regional_prob_chart(region_probs):
+    """
+    Creates a 2x2 subplot bar chart for regional win probabilities.
+    Expects a DataFrame with columns: 'Team', 'East_Region_Win_Probability',
+    'West_Region_Win_Probability', 'South_Region_Win_Probability', and 'Midwest_Region_Win_Probability'.
+    Displays the top 10 teams per region.
+    """
+
+    regions = ['East', 'West', 'South', 'Midwest']
+    fig = make_subplots(rows=2, cols=2, subplot_titles=regions)
+    
+    for i, region in enumerate(regions):
+        col_name = f"{region}_Region_Win_Probability"
+        if col_name in region_probs.columns:
+            df_region = region_probs[['Team', col_name]].copy()
+            # Sort and select top 10 teams for the region
+            df_region = df_region.sort_values(by=col_name, ascending=False).head(10)
+            row = i // 2 + 1
+            col_idx = i % 2 + 1
+            fig.add_trace(go.Bar(
+                x=df_region[col_name],
+                y=df_region['Team'],
+                orientation='h',
+                marker=dict(color=df_region[col_name], colorscale='Viridis'),
+                name=region
+            ), row=row, col=col_idx)
+            # Reverse y-axis to show highest probabilities at the top
+            fig.update_yaxes(autorange="reversed", row=row, col=col_idx)
+    
+    fig.update_layout(
+        height=600,
+        template="plotly_dark",
+        title_text="Regional Win Probabilities",
+        showlegend=False,
+        margin=dict(l=50, r=50, t=80, b=50)
+    )
+    return fig
 
 def run_tournament_simulation(num_simulations=100, use_analytics=True):
     all_simulation_results = run_simulation(use_analytics=use_analytics, simulations=num_simulations)
@@ -1363,25 +1421,34 @@ with tab_pred:
             # Run simulation (using 100 simulations as an example; adjust as needed)
             aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
         st.success("Simulation complete!")
+        
+        # Display Championship Win Probabilities as a styled table
         st.subheader("Championship Win Probabilities")
         st.dataframe(aggregated_analysis['champion_probabilities'])
+        
+        # Display Regional Win Probabilities as a 2x2 subplot chart for all four regions
         st.subheader("Regional Win Probabilities")
-        st.dataframe(aggregated_analysis['region_probabilities'])
+        if 'region_probabilities' in aggregated_analysis:
+            fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
+            st.plotly_chart(fig_regional, use_container_width=True)
+        else:
+            st.warning("Regional win probabilities data not available.")
+        
+        # Display Aggregated Upset Analysis as a table
         st.subheader("Aggregated Upset Analysis")
         upset_summary_df = pd.DataFrame({
             'Round': aggregated_analysis['upset_pct_aggregated'].index,
             'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
         })
         st.dataframe(upset_summary_df)
+        
+        # Additional aggregated visualizations (if available)
         try:
             agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
             st.pyplot(agg_viz_fig)
         except Exception as e:
             st.error(f"Could not generate aggregated visualizations: {e}")
 
-# --- TBD Tab ---
-with tab_pred:
-    pass  # Already using tab_pred for simulation; you may add further prediction content here.
 
 if FinalFour25_logo:
     st.image(FinalFour25_logo, width=750)
