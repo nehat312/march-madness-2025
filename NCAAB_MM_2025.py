@@ -607,44 +607,63 @@ with tab_home:
         st.caption(":green[_DATA AS OF: 3/12/2025_]")
     else:
         st.warning("TREEMAP OVERHEATED.")
-    if "CONFERENCE" in df_main.columns:
-        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-        conf_counts.columns = ["CONFERENCE"]
-        if "KP_AdjEM" in df_main.columns:
-            conf_stats = (
-                df_main.groupby("CONFERENCE")["KP_AdjEM"]
-                .agg(["count", "max", "mean", "min"])
-                .reset_index()
-            )
-            conf_stats.columns = ["CONFERENCE", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
-            conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-            st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
-            with st.expander("*About Conference Power Rankings:*"):
-                st.markdown("""
-                            Simple-average rollup of each conference:
-                            - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-                            - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-                            """)
-            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-            styled_conf_stats = (
-                conf_stats.style
-                .format({
-                    "MEAN AdjEM": "{:.2f}",
-                    "MIN AdjEM": "{:.2f}",
-                    "MAX AdjEM": "{:.2f}",
-                })
-                .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
-                .set_table_styles(detailed_table_styles)
-            )
-            st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-            with st.expander("*About Conference Treemap:*"):
-                st.markdown("""
+
+    with st.expander("*About Conference Treemap:*"):
+        st.markdown("""
                     This table shows a summary of each conference:
                     - **Avg AdjEM**: Average KenPom Adjusted Efficiency Margin for the conference
                     - **Min/Max**: Range of AdjEM values among teams in that conference
                     - **Count**: Number of teams in the conference
-                """)
-            st.caption(":green[_DATA AS OF: 3/12/2025_]")
+                    """)
+    st.caption(":green[_DATA AS OF: 3/12/2025_]")
+
+if "CONFERENCE" in df_main.columns:
+    # Compute team counts per conference
+    conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+    conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
+    if "KP_AdjEM" in df_main.columns:
+        # Compute aggregated KP_AdjEM statistics by conference
+        conf_stats = (
+            df_main.groupby("CONFERENCE")["KP_AdjEM"]
+            .agg(["count", "max", "mean", "min"])
+            .reset_index()
+        )
+        # Rename columns in a Pythonic way
+        conf_stats = conf_stats.rename(columns={
+            "count": "# TEAMS",
+            "max": "MAX AdjEM",
+            "mean": "MEAN AdjEM",
+            "min": "MIN AdjEM"
+        })
+        conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
+
+        st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
+        with st.expander("*About Conference Power Rankings:*"):
+            st.markdown(
+                """
+                Simple-average rollup of each conference:
+                - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
+                - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
+                """
+            )
+
+        # Replace the conference name with an HTML snippet including the logo
+        conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
+
+        styled_conf_stats = (
+            conf_stats.style
+            .format({
+                "MEAN AdjEM": "{:.2f}",
+                "MIN AdjEM": "{:.2f}",
+                "MAX AdjEM": "{:.2f}",
+            })
+            .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
+            .set_table_styles(detailed_table_styles)
+        )
+        st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
+
+
 
 # --- Radar Charts Tab --- #
 with tab_radar:
