@@ -1176,8 +1176,10 @@ with tab_team:
             selected_teams = st.multiselect(
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
-                default=['Duke', 'Kansas', 'Auburn', 'Houston', 'Tennessee', 'Alabama',
-                         'Michigan St.', 'Texas Tech', 'Florida', 'Iowa St.']
+                default=['Duke', 'Kansas', 'Auburn', 'Houston',
+                         'Tennessee', 'Alabama', 'Michigan St.',  'Iowa St.', 
+                         #'Texas Tech', 'Florida',
+                         ]
             )
         with col2:
             view_option = st.radio(
@@ -1256,29 +1258,7 @@ with tab_team:
                 ])
                 styled_table = styled_table.set_caption("Team Performance Metrics Comparison")
                 st.markdown(styled_table.to_html(), unsafe_allow_html=True)
-                st.markdown("""
-                <div style="margin: 15px 0; font-size: 0.9em; opacity: 0.8; text-align: right;">
-                    Hover over metrics for definitions:
-                    <span class="tooltip">KP_AdjEM
-                        <span class="tooltiptext">KenPom Adjusted Efficiency Margin</span>
-                    </span> |
-                    <span class="tooltip">OFF EFF
-                        <span class="tooltiptext">Offensive Efficiency</span>
-                    </span> |
-                    <span class="tooltip">DEF EFF
-                        <span class="tooltiptext">Defensive Efficiency</span>
-                    </span> |
-                    <span class="tooltip">TS%
-                        <span class="tooltiptext">True Shooting Percentage</span>
-                    </span> |
-                    <span class="tooltip">AST/TO%
-                        <span class="tooltiptext">Assist to Turnover Ratio</span>
-                    </span> |
-                    <span class="tooltip">STOCKS/GM
-                        <span class="tooltiptext">Combined Steals & Blocks per Game</span>
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
+                
             else:
                 radar_fig = create_radar_chart(selected_teams, df_main)
                 if radar_fig:
