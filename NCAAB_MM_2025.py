@@ -690,7 +690,7 @@ with tab_home:
 
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+        conf_counts.columns = ["CONFERENCE"] #, "# TEAMS"
 
         if "KP_AdjEM" in df_main.columns:
             conf_stats = (
@@ -698,30 +698,25 @@ with tab_home:
                 .agg(["count", "max", "mean", "min"])
                 .reset_index()
             )
-            conf_stats.columns = ["CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
+            conf_stats.columns = ["CONFERENCE", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"] #"# TEAMS", 
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
             with st.expander("*About Conference Power Rankings:*"):
                 st.markdown("""
-                    Simple-average rollup of each conference:
-                    - **# TEAMS**: Number of teams in conference
-                    - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-                    - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-                """)
+                            Simple-average rollup of each conference:
+                            - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
+                            - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
+                            """)
 
-            ###########################################################
-            #   REPLACE "CONFERENCE" TEXT WITH LOGO + TEXT VIA HTML   #
-            ###########################################################
-            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-
+            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html) #   REPLACE "CONFERENCE" TEXT WITH LOGO + TEXT VIA HTML
             styled_conf_stats = (
                 conf_stats.style
                 .format({
                     "MEAN AdjEM": "{:.2f}",
                     "MIN AdjEM": "{:.2f}",
                     "MAX AdjEM": "{:.2f}",
-                    "# TEAMS": "{:.0f}",
+                    #"# TEAMS": "{:.0f}",
                 })
                 .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
                 .set_table_styles(detailed_table_styles)
@@ -1042,103 +1037,3 @@ st.caption("Python code framework available on [GitHub](https://github.com/nehat
 st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
 
 st.stop()
-
-
-
-
-#-----------------
-# def create_radar_chart(selected_teams, full_df):
-#     metrics = get_default_metrics()
-#     available_radar_metrics = [m for m in metrics if m in full_df.columns]
-#     if len(available_radar_metrics) < 3:
-#         return None
-
-#     team_mask = full_df['TM_KP'].isin(selected_teams)
-#     subset = full_df[team_mask].copy().reset_index()
-#     if subset.empty:
-#         return None
-
-#     t_avgs, t_stdevs = compute_tournament_stats(full_df)
-#     n_teams = len(subset)
-#     # Increase overall figure height to reduce cramping
-#     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
-#     # Adjust spacing for better readability
-#     row_count = 1 if n_teams <= 4 else 2
-#     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
-
-#     subplot_titles = []
-#     for i, row in subset.iterrows():
-#         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
-#         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
-#         seed_str = ""
-#         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
-#             seed_str = f" - Seed {int(row['SEED_25'])}"
-#         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
-
-#     fig = make_subplots(
-#         rows=row_count,
-#         cols=col_count,
-#         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
-#         subplot_titles=subplot_titles,
-#         horizontal_spacing=0.10,
-#         vertical_spacing=0.20
-#     )
-#     fig.update_layout(
-#         height=fig_height,
-#         title="Radar Dashboards for Selected Teams",
-#         template='plotly_dark',
-#         font=dict(size=12),
-#         showlegend=True,
-#         margin=dict(l=50, r=50, t=80, b=50)
-#     )
-#     # Slightly larger fonts and no angular tilt
-#     fig.update_polars(
-#         radialaxis=dict(
-#             tickmode='array',
-#             tickvals=[0, 2, 4, 6, 8, 10],
-#             ticktext=['0', '2', '4', '6', '8', '10'],
-#             tickfont=dict(size=11),
-#             showline=False,
-#             gridcolor='gray'
-#         ),
-#         angularaxis=dict(
-#             tickfont=dict(size=11),
-#             tickangle=0,
-#             showline=False,
-#             gridcolor='gray'
-#         )
-#     )
-
-#     for idx, team_row in subset.iterrows():
-#         r = idx // col_count + 1
-#         c = idx % col_count + 1
-#         show_legend = (idx == 0)
-#         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
-#         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
-
-#         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
-#         for tr in traces:
-#             fig.add_trace(tr, row=r, col=c)
-
-#         perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
-#         polar_idx = (r - 1) * col_count + c
-#         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
-#         # Place performance text near top-left of each subplot
-#         if polar_key in fig.layout:
-#             domain_x = fig.layout[polar_key].domain.x
-#             domain_y = fig.layout[polar_key].domain.y
-#             x_annot = domain_x[0] + 0.02
-#             y_annot = domain_y[1] - 0.02
-#         else:
-#             x_annot, y_annot = 0.05, 0.95
-#         fig.add_annotation(
-#             x=x_annot,
-#             y=y_annot,
-#             xref="paper",
-#             yref="paper",
-#             text=f"<b>{perf_text}</b>",
-#             showarrow=False,
-#             font=dict(size=12, color="gold")
-#         )
-
-#     return fig
