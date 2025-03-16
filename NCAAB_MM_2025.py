@@ -1177,7 +1177,7 @@ with tab_team:
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
                 default=['Duke', 'Kansas', 'Auburn', 'Houston', 'Tennessee', 'Alabama',
-                         'Michigan St', 'Texas Tech', 'Florida', 'Iowa State']
+                         'Michigan St.', 'Texas Tech', 'Florida', 'Iowa State']
             )
         with col2:
             view_option = st.radio(
