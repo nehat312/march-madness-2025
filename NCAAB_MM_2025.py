@@ -280,38 +280,11 @@ Southland_logo = Image.open(Southland_logo_path) if os.path.exists(Southland_log
 WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
 WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
-conference_logo_map = {
-    "ACC": ACC_logo,
-    "AAC": AAC_logo,
-    "AEC": AEC_logo,
-    "ASUN": ASUN_logo,
-    "B10": B10_logo,
-    "B12": B12_logo,
-    "BE": BE_logo,
-    "Big South": BSouth_logo,    # Example only; ensure naming matches your df
-    "Big Sky": BSky_logo,
-    "Big West": BWest_logo,
-    "CAA": CAA_logo,
-    "CUSA": CUSA_logo,
-    "Horizon": Horizon_logo,
-    "Ivy": Ivy_logo,
-    "MAAC": MAAC_logo,
-    "MAC": MAC_logo,
-    "MEAC": MEAC_logo,
-    "MVC": MVC_logo,
-    "MWC": MWC_logo,
-    "NEC": NEC_logo,
-    "OVC": OVC_logo,
-    "Patriot": Patriot_logo,
-    "SBC": SBC_logo,
-    "SEC": SEC_logo,
-    "SoCon": SoCon_logo,
-    "Southland": Southland_logo,
-    "Summit": Summit_logo,
-    "SWAC": SWAC_logo,
-    "WAC": WAC_logo,
-    "WCC": WCC_logo
-    # Add/update exact conference keys to match your DataFrame’s "CONFERENCE" values
+conference_logo_map = {"ACC": ACC_logo, "AAC": AAC_logo, "AEC": AEC_logo, "ASUN": ASUN_logo, "B10": B10_logo, "B12": B12_logo, "BE": BE_logo,
+                       "Big South": BSouth_logo, "Big Sky": BSky_logo, "Big West": BWest_logo, "CAA": CAA_logo, "CUSA": CUSA_logo, "Horizon": Horizon_logo,
+                       "Ivy": Ivy_logo, "MAAC": MAAC_logo, "MAC": MAC_logo, "MEAC": MEAC_logo, "MVC": MVC_logo, "MWC": MWC_logo, "NEC": NEC_logo,
+                       "OVC": OVC_logo, "Patriot": Patriot_logo, "SBC": SBC_logo, "SEC": SEC_logo, "SoCon": SoCon_logo, "Southland": Southland_logo, "Summit": Summit_logo,
+                       "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
 }
 
 #####################################
@@ -361,7 +334,7 @@ detailed_table_styles = [header]
 # Radar Chart Functions
 def get_default_metrics():
     return ['AVG MARGIN',
-            'KP_AdjEM',
+            'KP_AdjEM', 
             'OFF EFF', 'DEF EFF',
             'OFF REB/GM', 'DEF REB/GM',
             'AST/TO%', 'STOCKS/GM',
@@ -478,102 +451,6 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
         hoverinfo='skip'
     )
     return [trace_team, trace_ncaam, trace_conf]
-
-# def create_radar_chart(selected_teams, full_df):
-#     metrics = get_default_metrics()
-#     available_radar_metrics = [m for m in metrics if m in full_df.columns]
-#     if len(available_radar_metrics) < 3:
-#         return None
-
-#     team_mask = full_df['TM_KP'].isin(selected_teams)
-#     subset = full_df[team_mask].copy().reset_index()
-#     if subset.empty:
-#         return None
-
-#     t_avgs, t_stdevs = compute_tournament_stats(full_df)
-#     n_teams = len(subset)
-#     # Increase overall figure height to reduce cramping
-#     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
-#     # Adjust spacing for better readability
-#     row_count = 1 if n_teams <= 4 else 2
-#     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
-
-#     subplot_titles = []
-#     for i, row in subset.iterrows():
-#         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
-#         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
-#         seed_str = ""
-#         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
-#             seed_str = f" - Seed {int(row['SEED_25'])}"
-#         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
-
-#     fig = make_subplots(
-#         rows=row_count,
-#         cols=col_count,
-#         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
-#         subplot_titles=subplot_titles,
-#         horizontal_spacing=0.10,
-#         vertical_spacing=0.20
-#     )
-#     fig.update_layout(
-#         height=fig_height,
-#         title="Radar Dashboards for Selected Teams",
-#         template='plotly_dark',
-#         font=dict(size=12),
-#         showlegend=True,
-#         margin=dict(l=50, r=50, t=80, b=50)
-#     )
-#     # Slightly larger fonts and no angular tilt
-#     fig.update_polars(
-#         radialaxis=dict(
-#             tickmode='array',
-#             tickvals=[0, 2, 4, 6, 8, 10],
-#             ticktext=['0', '2', '4', '6', '8', '10'],
-#             tickfont=dict(size=11),
-#             showline=False,
-#             gridcolor='gray'
-#         ),
-#         angularaxis=dict(
-#             tickfont=dict(size=11),
-#             tickangle=0,
-#             showline=False,
-#             gridcolor='gray'
-#         )
-#     )
-
-#     for idx, team_row in subset.iterrows():
-#         r = idx // col_count + 1
-#         c = idx % col_count + 1
-#         show_legend = (idx == 0)
-#         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
-#         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
-
-#         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
-#         for tr in traces:
-#             fig.add_trace(tr, row=r, col=c)
-
-#         perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
-#         polar_idx = (r - 1) * col_count + c
-#         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
-#         # Place performance text near top-left of each subplot
-#         if polar_key in fig.layout:
-#             domain_x = fig.layout[polar_key].domain.x
-#             domain_y = fig.layout[polar_key].domain.y
-#             x_annot = domain_x[0] + 0.02
-#             y_annot = domain_y[1] - 0.02
-#         else:
-#             x_annot, y_annot = 0.05, 0.95
-#         fig.add_annotation(
-#             x=x_annot,
-#             y=y_annot,
-#             xref="paper",
-#             yref="paper",
-#             text=f"<b>{perf_text}</b>",
-#             showarrow=False,
-#             font=dict(size=12, color="gold")
-#         )
-
-#     return fig
 
 def create_radar_chart(selected_teams, full_df):
     metrics = get_default_metrics()
@@ -1165,3 +1042,103 @@ st.caption("Python code framework available on [GitHub](https://github.com/nehat
 st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
 
 st.stop()
+
+
+
+
+#-----------------
+# def create_radar_chart(selected_teams, full_df):
+#     metrics = get_default_metrics()
+#     available_radar_metrics = [m for m in metrics if m in full_df.columns]
+#     if len(available_radar_metrics) < 3:
+#         return None
+
+#     team_mask = full_df['TM_KP'].isin(selected_teams)
+#     subset = full_df[team_mask].copy().reset_index()
+#     if subset.empty:
+#         return None
+
+#     t_avgs, t_stdevs = compute_tournament_stats(full_df)
+#     n_teams = len(subset)
+#     # Increase overall figure height to reduce cramping
+#     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
+#     # Adjust spacing for better readability
+#     row_count = 1 if n_teams <= 4 else 2
+#     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
+
+#     subplot_titles = []
+#     for i, row in subset.iterrows():
+#         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
+#         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
+#         seed_str = ""
+#         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
+#             seed_str = f" - Seed {int(row['SEED_25'])}"
+#         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
+
+#     fig = make_subplots(
+#         rows=row_count,
+#         cols=col_count,
+#         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
+#         subplot_titles=subplot_titles,
+#         horizontal_spacing=0.10,
+#         vertical_spacing=0.20
+#     )
+#     fig.update_layout(
+#         height=fig_height,
+#         title="Radar Dashboards for Selected Teams",
+#         template='plotly_dark',
+#         font=dict(size=12),
+#         showlegend=True,
+#         margin=dict(l=50, r=50, t=80, b=50)
+#     )
+#     # Slightly larger fonts and no angular tilt
+#     fig.update_polars(
+#         radialaxis=dict(
+#             tickmode='array',
+#             tickvals=[0, 2, 4, 6, 8, 10],
+#             ticktext=['0', '2', '4', '6', '8', '10'],
+#             tickfont=dict(size=11),
+#             showline=False,
+#             gridcolor='gray'
+#         ),
+#         angularaxis=dict(
+#             tickfont=dict(size=11),
+#             tickangle=0,
+#             showline=False,
+#             gridcolor='gray'
+#         )
+#     )
+
+#     for idx, team_row in subset.iterrows():
+#         r = idx // col_count + 1
+#         c = idx % col_count + 1
+#         show_legend = (idx == 0)
+#         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
+#         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
+
+#         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
+#         for tr in traces:
+#             fig.add_trace(tr, row=r, col=c)
+
+#         perf_text = compute_performance_text(team_row, t_avgs, t_stdevs)
+#         polar_idx = (r - 1) * col_count + c
+#         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
+#         # Place performance text near top-left of each subplot
+#         if polar_key in fig.layout:
+#             domain_x = fig.layout[polar_key].domain.x
+#             domain_y = fig.layout[polar_key].domain.y
+#             x_annot = domain_x[0] + 0.02
+#             y_annot = domain_y[1] - 0.02
+#         else:
+#             x_annot, y_annot = 0.05, 0.95
+#         fig.add_annotation(
+#             x=x_annot,
+#             y=y_annot,
+#             xref="paper",
+#             yref="paper",
+#             text=f"<b>{perf_text}</b>",
+#             showarrow=False,
+#             font=dict(size=12, color="gold")
+#         )
+
+#     return fig
