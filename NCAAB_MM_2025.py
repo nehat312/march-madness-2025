@@ -1,11 +1,15 @@
 import streamlit as st
-from streamlit_plotly_events import plotly_events
+#from streamlit_plotly_events import plotly_events
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
+import base64
+from io import BytesIO
 from PIL import Image
+
 import os, math
 
 # --- Streamlit Setup ---
@@ -48,17 +52,23 @@ SECONDARY_COLOR = "#FF9800"  # Complementary orange for highlights
 BACKGROUND_COLOR = "#0E1117"  # Dark background
 TEXT_COLOR = "#FFFFFF"  # White text
 ACCENT_COLOR = "#4CAF50"  # Green accent
+# DUKE BLUE  "#0736A4" 
 
 # Enhanced CSS with better typography and spacing
 custom_css = """
 <style>
-    /* Typography improvements */
+    /* Force Arial sitewide */
+    body, p, div, table, th, td, span, input, select, textarea, label {
+        font-family: 'Arial', sans-serif !important;
+    }
+
+    /* Typography improvements for headings */
     h1, h2, h3, h4, h5, h6 {
         font-family: 'Arial', sans-serif;
         font-weight: 700;
         letter-spacing: -0.5px;
     }
-    
+
     /* Table styling enhancements */
     table {
         border-collapse: collapse;
@@ -68,11 +78,9 @@ custom_css = """
         overflow: hidden;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    
     table, th, td {
         border: 1px solid #222;
     }
-    
     th, td {
         text-align: center;
         padding: 8px 10px;
@@ -80,21 +88,18 @@ custom_css = """
         font-size: 13px;
         vertical-align: middle;
     }
-    
     th {
-        background-color: """ + PRIMARY_COLOR + """;
+        background-color: #0360CE;
         color: white;
         font-weight: 800;
     }
-    
     tr:nth-child(even) {
         background-color: rgba(255, 255, 255, 0.05);
     }
-    
     tr:hover {
         background-color: rgba(255, 255, 255, 0.08);
     }
-    
+
     /* Card-like containers for better visual hierarchy */
     .stat-card {
         background-color: rgba(255, 255, 255, 0.05);
@@ -104,11 +109,11 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    
+
     /* Hidden Streamlit elements */
     #MainMenu {visibility: hidden; }
     footer {visibility: hidden;}
-    
+
     /* Custom badges for team performance */
     .badge-elite {
         background-color: gold;
@@ -118,7 +123,6 @@ custom_css = """
         font-weight: bold;
         font-size: 11px;
     }
-    
     .badge-solid {
         background-color: #4CAF50;
         color: white;
@@ -127,7 +131,6 @@ custom_css = """
         font-weight: bold;
         font-size: 11px;
     }
-    
     .badge-mid {
         background-color: #2196F3;
         color: white;
@@ -136,7 +139,6 @@ custom_css = """
         font-weight: bold;
         font-size: 11px;
     }
-    
     .badge-subpar {
         background-color: #FF9800;
         color: white;
@@ -145,7 +147,6 @@ custom_css = """
         font-weight: bold;
         font-size: 11px;
     }
-    
     .badge-weak {
         background-color: #F44336;
         color: white;
@@ -279,6 +280,59 @@ Southland_logo = Image.open(Southland_logo_path) if os.path.exists(Southland_log
 WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
 WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
+conference_logo_map = {
+    "ACC": ACC_logo,
+    "AAC": AAC_logo,
+    "AEC": AEC_logo,
+    "ASUN": ASUN_logo,
+    "B10": B10_logo,
+    "B12": B12_logo,
+    "BE": BE_logo,
+    "Big South": BSouth_logo,    # Example only; ensure naming matches your df
+    "Big Sky": BSky_logo,
+    "Big West": BWest_logo,
+    "CAA": CAA_logo,
+    "CUSA": CUSA_logo,
+    "Horizon": Horizon_logo,
+    "Ivy": Ivy_logo,
+    "MAAC": MAAC_logo,
+    "MAC": MAC_logo,
+    "MEAC": MEAC_logo,
+    "MVC": MVC_logo,
+    "MWC": MWC_logo,
+    "NEC": NEC_logo,
+    "OVC": OVC_logo,
+    "Patriot": Patriot_logo,
+    "SBC": SBC_logo,
+    "SEC": SEC_logo,
+    "SoCon": SoCon_logo,
+    "Southland": Southland_logo,
+    "Summit": Summit_logo,
+    "SWAC": SWAC_logo,
+    "WAC": WAC_logo,
+    "WCC": WCC_logo
+    # Add/update exact conference keys to match your DataFrame’s "CONFERENCE" values
+}
+
+#####################################
+def image_to_base64(img_obj): #   Convert PIL Image to base64
+    if img_obj is None:
+        return None
+    with BytesIO() as buffer:
+        img_obj.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode()
+
+def get_conf_logo_html(conf_name): #  Return HTML <img> + conference name for table column 
+    img_obj = conference_logo_map.get(conf_name, None)
+    if img_obj:
+        encoded = image_to_base64(img_obj)
+        if encoded:
+            # Return <img> plus text; width can be adjusted
+            return f'<img src="data:image/png;base64,{encoded}" width="40" style="vertical-align: middle;" /> {conf_name}'
+    # Fallback: no logo or unknown conference
+    return conf_name
+
+
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
 viz_bg_color = '#0360CE'
@@ -286,6 +340,7 @@ viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
 Spectral = px.colors.diverging.Spectral
 RdBu_r = px.colors.diverging.RdBu_r
+
 # ----------------------------------------------------------------------------
 # Additional table styling used in Pandas Styler
 # (Global CSS above already handles universal row styling)
@@ -748,6 +803,8 @@ treemap = create_treemap(df_main_notnull)
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
+
+    treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
         st.caption(":green[_DATA AS OF: 3/12/2025_]")
@@ -756,27 +813,31 @@ with tab_home:
 
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-        conf_counts.columns = ["Conference", "# Teams"]
+        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
         if "KP_AdjEM" in df_main.columns:
             conf_stats = (
                 df_main.groupby("CONFERENCE")["KP_AdjEM"]
-                .agg([ "count", "max", "mean", "min"])
+                .agg(["count", "max", "mean", "min"])
                 .reset_index()
             )
             conf_stats.columns = ["CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
 
-            #st.markdown("### CONFERENCE POWER RANKINGS")
             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
-
             with st.expander("*About Conference Power Rankings:*"):
                 st.markdown("""
-                            Simple-average rollup of each conference:
-                            - **# TEAMS**: Number of teams in conference
-                            - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-                            - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-                            """)
-            
+                    Simple-average rollup of each conference:
+                    - **# TEAMS**: Number of teams in conference
+                    - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
+                    - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
+                """)
+
+            ###########################################################
+            #   REPLACE "CONFERENCE" TEXT WITH LOGO + TEXT VIA HTML   #
+            ###########################################################
+            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
+
             styled_conf_stats = (
                 conf_stats.style
                 .format({
@@ -788,7 +849,9 @@ with tab_home:
                 .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
                 .set_table_styles(detailed_table_styles)
             )
-            st.markdown(styled_conf_stats.to_html(), unsafe_allow_html=True)
+
+            # IMPORTANT: disable HTML escaping so <img> tags render
+            st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
 
             with st.expander("*About Conference Treemap:*"):
                 st.markdown("""
@@ -797,7 +860,6 @@ with tab_home:
                     - **Min/Max**: Range of AdjEM values among teams in that conference
                     - **Count**: Number of teams in the conference
                 """)
-            
             st.caption(":green[_DATA AS OF: 3/12/2025_]")
 
 # --- Radar Charts Tab --- #
@@ -1099,6 +1161,7 @@ if FinalFour25_logo:
 
 # GitHub Link & App Footer
 st.markdown("---")
-st.caption(":white[_Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)_]")
+st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
 
 st.stop()
