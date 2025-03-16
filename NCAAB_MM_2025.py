@@ -1,5 +1,5 @@
 import streamlit as st
-#from streamlit_plotly_events import plotly_events
+#import from streamlit_plotly_events import plotly_events
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -26,34 +26,6 @@ hide_menu_style = """
 """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# Inject global CSS for all HTML tables
-# global_table_css = """
-# <style>
-# table {
-#   border-collapse: collapse;
-#   width: 100%;
-#   font-family: Arial, sans-serif;
-# }
-# table, th, td {
-#   border: 1px solid #000000;
-# }
-# th, td {
-#   text-align: center;
-#   padding: 6px 8px;
-#   font-weight: bold;
-#   font-size: 12px;
-#   vertical-align: middle;
-# }
-# </style>
-# """
-
-PRIMARY_COLOR = "#0360CE"  #  blue
-SECONDARY_COLOR = "#FF9800"  # Complementary orange for highlights
-BACKGROUND_COLOR = "#0E1117"  # Dark background
-TEXT_COLOR = "#FFFFFF"  # White text
-ACCENT_COLOR = "#4CAF50"  # Green accent
-# DUKE BLUE  "#0736A4" 
-
 # Enhanced CSS with better typography and spacing
 custom_css = """
 <style>
@@ -61,14 +33,12 @@ custom_css = """
     body, p, div, table, th, td, span, input, select, textarea, label {
         font-family: 'Arial', sans-serif !important;
     }
-
     /* Typography improvements for headings */
     h1, h2, h3, h4, h5, h6 {
         font-family: 'Arial', sans-serif;
         font-weight: 700;
         letter-spacing: -0.5px;
     }
-
     /* Table styling enhancements */
     table {
         border-collapse: collapse;
@@ -99,7 +69,6 @@ custom_css = """
     tr:hover {
         background-color: rgba(255, 255, 255, 0.08);
     }
-
     /* Card-like containers for better visual hierarchy */
     .stat-card {
         background-color: rgba(255, 255, 255, 0.05);
@@ -109,11 +78,9 @@ custom_css = """
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-
     /* Hidden Streamlit elements */
     #MainMenu {visibility: hidden; }
     footer {visibility: hidden;}
-
     /* Custom badges for team performance */
     .badge-elite {
         background-color: gold;
@@ -157,9 +124,8 @@ custom_css = """
     }
 </style>
 """
-
-#st.markdown(global_table_css, unsafe_allow_html=True)
 st.markdown(custom_css, unsafe_allow_html=True)
+
 # ----------------------------------------------------------------------------
 # Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
@@ -240,12 +206,6 @@ SWAC_logo_path = "images/SWAC_logo.png"
 WAC_logo_path = "images/WAC_logo.png"
 WCC_logo_path = "images/WCC_logo.png"
 
-# CONFERENCE_logo_paths = [AAC_logo_path, ACC_logo_path, AEC_logo_path, ASUN_logo_path, B10_logo_path, B12_logo_path, BE_logo_path,
-#                          BSouth_logo_path, BSky_logo_path, BWest_logo_path, CAA_logo_path, CUSA_logo_path, Horizon_logo_path, Ivy_logo_path,
-#                          MAAC_logo_path, MAC_logo_path, MEAC_logo_path, MVC_logo_path, MWC_logo_path, NEC_logo_path, OVC_logo_path,
-#                          Patriot_logo_path, SBC_logo_path, SEC_logo_path, SoCon_logo_path, Southland_logo_path, Summit_logo_path,
-#                          SWAC_logo_path, WAC_logo_path, WCC_logo_path]
-
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
@@ -288,23 +248,20 @@ conference_logo_map = {"ACC": ACC_logo, "AAC": AAC_logo, "AEC": AEC_logo, "ASUN"
 }
 
 #####################################
-def image_to_base64(img_obj): #   Convert PIL Image to base64
+def image_to_base64(img_obj):  # Convert PIL Image to base64
     if img_obj is None:
         return None
     with BytesIO() as buffer:
         img_obj.save(buffer, format="PNG")
         return base64.b64encode(buffer.getvalue()).decode()
 
-def get_conf_logo_html(conf_name): #  Return HTML <img> + conference name for table column 
+def get_conf_logo_html(conf_name):  # Return HTML <img> + conference name for table column 
     img_obj = conference_logo_map.get(conf_name, None)
     if img_obj:
         encoded = image_to_base64(img_obj)
         if encoded:
-            # Return <img> plus text; width can be adjusted
             return f'<img src="data:image/png;base64,{encoded}" width="40" style="vertical-align: middle;" /> {conf_name}'
-    # Fallback: no logo or unknown conference
     return conf_name
-
 
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
@@ -316,7 +273,6 @@ RdBu_r = px.colors.diverging.RdBu_r
 
 # ----------------------------------------------------------------------------
 # Additional table styling used in Pandas Styler
-# (Global CSS above already handles universal row styling)
 header = {
     'selector': 'th',
     'props': [
@@ -354,15 +310,12 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         if m in team_row and m in t_avgs and m in t_stdevs:
             std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
             z = (team_row[m] - t_avgs[m]) / std
-            # Reverse these metrics so "lower is better"
             if m in ['DEF EFF', 'TO/GM']:
                 z = -z
             z_vals.append(z)
     if not z_vals:
         return {"text": "NO DATA", "class": "badge-mid"}
-    
     avg_z = sum(z_vals) / len(z_vals)
-    
     if avg_z > 1.5:
         return {"text": "ELITE", "class": "badge-elite"}
     elif avg_z > 0.5:
@@ -386,12 +339,9 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
         if m in ['DEF EFF', 'TO/GM']:
             z = -z
         z_scores.append(z)
-
     scale_factor = 1.5
     scaled_team = [min(max(5 + z * scale_factor, 0), 10) for z in z_scores]
     scaled_ncaam = [5] * len(available_metrics)
-
-    # Conference average line
     conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
     if conf and not conf_df.empty:
         conf_vals = []
@@ -408,18 +358,14 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
         scaled_conf = [min(max(5 + z * scale_factor, 0), 10) for z in conf_vals]
     else:
         scaled_conf = [5] * len(available_metrics)
-
     metrics_circ = available_metrics + [available_metrics[0]]
     team_scaled_circ = scaled_team + [scaled_team[0]]
     ncaam_scaled_circ = scaled_ncaam + [scaled_ncaam[0]]
     conf_scaled_circ = scaled_conf + [scaled_conf[0]]
-
-    # Incorporate team seed if it exists
     seed_info = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
         seed_info = f"(Seed {int(team_row['SEED_25'])})"
     team_name = f"{team_row.name} {seed_info}".strip()
-
     trace_team = go.Scatterpolar(
         r=team_scaled_circ,
         theta=metrics_circ,
@@ -457,22 +403,15 @@ def create_radar_chart(selected_teams, full_df):
     available_radar_metrics = [m for m in metrics if m in full_df.columns]
     if len(available_radar_metrics) < 3:
         return None
-        
     team_mask = full_df['TM_KP'].isin(selected_teams)
     subset = full_df[team_mask].copy().reset_index()
     if subset.empty:
         return None
-        
     t_avgs, t_stdevs = compute_tournament_stats(full_df)
     n_teams = len(subset)
-    
-    # Increase overall figure height to reduce cramping
     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
-    
-    # Adjust spacing for better readability
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
-    
     subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
@@ -480,12 +419,8 @@ def create_radar_chart(selected_teams, full_df):
         seed_str = ""
         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
             seed_str = f" - Seed {int(row['SEED_25'])}"
-        
-        # Create more attractive subplot titles with performance rating
         perf_data = compute_performance_text(row, t_avgs, t_stdevs)
-        
         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
-    
     fig = make_subplots(
         rows=row_count,
         cols=col_count,
@@ -494,8 +429,6 @@ def create_radar_chart(selected_teams, full_df):
         horizontal_spacing=0.10,
         vertical_spacing=0.20
     )
-    
-    # Enhanced radar chart styling
     fig.update_layout(
         height=fig_height,
         title={
@@ -521,8 +454,6 @@ def create_radar_chart(selected_teams, full_df):
         paper_bgcolor="rgba(0,0,0,0.1)",
         plot_bgcolor="rgba(0,0,0,0.1)"
     )
-    
-    # Enhanced polar styles
     fig.update_polars(
         radialaxis=dict(
             tickmode='array',
@@ -541,24 +472,18 @@ def create_radar_chart(selected_teams, full_df):
         ),
         bgcolor="rgba(0,0,0,0.2)"
     )
-    
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
         c = idx % col_count + 1
         show_legend = (idx == 0)
-        
         conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
         conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
-        
         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
-        
         perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
         polar_idx = (r - 1) * col_count + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
-        
-        # Place performance text near top-left of each subplot with badge styling
         if polar_key in fig.layout:
             domain_x = fig.layout[polar_key].domain.x
             domain_y = fig.layout[polar_key].domain.y
@@ -566,8 +491,6 @@ def create_radar_chart(selected_teams, full_df):
             y_annot = domain_y[1] - 0.02
         else:
             x_annot, y_annot = 0.05, 0.95
-        
-        # Badge-style annotation with appropriate color based on performance
         fig.add_annotation(
             x=x_annot,
             y=y_annot,
@@ -588,7 +511,6 @@ def create_radar_chart(selected_teams, full_df):
             borderpad=4,
             opacity=0.9
         )
-    
     return fig
 
 # ----------------------------------------------------------------------------
@@ -663,7 +585,7 @@ def create_treemap(df_notnull):
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs --- #
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
-st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]") #st.caption(":green[_DATA AS OF: 3/12/2025_]")
+st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
 st.caption(":green[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
@@ -676,31 +598,26 @@ tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tb
 
 # --- Home Tab --- #
 treemap = create_treemap(df_main_notnull)
-
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
-
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
         st.caption(":green[_DATA AS OF: 3/12/2025_]")
     else:
         st.warning("TREEMAP OVERHEATED.")
-
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-        conf_counts.columns = ["CONFERENCE"] #, "# TEAMS"
-
+        conf_counts.columns = ["CONFERENCE"]
         if "KP_AdjEM" in df_main.columns:
             conf_stats = (
                 df_main.groupby("CONFERENCE")["KP_AdjEM"]
                 .agg(["count", "max", "mean", "min"])
                 .reset_index()
             )
-            conf_stats.columns = ["CONFERENCE", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"] #"# TEAMS", 
+            conf_stats.columns = ["CONFERENCE", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM"]
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-
             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
             with st.expander("*About Conference Power Rankings:*"):
                 st.markdown("""
@@ -708,23 +625,18 @@ with tab_home:
                             - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
                             - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
                             """)
-
-            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html) #   REPLACE "CONFERENCE" TEXT WITH LOGO + TEXT VIA HTML
+            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
             styled_conf_stats = (
                 conf_stats.style
                 .format({
                     "MEAN AdjEM": "{:.2f}",
                     "MIN AdjEM": "{:.2f}",
                     "MAX AdjEM": "{:.2f}",
-                    #"# TEAMS": "{:.0f}",
                 })
                 .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
                 .set_table_styles(detailed_table_styles)
             )
-
-            # IMPORTANT: disable HTML escaping so <img> tags render
             st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-
             with st.expander("*About Conference Treemap:*"):
                 st.markdown("""
                     This table shows a summary of each conference:
@@ -751,7 +663,6 @@ with tab_radar:
                     default_teams = top_teams["TM_KP"].tolist()
             if not default_teams and all_teams:
                 default_teams = all_teams[:4]
-
             selected_teams = st.multiselect(
                 "Select Teams to Compare:",
                 options=all_teams,
@@ -765,16 +676,13 @@ with tab_radar:
                     st.warning("Failed to display radar chart(s) for selected teams.")
             else:
                 st.info("Please select at least one team to display radar charts.")
-
             with st.expander("About Radar Charts:"):
                 st.markdown("""
                     Radar charts visualize team performance across 8 key metrics, compared to:
                     - NCAAM Average (red dashed line)
                     - Conference Average (green dotted line)
-
                     Each metric is scaled, where 5 == NCAAM average.
                     Values >5 are better; values <5 are worse.
-
                     Overall performance rating is derived from the average z-score across all metrics.
                 """)
         else:
@@ -785,7 +693,11 @@ with tab_regions:
     st.header("BRACKET ANALYSIS")
     st.write("REGIONAL HEATFRAMES (W, X, Y, Z)")
     df_heat = df_main.copy()
-    df_heat.loc["TOURNEY AVG"] = df_heat.mean(numeric_only=True)
+    # Compute mean for numeric columns and reindex to match all columns to avoid index length mismatches
+    numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
+    mean_series = df_heat.mean(numeric_only=True)
+    mean_series = mean_series.reindex(df_heat.columns, fill_value=np.nan)
+    df_heat.loc["TOURNEY AVG"] = mean_series
     df_heat_T = df_heat.T
 
     # Region seeds
@@ -846,12 +758,10 @@ with tab_regions:
         if teams_found:
             region_df = df_heat_T[teams_found].copy()
             st.subheader(region_name)
-
             region_styler = region_df.style.format(safe_format)
             for row_label, cmap in color_map_dict.items():
                 if row_label in region_df.index:
                     region_styler = region_styler.background_gradient(cmap=cmap, subset=pd.IndexSlice[[row_label], :])
-
             region_styler = region_styler.set_table_styles(detailed_table_styles)
             with st.expander("📊 Key Metrics Explained"):
                 st.markdown("""
@@ -880,7 +790,6 @@ with tab_hist:
     )
     fig_hist.update_layout(bargap=0.1)
     st.plotly_chart(fig_hist, use_container_width=True)
-
     with st.expander("About Histogram Metrics:"):
         st.markdown("""
         **Histogram Metric Description:**
@@ -909,7 +818,6 @@ with tab_corr:
         st.plotly_chart(fig_corr, use_container_width=True)
     else:
         st.warning("Please select at least 2 metrics for correlation analysis.")
-
     with st.expander("About Correlation Metrics:"):
         st.markdown("""
         **Correlation Heatmap Glossary:**
@@ -935,7 +843,6 @@ with tab_conf:
             color=conf_group.values, color_continuous_scale="Viridis",
             template="plotly_dark"
         )
-        # Add markers for individual teams per conference
         for conf_val in conf_group.index:
             teams = df_main[df_main["CONFERENCE"] == conf_val]
             fig_conf.add_trace(go.Scatter(
@@ -947,7 +854,6 @@ with tab_conf:
         st.plotly_chart(fig_conf, use_container_width=True)
     else:
         st.error("Conference data is not available.")
-
     with st.expander("About Conference Comparisons:"):
         st.markdown("""
         **Conference Comparison Glossary:**
@@ -982,7 +888,6 @@ with tab_team:
             hover_name="TEAM", opacity=0.8,
             template="plotly_dark", title=f"{y_metric} vs {x_metric}"
         )
-    # Quadrant lines for OFF vs DEF
     if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
         x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
         fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
@@ -1007,14 +912,12 @@ with tab_tbd:
 
 # ----------------------------------------------------------------------------
 # CONFERENCE LOGOS GRID
-    # st.subheader("CONFERENCE LOGOS")
 conference_logos = [
     [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
     [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
     [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
-    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo], #Slnd_logo, 
-    ]
-
+    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo],
+]
 for row in conference_logos:
     cols = st.columns(len(row))
     for i, logo in enumerate(row):
@@ -1022,18 +925,11 @@ for row in conference_logos:
             with cols[i]:
                 st.image(logo, width=75)
 
-#col1, col2 = st.columns([6, 1])
-#with col1:
 if FinalFour25_logo:
-    st.image(FinalFour25_logo, use_container_width=True) #width=1000
-    # if NCAA_logo:
-    #     st.image(NCAA_logo, width=250)
-    # if Conferences25_logo:
-    #     st.image(Conferences25_logo, width=250)
+    st.image(FinalFour25_logo, use_container_width=True)
 
 # GitHub Link & App Footer
 st.markdown("---")
 st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
 st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
-
 st.stop()
