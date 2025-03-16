@@ -1287,10 +1287,10 @@ with tab_team:
                     fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
                     fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
                     quadrants = [
-                        {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
-                        {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/WEAK DEF"},
-                        {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "WEAK OFF/SOLID DEF"},
-                        {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "ELITE OFF/DEF"}
+                        {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF / SOLID DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF / SOLID DEF"},
+                        {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "WEAK OFF / WEAK DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "SOLID OFF / WEAK DEF"}
                     ]
                     for q in quadrants:
                         fig_scatter.add_annotation(
