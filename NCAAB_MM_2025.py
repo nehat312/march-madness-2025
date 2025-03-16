@@ -704,27 +704,7 @@ with tab_home:
                         if radar_fig:
                             st.plotly_chart(radar_fig, use_container_width=True)
                 
-                if "CONFERENCE" in df_main.columns:
-                    conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-                    conf_counts.columns = ["CONFERENCE", "# TEAMS"]
-
-                    if "KP_AdjEM" in df_main.columns:             # Compute aggregated KP_AdjEM statistics by conference
-                        conf_stats = (
-                            df_main.groupby("CONFERENCE")["KP_AdjEM"]
-                            .agg(["count", "max", "mean", "min"])
-                            .reset_index()
-                        )
-                        conf_stats = conf_stats.rename(columns={
-                            "count": "# TEAMS",
-                            "max": "MAX AdjEM",
-                            "mean": "MEAN AdjEM",
-                            "min": "MIN AdjEM"
-                        })
-                        conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-                
-                # Show more detailed metrics in an expandable section
                 with st.expander("View All Team Metrics"):
-                    # Select most meaningful metrics to show
                     detailed_metrics = [
                         "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
                         "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
@@ -749,7 +729,50 @@ with tab_home:
                     # Display in a clean format
                     st.table(detail_df)
             else:
-                st.warning("No data available for the selected team.")
+                st.warning("No data available for the selected team.")            
+                        
+    if "CONFERENCE" in df_main.columns:
+        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
+        if "KP_AdjEM" in df_main.columns:             # Compute aggregated KP_AdjEM statistics by conference
+            conf_stats = (
+                df_main.groupby("CONFERENCE")["KP_AdjEM"]
+                .agg(["count", "max", "mean", "min"])
+                .reset_index()
+            )
+            conf_stats = conf_stats.rename(columns={
+                "count": "# TEAMS",
+                "max": "MAX AdjEM",
+                "mean": "MEAN AdjEM",
+                "min": "MIN AdjEM"
+            })
+            conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
+
+            st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
+            with st.expander("*About Conference Power Rankings:*"):
+                st.markdown("""
+                            Simple-average rollup of each conference:
+                            - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
+                            - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
+                            """)
+
+            # Replace the conference name with an HTML snippet including the logo
+            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
+
+            styled_conf_stats = (
+                conf_stats.style
+                .format({
+                    "MEAN AdjEM": "{:.2f}",
+                    "MIN AdjEM": "{:.2f}",
+                    "MAX AdjEM": "{:.2f}",
+                })
+                .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
+                .set_table_styles(detailed_table_styles)
+            )
+            st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
+                
+                
 
 # --- Radar Charts Tab --- #
 with tab_radar:
@@ -844,18 +867,18 @@ with tab_regions:
             return x
 
     color_map_dict = {
-        "KP_Rank": "Spectral_r",
-        "WIN_25": "YlGn",
-        "LOSS_25": "YlOrRd_r",
-        "KP_AdjEM": "RdYlGn",
+        "KP_Rank": "RdBu_r",
+        "WIN_25": "RdBu",
+        "LOSS_25": "RdBu_r",
+        "KP_AdjEM": "RdBu",
         "KP_SOS_AdjEM": "RdBu",
-        "OFF EFF": "Blues",
-        "DEF EFF": "Reds_r",
-        "AVG MARGIN": "RdYlGn",
-        "TS%": "YlGn",
-        "OPP TS%": "YlOrRd_r",
-        "AST/TO%": "Greens",
-        "STOCKS/GM": "Purples"
+        "OFF EFF": "RdBu",
+        "DEF EFF": "RdBu_r",
+        "AVG MARGIN": "RdBu",
+        "TS%": "RdBu",
+        "OPP TS%": "RdBu_r",
+        "AST/TO%": "RdBu",
+        "STOCKS/GM": "RdBu"
     }
 
     for region_name, team_list in regions.items():
@@ -1041,20 +1064,22 @@ with tab_team:
                 
                 # Define which columns should have which color scales
                 color_scales = {
-                    "KP_Rank": "Spectral_r",
-                    "WIN_25": "YlGn", 
-                    "LOSS_25": "YlOrRd_r",
-                    "WIN% ALL GM": "YlGn",
-                    "WIN% CLOSE GM": "YlGn",
-                    "KP_AdjEM": "RdYlGn",
+                    "KP_Rank": "RdBu_r",
+                    "NET_25": "RdBu_r",
+                    "SEED_25": "RdBu_r",
+                    "WIN_25": "RdBu", 
+                    "LOSS_25": "RdBu_r",
+                    "AVG MARGIN": "RdBu",
+                    "WIN% ALL GM": "RdBu",
+                    "WIN% CLOSE GM": "RdBu",
+                    "KP_AdjEM": "RdBu",
                     "KP_SOS_AdjEM": "RdBu",
-                    "OFF EFF": "Blues", 
-                    "DEF EFF": "Reds_r",
-                    "TS%": "YlGn", 
-                    "OPP TS%": "YlOrRd_r",
-                    "AST/TO%": "Greens",
-                    "STOCKS/GM": "Purples",
-                    "AVG MARGIN": "RdYlGn"
+                    "OFF EFF": "RdBu", 
+                    "DEF EFF": "RdBu_r",
+                    "TS%": "RdBu", 
+                    "OPP TS%": "RdBu_r",
+                    "AST/TO%": "RdBu",
+                    "STOCKS/GM": "RdBu", 
                 }
                 
                 # Apply formatting and coloring to table
