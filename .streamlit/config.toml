@@ -3,18 +3,112 @@
 base = "light"
 
 # LIGHT MODE LAYOUT
-primaryColor = "#FF6B00"          # Vibrant Orange (Basketball color)
-backgroundColor = "#DADADA"  #"#1A1A1D" # Deep Court Black
-secondaryBackgroundColor = "#1A1A1D" #"#2C2C34" # Subtle Dark Gray
-textColor = "#F5F5F5"             # Bright White for readability
+# Color Combo 1: Warm Sunset
+# primaryColor: Burnt Orange with a hint of red for warmth
+# backgroundColor: Soft, light beige for a natural feel
+# secondaryBackgroundColor: Pale sand, slightly darker than background
+# textColor: Deep charcoal gray for contrast and readability
+# primaryColor = "#E25822"
+# backgroundColor = "#F5F5DC"
+# secondaryBackgroundColor = "#EDE0D4"
+# textColor = "#36454F"
+# font = "sans serif"
+
+# Color Combo 2: Crisp Citrus
+# primaryColor: Vibrant tangerine orange for energy
+# backgroundColor: Off-white with a cool undertone for freshness
+# secondaryBackgroundColor: Light gray with a hint of blue
+# textColor: Dark navy blue for a clean, professional look
+primaryColor = "#FF9933"
+backgroundColor = "#F8F8FF"
+secondaryBackgroundColor = "#E8E8F0"
+textColor = "#191970"
 font = "sans serif"
+
+# Color Combo 3: Muted Earth
+# primaryColor: Terracotta orange, subdued and natural
+# backgroundColor: Light sage green for a calming effect
+# secondaryBackgroundColor: Pale olive, slightly darker
+# textColor: Dark brown for an earthy, grounded feel
+# primaryColor = "#CC8855"
+# backgroundColor = "#F0FFF0"
+# secondaryBackgroundColor = "#E8F0E8"
+# textColor = "#4A3C30"
+# font = "sans serif"
+
+# Color Combo 4: Modern Slate
+# primaryColor: Bright, almost neon orange for a pop of color
+# backgroundColor: Light slate gray for a contemporary look
+# secondaryBackgroundColor: Medium gray with a subtle texture
+# textColor: Pure black for maximum contrast
+# primaryColor = "#FF8C00"
+# backgroundColor = "#F0F8FF"
+# secondaryBackgroundColor = "#D3D3D3"
+# textColor = "#000000"
+# font = "sans serif"
+
+# Color Combo 5: Golden Hour
+# primaryColor: Rich gold-orange, reminiscent of sunset
+# backgroundColor: Creamy off-white for warmth
+# secondaryBackgroundColor: Light golden beige
+# textColor: Deep forest green for a sophisticated contrast
+# primaryColor = "#FFA500"
+# backgroundColor = "#FFF8DC"
+# secondaryBackgroundColor = "#EEE8AA"
+# textColor = "#228B22"
+# font = "sans serif"
 
 # DARK MODE LAYOUT
 [theme.dark]
-primaryColor = "#FF6B00"          # Consistent basketball orange
-backgroundColor = "#121212"        # Deeper dark
-secondaryBackgroundColor = "#232328" # Darker secondary
-textColor = "#FFFFFF"             # Pure white for dark mode
+# Color Combo 1: Dark Ambers
+# primaryColor: Amber orange, glowing against the dark
+# backgroundColor: Very dark charcoal gray
+# secondaryBackgroundColor: Slightly lighter charcoal
+# textColor: Light gray, almost white, for readability
+# primaryColor = "#FFBF00"
+# backgroundColor = "#181818"
+# secondaryBackgroundColor = "#282828"
+# textColor = "#DCDCDC"
+
+# Color Combo 2: Night Citrus
+# primaryColor: Neon orange for a striking contrast
+# backgroundColor: Deep midnight blue
+# secondaryBackgroundColor: Dark navy blue
+# textColor: Light cyan for a futuristic feel
+primaryColor = "#FF9933"
+backgroundColor = "#000040"
+secondaryBackgroundColor = "#1A1A50"
+textColor = "#E0FFFF"
+
+# Color Combo 3: Dark Earth
+# primaryColor: Burnt orange, warm and inviting
+# backgroundColor: Dark forest green
+# secondaryBackgroundColor: Dark olive green
+# textColor: Light beige for a natural contrast
+# primaryColor = "#CC8855"
+# backgroundColor = "#1A221A"
+# secondaryBackgroundColor = "#283028"
+# textColor = "#F5F5DC"
+
+# Color Combo 4: Dark Slate
+# primaryColor: Bright orange, a focal point
+# backgroundColor: Dark slate gray
+# secondaryBackgroundColor: Darker gray
+# textColor: White for crisp clarity
+# primaryColor = "#FF8C00"
+# backgroundColor = "#2F4F4F"
+# secondaryBackgroundColor = "#36454F"
+# textColor = "#FFFFFF"
+
+# Color Combo 5: Dark Gold
+# primaryColor: Gold-orange, luminous in the dark
+# backgroundColor: Very dark brown
+# secondaryBackgroundColor: Darker brown
+# textColor: Light golden yellow
+# primaryColor = "#FFA500"
+# backgroundColor = "#222222"
+# secondaryBackgroundColor = "#333333"
+# textColor = "#FFD700"
 
 [logger]
 # Logging Info
