@@ -292,8 +292,8 @@ def get_default_metrics():
     return ['AVG MARGIN',
             'KP_AdjEM', 
             'OFF EFF', 'DEF EFF',
-            'OFF REB/GM', 'DEF REB/GM',
-            'AST/TO%', 'STOCKS/GM',
+            #'OFF REB/GM', 'DEF REB/GM',
+            'AST/TO%', 'STOCKS-TOV/GM',
             #'BLKS/GM', 'STL/GM', 'AST/GM', 'TO/GM',
             ]
 
@@ -431,21 +431,21 @@ def create_radar_chart(selected_teams, full_df):
     )
     fig.update_layout(
         height=fig_height,
-        title={
-            'text': "Team Performance Radar Charts",
-            'font': {'size': 24, 'family': 'Arial, sans-serif', 'color': 'white'},
-            'y': 0.98,
-            'x': 0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
+        # title={
+        #     'text': "Team Performance Radar Charts",
+        #     'font': {'size': 24, 'family': 'Arial, sans-serif', 'color': 'white'},
+        #     'y': 0.98,
+        #     'x': 0.5,
+        #     'xanchor': 'center',
+        #     'yanchor': 'top'
+        # },
         template='plotly_dark',
         font=dict(family="Arial, sans-serif", size=12),
         showlegend=True,
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=1.02,
+            y=1.05,
             xanchor="right",
             x=1,
             bgcolor="rgba(0,0,0,0.1)"
@@ -498,7 +498,7 @@ def create_radar_chart(selected_teams, full_df):
             yref="paper",
             text=f"<b>{perf_data['text']}</b>",
             showarrow=False,
-            font=dict(size=12, color="white"),
+            font=dict(size=12, color="black"),
             bgcolor={
                 "badge-elite": "gold",
                 "badge-solid": "#4CAF50",
@@ -534,37 +534,53 @@ def create_treemap(df_notnull):
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
             treemap_data["TM_KP"] = treemap_data["TEAM"]
-
+        
         def hover_text_func(x):
+            # Enhanced hover text with more metrics and better formatting
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
-                f"KP Rank: {int(x['KP_Rank'])}<br>"
-                f"Record: {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
-                f"AdjEM: {x['KP_AdjEM']:.1f}<br>"
+                f"<b>KP Rank:</b> {int(x['KP_Rank'])}<br>"
+                f"<b>Record:</b> {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
+                f"<b>AdjEM:</b> {x['KP_AdjEM']:.1f}<br>"
             )
             if "OFF EFF" in x and "DEF EFF" in x:
-                base += f"OFF EFF: {x['OFF EFF']:.1f}<br>DEF EFF: {x['DEF EFF']:.1f}<br>"
+                base += f"<b>OFF EFF:</b> {x['OFF EFF']:.1f}<br><b>DEF EFF:</b> {x['DEF EFF']:.1f}<br>"
+            
+            # Add more detailed metrics
+            if "AVG MARGIN" in x:
+                base += f"<b>AVG MARGIN:</b> {x['AVG MARGIN']:.1f}<br>"
+            
+            if "TS%" in x and "OPP TS%" in x:
+                base += f"<b>TS%:</b> {x['TS%']:.1f}% | <b>OPP TS%:</b> {x['OPP TS%']:.1f}%<br>"
+            
+            if "AST/TO%" in x:
+                base += f"<b>AST/TO%:</b> {x['AST/TO%']:.1f}<br>"
+                
             if "SEED_25" in x and not pd.isna(x["SEED_25"]):
-                base += f"Seed: {int(x['SEED_25'])}"
+                base += f"<b>Seed:</b> {int(x['SEED_25'])}"
+                
             return base
-
+            
         treemap_data['hover_text'] = treemap_data.apply(hover_text_func, axis=1)
+        
         treemap = px.treemap(
             treemap_data,
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.RdBu_r,
+            color_continuous_scale=px.colors.diverging.RdYlGn,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
+        
         treemap.update_traces(
             hovertemplate='%{customdata[0]}',
             texttemplate='<b>%{label}</b><br>%{value:.1f}',
-            textfont=dict(size=11)
+            textfont=dict(size=12, family="Arial, sans-serif")
         )
+        
         treemap.update_layout(
-            margin=dict(l=10, r=10, t=50, b=10),
+            margin=dict(l=10, r=10, t=60, b=10),
             coloraxis_colorbar=dict(
                 title="AdjEM",
                 thicknessmode="pixels",
@@ -573,10 +589,17 @@ def create_treemap(df_notnull):
                 len=300,
                 yanchor="top",
                 y=1,
-                ticks="outside"
+                ticks="outside",
+                tickfont=dict(size=12)
             ),
-            template="plotly_dark"
+            template="plotly_dark",
+            hoverlabel=dict(
+                bgcolor="rgba(0,0,0,0.8)",
+                font_size=14,
+                font_family="Arial"
+            )
         )
+        
         return treemap
     except Exception as e:
         st.error(f"An error occurred while generating treemap: {e}")
@@ -588,82 +611,124 @@ st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
 st.caption(":green[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_]")
 
-tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
-                                                                                             "REGIONAL HEATMAPS",
-                                                                                             "HISTOGRAM", "CORRELATION HEATMAP",
-                                                                                             "CONFERENCE COMPARISON",
-                                                                                             "TEAM METRICS COMPARISON",
-                                                                                             "TBU",
-                                                                                             ])
+# tab_home, tab_radar, tab_regions, tab_hist, tab_corr, tab_conf, tab_team, tab_tbd = st.tabs(["HOME", "RADAR CHARTS",
+#                                                                                              "REGIONAL HEATMAPS",
+#                                                                                              "HISTOGRAM", "CORRELATION HEATMAP",
+#                                                                                              "CONFERENCE COMPARISON",
+#                                                                                              "TEAM METRICS COMPARISON",
+#                                                                                              "TBU",
+#                                                                                              ])
+
+tab_home, tab_radar, tab_regions, tab_metrics, tab_conf, tab_tbd = st.tabs(["📊 HOME", 
+                                                                            "📡 RADAR CHARTS",
+                                                                            "🔥 REGIONAL HEATMAPS",
+                                                                            "📈 TEAM METRICS",
+                                                                            "🏆 CONFERENCE STATS",
+                                                                            "🔮 PREDICTIONS",
+                                                                            ])
 
 # --- Home Tab --- #
-treemap = create_treemap(df_main_notnull)
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/12/2025_]")
+    
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-        st.caption(":green[_DATA AS OF: 3/12/2025_]")
-    else:
-        st.warning("TREEMAP OVERHEATED.")
-
-    with st.expander("*About Conference Treemap:*"):
-        st.markdown("""
-                    This table shows a summary of each conference:
-                    - **Avg AdjEM**: Average KenPom Adjusted Efficiency Margin for the conference
-                    - **Min/Max**: Range of AdjEM values among teams in that conference
-                    - **Count**: Number of teams in the conference
+        
+        # Add an interactive team selection based on treemap clicks
+        st.subheader("🔍 Team Spotlight", divider='grey')
+        selected_team = st.selectbox(
+            "Select a team to view detailed metrics:",
+            options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
+            index=0
+        )
+        
+        if selected_team:
+            team_data = df_main[df_main["TM_KP"] == selected_team].copy()
+            
+            if not team_data.empty:
+                # Create a two-column layout for team metrics
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown(f"### {selected_team}")
+                    
+                    # Team overview
+                    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+                    
+                    # Conference and record
+                    conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+                    record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
+                    
+                    # Seed (if available)
+                    seed_info = ""
+                    if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
+                        seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}"
+                    
+                    kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}" if "KP_Rank" in team_data.columns else ""
+                    
+                    st.markdown(f"""
+                    **Conference:** {conf}  
+                    **Record:** {record}  
+                    {seed_info}  
+                    {kp_rank}
                     """)
-    st.caption(":green[_DATA AS OF: 3/12/2025_]")
-
-if "CONFERENCE" in df_main.columns:
-    # Compute team counts per conference
-    conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-    conf_counts.columns = ["CONFERENCE", "# TEAMS"]
-
-    if "KP_AdjEM" in df_main.columns:
-        # Compute aggregated KP_AdjEM statistics by conference
-        conf_stats = (
-            df_main.groupby("CONFERENCE")["KP_AdjEM"]
-            .agg(["count", "max", "mean", "min"])
-            .reset_index()
-        )
-        # Rename columns in a Pythonic way
-        conf_stats = conf_stats.rename(columns={
-            "count": "# TEAMS",
-            "max": "MAX AdjEM",
-            "mean": "MEAN AdjEM",
-            "min": "MIN AdjEM"
-        })
-        conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-
-        st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
-        with st.expander("*About Conference Power Rankings:*"):
-            st.markdown(
-                """
-                Simple-average rollup of each conference:
-                - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-                - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-                """
-            )
-
-        # Replace the conference name with an HTML snippet including the logo
-        conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-
-        styled_conf_stats = (
-            conf_stats.style
-            .format({
-                "MEAN AdjEM": "{:.2f}",
-                "MIN AdjEM": "{:.2f}",
-                "MAX AdjEM": "{:.2f}",
-            })
-            .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
-            .set_table_styles(detailed_table_styles)
-        )
-        st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-
-
+                    
+                    # Performance rating
+                    if all(m in team_data.columns for m in get_default_metrics()):
+                        t_avgs, t_stdevs = compute_tournament_stats(df_main)
+                        perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
+                        
+                        st.markdown(f"""
+                        <div style='text-align: center; margin: 20px 0;'>
+                            <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                                Overall Rating: {perf_data["text"]}
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                with col2:
+                    # Team key metrics
+                    key_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"]
+                    available_metrics = [m for m in key_metrics if m in team_data.columns]
+                    
+                    if available_metrics:
+                        # Create a radar chart for this single team
+                        radar_fig = create_radar_chart([selected_team], df_main)
+                        if radar_fig:
+                            st.plotly_chart(radar_fig, use_container_width=True)
+                
+                # Show more detailed metrics in an expandable section
+                with st.expander("View All Team Metrics"):
+                    # Select most meaningful metrics to show
+                    detailed_metrics = [
+                        "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
+                        "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
+                        "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
+                        "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+                        "AST/GM", "TO/GM", "AST/TO%", 
+                        "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", "STOCKS/GM", "STOCKS-TOV/GM"
+                    ]
+                    
+                    available_detailed = [m for m in detailed_metrics if m in team_data.columns]
+                    
+                    # Transpose the data for better viewing
+                    detail_df = team_data[available_detailed].T.reset_index()
+                    detail_df.columns = ["Metric", "Value"]
+                    
+                    # Format the values appropriately
+                    detail_df["Value"] = detail_df.apply(
+                        lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'],
+                        axis=1
+                    )
+                    
+                    # Display in a clean format
+                    st.table(detail_df)
+            else:
+                st.warning("No data available for the selected team.")
 
 # --- Radar Charts Tab --- #
 with tab_radar:
@@ -878,51 +943,298 @@ with tab_conf:
         **Conference Comparison Glossary:**
         - **Avg AdjEM**: Average Adjusted Efficiency Margin.
         - **Conference**: Grouping of teams by their athletic conferences.
-        - Metrics provide insight into relative conference strength.
+        - Metrics intended to afford insight into relative conference strength.
         """)
 
 # --- Team Metrics Comparison Tab --- #
+# Replace the existing tab_team content with this enhanced version
 with tab_team:
-    st.header("Team Metrics Comparison")
-    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
-    x_metric = st.selectbox(
-        "Select X-Axis Metric", numeric_cols,
-        index=numeric_cols.index("OFF EFF") if "OFF EFF" in numeric_cols else 0
-    )
-    y_metric = st.selectbox(
-        "Select Y-Axis Metric", numeric_cols,
-        index=numeric_cols.index("DEF EFF") if "DEF EFF" in numeric_cols else 0
-    )
-    if "CONFERENCE" in df_main.columns:
-        fig_scatter = px.scatter(
-            df_main.reset_index(), x=x_metric, y=y_metric, color="CONFERENCE",
-            hover_name="TEAM",
-            size="KP_AdjEM_Offset" if "KP_AdjEM_Offset" in df_main.columns else None,
-            size_max=15, opacity=0.8, template="plotly_dark",
-            title=f"{y_metric} vs {x_metric}", height=700
-        )
-    else:
-        fig_scatter = px.scatter(
-            df_main.reset_index(), x=x_metric, y=y_metric,
-            hover_name="TEAM", opacity=0.8,
-            template="plotly_dark", title=f"{y_metric} vs {x_metric}"
-        )
-    if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
-        x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
-        fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
-        fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
-        quadrants = [
-            {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
-            {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/DEF"},
-            {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "SOLID DEF"},
-            {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "SOLID OFF"}
-        ]
-        for q in quadrants:
-            fig_scatter.add_annotation(
-                x=q["x"], y=q["y"], text=q["text"], showarrow=False,
-                font=dict(color="white", size=10), opacity=0.7
+    st.header("🏀 TEAM METRICS COMPARISON")
+    
+    # Create a container with custom styling
+    st.markdown('<div class="section-card">', unsafe_allow_html=True)
+    
+    # Team selection
+    if "TM_KP" in df_main.columns:
+        all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
+        
+        # Create two columns for team selection
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            selected_teams = st.multiselect(
+                "👉 Select Teams to Compare:",
+                options=all_teams,
+                default=all_teams[:4] if len(all_teams) >= 4 else all_teams
             )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+        
+        with col2:
+            view_option = st.radio(
+                "View Format:",
+                options=["Table", "Chart"],
+                index=0,
+                horizontal=True
+            )
+    
+        if selected_teams:
+            # Filter the main DataFrame for the selected teams
+            selected_df = df_main[df_main["TM_KP"].isin(selected_teams)].copy()
+            
+            if view_option == "Table":
+                # Table view - Create an enhanced table with custom styling
+                metrics_to_display = [
+                    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
+                    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", 
+                    "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"
+                ]
+                
+                # Filter to only columns that exist in the dataframe
+                metrics_to_display = [m for m in metrics_to_display if m in selected_df.columns]
+                
+                # Create the display dataframe
+                display_df = selected_df[metrics_to_display].copy()
+                
+                # Add NCAA Average for comparison
+                ncaa_avg = df_main[metrics_to_display].mean().to_frame().T
+                ncaa_avg.index = ["NCAA AVERAGE"]
+                
+                # Combine selected teams with NCAA average
+                display_df = pd.concat([display_df, ncaa_avg])
+                
+                # Define formatting for different metric types
+                format_dict = {
+                    "KP_Rank": "{:.0f}",
+                    "WIN_25": "{:.0f}", 
+                    "LOSS_25": "{:.0f}",
+                    "WIN% ALL GM": "{:.1%}",
+                    "WIN% CLOSE GM": "{:.1%}",
+                    "KP_AdjEM": "{:.1f}",
+                    "KP_SOS_AdjEM": "{:.1f}",
+                    "OFF EFF": "{:.1f}", 
+                    "DEF EFF": "{:.1f}",
+                    "TS%": "{:.1f}%", 
+                    "OPP TS%": "{:.1f}%",
+                    "AST/TO%": "{:.2f}",
+                    "STOCKS/GM": "{:.1f}",
+                    "AVG MARGIN": "{:.1f}"
+                }
+                
+                # Define which columns should have which color scales
+                color_scales = {
+                    "KP_Rank": "Spectral_r",
+                    "WIN_25": "YlGn", 
+                    "LOSS_25": "YlOrRd_r",
+                    "WIN% ALL GM": "YlGn",
+                    "WIN% CLOSE GM": "YlGn",
+                    "KP_AdjEM": "RdYlGn",
+                    "KP_SOS_AdjEM": "RdBu",
+                    "OFF EFF": "Blues", 
+                    "DEF EFF": "Reds_r",
+                    "TS%": "YlGn", 
+                    "OPP TS%": "YlOrRd_r",
+                    "AST/TO%": "Greens",
+                    "STOCKS/GM": "Purples",
+                    "AVG MARGIN": "RdYlGn"
+                }
+                
+                # Apply formatting and coloring to table
+                styled_table = display_df.style.format(
+                    {col: fmt for col, fmt in format_dict.items() if col in display_df.columns}
+                )
+                
+                # Apply color gradients for each metric
+                for col, cmap in color_scales.items():
+                    if col in display_df.columns:
+                        styled_table = styled_table.background_gradient(cmap=cmap, subset=[col])
+                
+                # Set additional styling
+                styled_table = styled_table.set_table_styles([
+                    {'selector': 'th', 'props': [
+                        ('background-color', '#0360CE'),
+                        ('color', 'white'),
+                        ('font-weight', 'bold'),
+                        ('text-align', 'center'),
+                        ('padding', '10px'),
+                        ('border', '1px solid #444')
+                    ]},
+                    {'selector': 'td', 'props': [
+                        ('text-align', 'center'),
+                        ('padding', '8px'),
+                        ('border', '1px solid #444')
+                    ]},
+                    {'selector': 'tr:last-child', 'props': [
+                        ('font-weight', 'bold'),
+                        ('background-color', 'rgba(255,255,255,0.1)')
+                    ]}
+                ])
+                
+                # Highlight selected teams
+                styled_table = styled_table.set_caption("Team Performance Metrics Comparison")
+                
+                # Display the table
+                st.markdown(styled_table.to_html(), unsafe_allow_html=True)
+                
+                # Add tooltips for metric definitions
+                st.markdown("""
+                <div style="margin: 15px 0; font-size: 0.9em; opacity: 0.8; text-align: right;">
+                    Hover over metrics for definitions:
+                    <span class="tooltip">KP_AdjEM
+                        <span class="tooltiptext">KenPom Adjusted Efficiency Margin - Points per 100 possessions a team is better/worse than average</span>
+                    </span> |
+                    <span class="tooltip">OFF EFF
+                        <span class="tooltiptext">Offensive Efficiency - Points scored per 100 possessions</span>
+                    </span> |
+                    <span class="tooltip">DEF EFF
+                        <span class="tooltiptext">Defensive Efficiency - Points allowed per 100 possessions</span>
+                    </span> |
+                    <span class="tooltip">TS%
+                        <span class="tooltiptext">True Shooting % - Shooting efficiency including FG, 3PT and FT</span>
+                    </span> |
+                    <span class="tooltip">AST/TO%
+                        <span class="tooltiptext">Assist to Turnover Ratio - Higher values indicate better ball control</span>
+                    </span> |
+                    <span class="tooltip">STOCKS/GM
+                        <span class="tooltiptext">Combined steals and blocks per game</span>
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            else:  # Chart view
+                # Create a Radar Chart for the selected teams
+                radar_fig = create_radar_chart(selected_teams, df_main)
+                if radar_fig:
+                    st.plotly_chart(radar_fig, use_container_width=True)
+                
+                # Add a comparison scatter plot beneath the radar chart
+                st.subheader("Metric Correlation Analysis")
+                
+                # Create two columns for metric selection
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    x_metric = st.selectbox(
+                        "X-Axis Metric", 
+                        core_cols,
+                        index=core_cols.index("OFF EFF") if "OFF EFF" in core_cols else 0
+                    )
+                
+                with col2:
+                    y_metric = st.selectbox(
+                        "Y-Axis Metric", 
+                        core_cols,
+                        index=core_cols.index("DEF EFF") if "DEF EFF" in core_cols else 0
+                    )
+                
+                # Create a scatter plot highlighting the selected teams
+                fig_scatter = px.scatter(
+                    df_main.reset_index(), 
+                    x=x_metric, 
+                    y=y_metric, 
+                    color="CONFERENCE" if "CONFERENCE" in df_main.columns else None,
+                    hover_name="TEAM",
+                    size="KP_AdjEM_Offset" if "KP_AdjEM_Offset" in df_main.columns else None,
+                    size_max=15, 
+                    opacity=0.6, 
+                    template="plotly_dark",
+                    title=f"{y_metric} vs {x_metric} - Selected Teams Highlighted",
+                    height=600
+                )
+                
+                # Add quadrant lines and labels if appropriate
+                if (("OFF" in x_metric and "DEF" in y_metric) or ("DEF" in x_metric and "OFF" in y_metric)):
+                    x_avg, y_avg = df_main[x_metric].mean(), df_main[y_metric].mean()
+                    fig_scatter.add_hline(y=y_avg, line_dash="dash", line_color="white", opacity=0.4)
+                    fig_scatter.add_vline(x=x_avg, line_dash="dash", line_color="white", opacity=0.4)
+                    
+                    # Define quadrants with improved labels
+                    quadrants = [
+                        {"x": x_avg * 0.9, "y": y_avg * 0.9, "text": "WEAK OFF/DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 0.9, "text": "SOLID OFF/WEAK DEF"},
+                        {"x": x_avg * 0.9, "y": y_avg * 1.1, "text": "WEAK OFF/SOLID DEF"},
+                        {"x": x_avg * 1.1, "y": y_avg * 1.1, "text": "ELITE OFF/DEF"}
+                    ]
+                    
+                    for q in quadrants:
+                        fig_scatter.add_annotation(
+                            x=q["x"], y=q["y"], text=q["text"], showarrow=False,
+                            font=dict(color="white", size=12, family="Arial"), 
+                            opacity=0.8,
+                            bgcolor="rgba(0,0,0,0.5)",
+                            bordercolor="white",
+                            borderwidth=1,
+                            borderpad=4
+                        )
+                
+                # Highlight the selected teams in the scatter plot
+                selected_team_data = df_main[df_main["TM_KP"].isin(selected_teams)]
+                
+                for team in selected_teams:
+                    team_data = df_main[df_main["TM_KP"] == team]
+                    if not team_data.empty:
+                        fig_scatter.add_trace(go.Scatter(
+                            x=team_data[x_metric],
+                            y=team_data[y_metric],
+                            mode="markers+text",
+                            marker=dict(size=14, color="yellow", line=dict(width=2, color="white")),
+                            text=team,
+                            textposition="top center",
+                            name=team,
+                            textfont=dict(color="white", size=12, family="Arial"),
+                            hoverinfo="name+x+y"
+                        ))
+                
+                fig_scatter.update_layout(
+                    hoverlabel=dict(bgcolor="rgba(0,0,0,0.8)", font_size=14, font_family="Arial"),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1,
+                        bgcolor="rgba(0,0,0,0.5)"
+                    )
+                )
+                
+                st.plotly_chart(fig_scatter, use_container_width=True)
+        
+        else:
+            st.info("👈 Please select at least one team for comparison")
+    
+    else:
+        st.error("Team data not available in the dataset.")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Add an expander with information about metrics
+    with st.expander("📊 Understanding Basketball Metrics"):
+        st.markdown("""
+        ### Key Metrics Explained
+        
+        #### Efficiency Metrics
+        - **KP_AdjEM**: KenPom's Adjusted Efficiency Margin - Points per 100 possessions above/below average
+        - **OFF EFF**: Offensive Efficiency - Points scored per 100 possessions
+        - **DEF EFF**: Defensive Efficiency - Points allowed per 100 possessions (lower is better)
+        
+        #### Shooting Metrics
+        - **TS%**: True Shooting Percentage - Shooting efficiency including FG, 3PT and FT
+        - **eFG%**: Effective Field Goal Percentage - Adjusts for 3PT being worth more
+        
+        #### Ball Control Metrics
+        - **AST/TO%**: Assist to Turnover Ratio - Higher values indicate better ball control
+        - **STOCKS/GM**: Combined steals and blocks per game - Defensive playmaking
+        - **STOCKS-TOV/GM**: Steals + Blocks - Turnovers per game - Net defensive impact
+        
+        #### Performance Metrics
+        - **WIN% CLOSE GM**: Win percentage in games decided by 5 points or less - Clutch performance
+        - **AVG MARGIN**: Average scoring margin - Point differential per game
+        
+        ### How to Interpret Radar Charts
+        - The **blue area** represents the selected team's performance
+        - The **red dashed line** represents NCAA average (baseline)
+        - The **green dotted line** represents conference average
+        - Higher values (further from center) are better for all metrics
+        - The overall team rating is derived from the average z-score across all metrics
+        """)
 
 # --- TBD Tab ---
 with tab_tbd:
@@ -931,18 +1243,18 @@ with tab_tbd:
 
 # ----------------------------------------------------------------------------
 # CONFERENCE LOGOS GRID
-conference_logos = [
-    [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
-    [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
-    [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
-    [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo],
-]
-for row in conference_logos:
-    cols = st.columns(len(row))
-    for i, logo in enumerate(row):
-        if logo:
-            with cols[i]:
-                st.image(logo, width=75)
+# conference_logos = [
+#     [AAC_logo, ACC_logo, AEC_logo, ASUN_logo, B10_logo, B12_logo, BE_logo],
+#     [BSouth_logo, BSky_logo, BWest_logo, CAA_logo, CUSA_logo, Horizon_logo, Ivy_logo],
+#     [MAAC_logo, MAC_logo, MEAC_logo, MVC_logo, MWC_logo, NEC_logo, OVC_logo],
+#     [Patriot_logo, SBC_logo, SEC_logo, Summit_logo, SWAC_logo, WAC_logo, WCC_logo],
+# ]
+# for row in conference_logos:
+#     cols = st.columns(len(row))
+#     for i, logo in enumerate(row):
+#         if logo:
+#             with cols[i]:
+#                 st.image(logo, width=75)
 
 if FinalFour25_logo:
     st.image(FinalFour25_logo, use_container_width=True)
