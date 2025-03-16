@@ -619,7 +619,7 @@ st.caption(":green[_Cure your bracket brain and propel your bracket up the leade
 #                                                                                              "TBU",
 #                                                                                              ])
 
-tab_home, tab_radar, tab_regions, tab_metrics, tab_conf, tab_tbd = st.tabs(["📊 HOME", 
+tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_tbd = st.tabs(["📊 HOME", 
                                                                             "📡 RADAR CHARTS",
                                                                             "🔥 REGIONAL HEATMAPS",
                                                                             "📈 TEAM METRICS",
@@ -860,55 +860,55 @@ with tab_regions:
             st.info(f"No data available for {region_name}.")
 
 # --- Histogram Tab --- #
-with tab_hist:
-    st.header("Histogram")
-    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
-    hist_metric = st.selectbox(
-        "Select Metric for Histogram", numeric_cols,
-        index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
-    )
-    fig_hist = px.histogram(
-        df_main, x=hist_metric, nbins=25, marginal="box",
-        color_discrete_sequence=["dodgerblue"], template="plotly_dark",
-        title=f"Distribution of {hist_metric} (All Teams)"
-    )
-    fig_hist.update_layout(bargap=0.1)
-    st.plotly_chart(fig_hist, use_container_width=True)
-    with st.expander("About Histogram Metrics:"):
-        st.markdown("""
-        **Histogram Metric Description:**
-        - **KP_AdjEM**: Adjusted efficiency margin from KenPom ratings.
-        - **OFF EFF/DEF EFF**: Offensive/Defensive efficiency.
-        - Other metrics follow similar definitions as per NCAA advanced statistics.
-        """)
+# with tab_hist:
+#     st.header("Histogram")
+#     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
+#     hist_metric = st.selectbox(
+#         "Select Metric for Histogram", numeric_cols,
+#         index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
+#     )
+#     fig_hist = px.histogram(
+#         df_main, x=hist_metric, nbins=25, marginal="box",
+#         color_discrete_sequence=["dodgerblue"], template="plotly_dark",
+#         title=f"Distribution of {hist_metric} (All Teams)"
+#     )
+#     fig_hist.update_layout(bargap=0.1)
+#     st.plotly_chart(fig_hist, use_container_width=True)
+#     with st.expander("About Histogram Metrics:"):
+#         st.markdown("""
+#         **Histogram Metric Description:**
+#         - **KP_AdjEM**: Adjusted efficiency margin from KenPom ratings.
+#         - **OFF EFF/DEF EFF**: Offensive/Defensive efficiency.
+#         - Other metrics follow similar definitions as per NCAA advanced statistics.
+#         """)
 
-# --- Correlation Heatmap Tab --- #
-with tab_corr:
-    st.header("Correlation Heatmap")
-    numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
-    default_corr_metrics = [m for m in ["KP_AdjEM", "OFF EFF", "DEF EFF", "PTS/GM", "OPP PTS/GM"] if m in numeric_cols]
-    selected_corr_metrics = st.multiselect("Select Metrics for Correlation Analysis", options=numeric_cols, default=default_corr_metrics)
-    if len(selected_corr_metrics) >= 2:
-        df_for_corr = df_main[selected_corr_metrics].dropna()
-        corr_mat = df_for_corr.corr().round(2)
-        fig_corr = px.imshow(
-            corr_mat,
-            text_auto=True,
-            color_continuous_scale="RdBu_r",
-            title="Correlation Matrix",
-            template="plotly_dark"
-        )
-        fig_corr.update_layout(width=800, height=700)
-        st.plotly_chart(fig_corr, use_container_width=True)
-    else:
-        st.warning("Please select at least 2 metrics for correlation analysis.")
-    with st.expander("About Correlation Metrics:"):
-        st.markdown("""
-        **Correlation Heatmap Glossary:**
-        - **Correlation Coefficient**: Measures linear relationship between two variables.
-        - **Positive/Negative Correlation**: Indicates the direction of the relationship.
-        - **Metrics**: Derived from advanced team statistics.
-        """)
+# # --- Correlation Heatmap Tab --- #
+# with tab_corr:
+#     st.header("Correlation Heatmap")
+#     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
+#     default_corr_metrics = [m for m in ["KP_AdjEM", "OFF EFF", "DEF EFF", "PTS/GM", "OPP PTS/GM"] if m in numeric_cols]
+#     selected_corr_metrics = st.multiselect("Select Metrics for Correlation Analysis", options=numeric_cols, default=default_corr_metrics)
+#     if len(selected_corr_metrics) >= 2:
+#         df_for_corr = df_main[selected_corr_metrics].dropna()
+#         corr_mat = df_for_corr.corr().round(2)
+#         fig_corr = px.imshow(
+#             corr_mat,
+#             text_auto=True,
+#             color_continuous_scale="RdBu_r",
+#             title="Correlation Matrix",
+#             template="plotly_dark"
+#         )
+#         fig_corr.update_layout(width=800, height=700)
+#         st.plotly_chart(fig_corr, use_container_width=True)
+#     else:
+#         st.warning("Please select at least 2 metrics for correlation analysis.")
+#     with st.expander("About Correlation Metrics:"):
+#         st.markdown("""
+#         **Correlation Heatmap Glossary:**
+#         - **Correlation Coefficient**: Measures linear relationship between two variables.
+#         - **Positive/Negative Correlation**: Indicates the direction of the relationship.
+#         - **Metrics**: Derived from advanced team statistics.
+#         """)
 
 # --- Conference Comparison Tab --- #
 with tab_conf:
@@ -947,7 +947,6 @@ with tab_conf:
         """)
 
 # --- Team Metrics Comparison Tab --- #
-# Replace the existing tab_team content with this enhanced version
 with tab_team:
     st.header("🏀 TEAM METRICS COMPARISON")
     

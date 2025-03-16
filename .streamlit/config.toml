@@ -4,8 +4,8 @@ base = "light"
 
 # LIGHT MODE LAYOUT
 primaryColor = "#FF6B00"          # Vibrant Orange (Basketball color)
-backgroundColor = "#1A1A1D"        # Deep Court Black
-secondaryBackgroundColor = "#2C2C34" # Subtle Dark Gray
+backgroundColor = "#DADADA"  #"#1A1A1D" # Deep Court Black
+secondaryBackgroundColor = "#1A1A1D" #"#2C2C34" # Subtle Dark Gray
 textColor = "#F5F5F5"             # Bright White for readability
 font = "sans serif"
 
