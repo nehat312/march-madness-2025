@@ -1386,7 +1386,7 @@ with tab_home:
                 st.warning("No data available for the selected team.")
     
     ## CONFERENCE POWER RANKINGS DATAFRAME
-    if "CONFERENCE" in df_main.columns:
+if "CONFERENCE" in df_main.columns:
     conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
     conf_counts.columns = ["CONFERENCE", "# TEAMS"]
 
@@ -1442,9 +1442,9 @@ with tab_home:
             })
             .background_gradient(cmap="RdYlGn", subset=[
                 "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
-                "AVG TR_OEff_25", "AVG TR_DEff_25" #  Color-code Off and Def Eff
+                "AVG TR_OEff_25",
             ])
-            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25", "AVG TR_DEff_25"]) # Reverse for Seed/NET
+            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25", "AVG TR_DEff_25"])
             .set_table_styles(detailed_table_styles)
         )
 
