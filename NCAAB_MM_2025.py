@@ -633,8 +633,8 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
 
     seed_str = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
-        seed_str = f"Seed #{int(team_row['SEED_25'])} "
-    team_str = f"{seed_str}{team_row.name}"
+        seed_str = f"#{int(team_row['SEED_25'])} | "
+    team_str = f"{seed_str}{team_row.name}{team_row['CONFERENCE']}"
 
     if not is_subplot:
         fig.add_annotation(
@@ -2613,7 +2613,7 @@ with tab_pred:
         st.subheader("Bracket Visualization")
         st.markdown("Select a view to explore the tournament teams")
         
-        viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
+        viz_type = st.radio("Visualization Type", ["Team Stats", ], horizontal=True) #"Bracket Overview"
         
         # Ensure TR_df is defined (prepare tournament data if needed)
         if 'TR_df' not in globals():
@@ -2634,8 +2634,11 @@ with tab_pred:
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
-                "TeamRankings OEff": f"{int(team_data['OFF EFF'])}",
-                "TeamRankings DEff.": f"{int(team_data['DEF EFF'])}",
+                "KenPom Adj EM": f"{team_data['KP_AdjEM']:.2f}",
+                "KenPom Adj OEff": f"{team_data['KP_AdjO']:.2f}",
+                "KenPom Adj DEff": f"{team_data['KP_AdjD']:.2f}",
+                "TeamRankings OEff": f"{team_data['OFF EFF']:.2f}",
+                "TeamRankings DEff.": f"{team_data['DEF EFF']:.2f}",
             }
             stat_col1, stat_col2 = st.columns(2)
             for i, (stat, value) in enumerate(key_stats.items()):
