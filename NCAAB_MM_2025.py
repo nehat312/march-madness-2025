@@ -1397,15 +1397,15 @@ if "CONFERENCE" in df_main.columns:
                 "KP_AdjEM": ["count", "max", "mean", "min"],
                 "SEED_25": "mean",  # Example of adding a new stat
                 "NET_25": "mean",
-                "TR_OEff_25": "mean",
-                "TR_DEff_25": "mean",
+                #"TR_OEff_25": "mean",
+                #"TR_DEff_25": "mean",
             }
         ).reset_index()
 
         # Flatten the multi-level column index
         conf_stats.columns = [
             "CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-            "AVG SEED_25", "AVG NET_25", "AVG TR_OEff_25", "AVG TR_DEff_25",
+            "AVG SEED_25", "AVG NET_25", #"AVG TR_OEff_25", "AVG TR_DEff_25",
         ]
 
         conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
@@ -1423,8 +1423,10 @@ if "CONFERENCE" in df_main.columns:
                 - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
                 - **AVG SEED_25**: Average tournament seed (lower is better)
                 - **AVG NET_25**: Average NET ranking (lower is better)
-                - **AVG TR_OEff_25 / AVG TR_DEff_25**:  Average Torvik Offensive/Defensive Efficiency
+                
                 """)
+
+# - **AVG TR_OEff_25 / AVG TR_DEff_25**:  Average Torvik Offensive/Defensive Efficiency
 
         # Apply logo and styling *before* converting to HTML
         conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
@@ -1437,14 +1439,16 @@ if "CONFERENCE" in df_main.columns:
                 "MAX AdjEM": "{:.2f}",
                 "AVG SEED_25": "{:.1f}",
                 "AVG NET_25": "{:.1f}",
-                "AVG TR_OEff_25": "{:.1f}",
-                "AVG TR_DEff_25": "{:.1f}",
+                #"AVG TR_OEff_25": "{:.1f}",
+                #"AVG TR_DEff_25": "{:.1f}",
             })
             .background_gradient(cmap="RdYlGn", subset=[
                 "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
-                "AVG TR_OEff_25",
+                #"AVG TR_OEff_25",
             ])
-            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25", "AVG TR_DEff_25"])
+            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25",
+                                                          #"AVG TR_DEff_25",
+                                                          ])
             .set_table_styles(detailed_table_styles)
         )
 
