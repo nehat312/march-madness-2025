@@ -570,154 +570,181 @@ def get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df):
 
     return team_scaled, ncaam_scaled, conf_scaled, used_metrics
 
-def create_seed_radar_grid(df_main, region_teams):
-    """
-    Draw a 16x4 polar radar chart grid, one subplot per (seed, region).
-    Each subplot shows:
-      - Team z-score vs. national avg vs. conference avg
-      - Light axes & tick labels in white for good contrast on a bright page
-    Skips any seeds above #16 or missing. 
-    """
-    # Overall stats
-    t_avgs, t_stdevs = compute_tournament_stats(df_main)
+def create_bracket_radar_grid():
+    """Creates a 4x16 grid of radar charts, one for each region and seed"""
+    
+    # Use the existing dataframe with team seeds and regions
+    df = TR_df.copy()
+    
+    # Ensure we have the necessary columns
+    if not all(col in df.columns for col in ['SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25']):
+        st.error("Required columns for bracket visualization are missing")
+        return
+    
+    # Select teams that are in the tournament
+    tourney_teams = df[df['SEED_25'].notna()].copy()
+    
+    # Create radar chart grid with dark background
+    st.markdown("""
+    <style>
+    .radar-grid-container {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown('<div class="radar-grid-container">', unsafe_allow_html=True)
+        
+        # Region headers
+        cols = st.columns(4)
+        regions = ["East", "West", "South", "Midwest"]
+        for i, region in enumerate(regions):
+            cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
+        
+        # Create radar charts for each region and seed
+        for seed in range(1, 17):
+            cols = st.columns(4)
+            
+            for i, region in enumerate(regions):
+                # Find team with this seed in this region
+                team = tourney_teams[(tourney_teams['REGION_25'] == region) & 
+                                    (tourney_teams['REG_SEED_25'] == seed)]
+                
+                if not team.empty:
+                    team = team.iloc[0]
+                    
+                    # Create radar chart for team
+                    with cols[i]:
+                        create_team_radar(team, dark_mode=True)
+                else:
+                    # Empty placeholder if no team matches
+                    cols[i].markdown(f"<div style='height:200px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>", unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # We want 16 rows (for seeds 1..16) × 4 columns (East, West, South, Midwest)
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-
-    nrows, ncols = 16, 4
-    fig = make_subplots(
-        rows=nrows,
-        cols=ncols,
-        specs=[ [{'type': 'polar'}]*ncols for _ in range(nrows) ],
-        horizontal_spacing=0.01,
-        vertical_spacing=0.02,
-        subplot_titles=[""]*(nrows*ncols)
-    )
-
-    region_order = ["East", "West", "South", "Midwest"]
-
-    for seed_num in range(1, 17):  # 1..16 seeds
-        row_idx = seed_num  # because we do row=1..16
-        for col_idx, region_name in enumerate(region_order, start=1):
-            region_list = region_teams.get(region_name, [])
-            if seed_num-1 >= len(region_list):
-                # This region doesn't have a team at that seed
-                continue
-            # The team's dictionary from region_teams
-            team_info = region_list[seed_num-1]
-            team_name = team_info["Team"]
-
-            # Look up that row in df_main
-            row_mask = (df_main["TM_KP"] == team_name)
-            if not row_mask.any():
-                continue
-            team_row = df_main.loc[row_mask].iloc[0]
-
-            # Conference subset
-            conf_name = team_row.get("CONFERENCE", None)
-            conf_df = df_main[df_main["CONFERENCE"] == conf_name] if conf_name else None
-
-            team_scaled, ncaam_scaled, conf_scaled, used_metrics = get_radar_zscores(
-                team_row, t_avgs, t_stdevs, conf_df
-            )
-            if not used_metrics:
-                continue
-
-            # Close the radial dimension
-            team_scaled_circ  = team_scaled  + [team_scaled[0]]
-            ncaam_scaled_circ = ncaam_scaled + [ncaam_scaled[0]]
-            conf_scaled_circ  = conf_scaled  + [conf_scaled[0]]
-            metrics_circ      = used_metrics + [used_metrics[0]]
-
-            # Only show the legend once (top-left subplot)
-            show_legend = (seed_num == 1 and col_idx == 1)
-
-            # TEAM trace
-            fig.add_trace(
-                go.Scatterpolar(
-                    r=team_scaled_circ,
-                    theta=metrics_circ,
-                    fill='toself',
-                    fillcolor='rgba(30,144,255,0.3)',
-                    name='TEAM',
-                    line=dict(color='dodgerblue', width=2),
-                    showlegend=show_legend,
-                    hovertemplate=f"<b>{team_name}</b><br>%{{theta}}: %{{r:.1f}}<extra></extra>"
-                ),
-                row=row_idx, col=col_idx
-            )
-            # NCAAM AVG trace
-            fig.add_trace(
-                go.Scatterpolar(
-                    r=ncaam_scaled_circ,
-                    theta=metrics_circ,
-                    fill='toself',
-                    fillcolor='rgba(255,99,71,0.2)',
-                    name='NCAAM AVG',
-                    line=dict(color='tomato', width=2, dash='dash'),
-                    showlegend=show_legend,
-                    hoverinfo='skip'
-                ),
-                row=row_idx, col=col_idx
-            )
-            # CONF trace
-            fig.add_trace(
-                go.Scatterpolar(
-                    r=conf_scaled_circ,
-                    theta=metrics_circ,
-                    fill='toself',
-                    fillcolor='rgba(50,205,50,0.2)',
-                    name='CONF',
-                    line=dict(color='limegreen', width=2, dash='dot'),
-                    showlegend=show_legend,
-                    hoverinfo='skip'
-                ),
-                row=row_idx, col=col_idx
-            )
-
-            # Subplot label, e.g. "Seed 7: Duke (West)"
-            annotation_idx = (row_idx-1)*ncols + (col_idx-1)
-            if annotation_idx < len(fig.layout.annotations):
-                fig.layout.annotations[annotation_idx].text = (
-                    f"Seed {seed_num}: {team_name}<br>({region_name})"
-                )
-
-    # Style the figure
+def create_team_radar(team, dark_mode=True):
+    """Creates a radar chart for a single team with proper annotations and color"""
+    
+    # Get team data
+    team_name = team['TM_TR']
+    seed = int(team['REG_SEED_25'])
+    
+    # Calculate Z-scores for key metrics
+    metrics = ['TR_OEff_25', 'TR_DEff_25', 'NET_eFG%', 'NET AST/TOV RATIO', 'TTL REB%', 'STOCKS/GM']
+    labels = ['Offense', 'Defense', 'Shooting', 'Ball Control', 'Rebounding', 'Stocks']
+    
+    # Make sure all metrics exist
+    available_metrics = [m for m in metrics if m in team.index]
+    available_labels = [labels[metrics.index(m)] for m in available_metrics]
+    
+    if not available_metrics:
+        st.markdown(f"<div style='height:200px;text-align:center;color:white;'><p>({seed}) {team_name}</p><p>No metrics available</p></div>", unsafe_allow_html=True)
+        return
+    
+    # Get values and compute Z-scores
+    values = []
+    for metric in available_metrics:
+        if pd.notna(team[metric]):
+            # Get all values for this metric to compute z-score
+            all_values = TR_df[metric].dropna()
+            if len(all_values) > 0:
+                mean = all_values.mean()
+                std = all_values.std() if all_values.std() > 0 else 1
+                z_score = (team[metric] - mean) / std
+                # Cap z-scores at -3 to 3 range
+                z_score = max(min(z_score, 3), -3)
+                # Normalize to 0-100 scale
+                norm_value = (z_score + 3) * (100 / 6)
+                values.append(norm_value)
+            else:
+                values.append(50)  # Default if no data
+        else:
+            values.append(50)  # Default if metric is NA
+    
+    # Team type categorization
+    strengths = []
+    if len(values) >= 6:  # If we have all metrics
+        if values[0] > 65 and values[2] > 65:  # Good offense and shooting
+            strengths.append("Offensive")
+        if values[1] > 65 and values[5] > 65:  # Good defense and stocks
+            strengths.append("Defensive")
+        if values[3] > 65 and values[4] > 65:  # Good ball control and rebounding
+            strengths.append("Fundamental")
+    
+    team_type = " & ".join(strengths) if strengths else "Balanced"
+    
+    # Color code based on seed
+    seed_colors = {
+        range(1, 5): "rgba(0, 255, 0, 0.7)",    # Seeds 1-4: Green
+        range(5, 9): "rgba(255, 255, 0, 0.7)",  # Seeds 5-8: Yellow
+        range(9, 13): "rgba(255, 165, 0, 0.7)", # Seeds 9-12: Orange
+        range(13, 17): "rgba(255, 0, 0, 0.7)"   # Seeds 13-16: Red
+    }
+    
+    color = next((c for r, c in seed_colors.items() if seed in r), "rgba(255, 255, 255, 0.7)")
+    
+    # Create radar chart
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=available_labels,
+        fill='toself',
+        fillcolor=color.replace('0.7', '0.3'),
+        line=dict(color=color),
+        name=team_name
+    ))
+    
+    # Configure layout with dark mode if selected
+    bg_color = "#1E1E1E" if dark_mode else "#FFFFFF"
+    text_color = "white" if dark_mode else "black"
+    grid_color = "rgba(255, 255, 255, 0.1)" if dark_mode else "rgba(0, 0, 0, 0.1)"
+    
     fig.update_layout(
-        height=4000,
-        template=None,  # remove default dark or light template so we can style ourselves
-        paper_bgcolor="rgba(240,240,240,1)",  # or your preferred background
-        plot_bgcolor="rgba(30,30,30,1)",      # a dark plotting area
-        showlegend=True,
-        margin=dict(l=30, r=30, t=50, b=30),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.01,
-            xanchor="right",
-            x=1
-        )
-    )
-    # Make each polar subplot have white tick labels
-    fig.update_polars(
-        bgcolor="rgba(30,30,30,1)",  # darker polar area
-        radialaxis=dict(
-            tickmode='array',
-            tickvals=[0,2,4,6,8,10],
-            ticktext=['0','2','4','6','8','10'],
-            showline=True,
-            linewidth=1,
-            linecolor="white",
-            gridcolor="gray",
-            tickfont=dict(size=10, color="white"),
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                showticklabels=False,
+                gridcolor=grid_color
+            ),
+            angularaxis=dict(
+                gridcolor=grid_color,
+                linecolor=grid_color
+            ),
+            bgcolor='rgba(0,0,0,0)'
         ),
-        angularaxis=dict(
-            tickfont=dict(size=10, color="white"),
-            gridcolor="gray"
-        )
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        showlegend=False,
+        margin=dict(l=10, r=10, t=40, b=10),
+        height=250,
+        font=dict(color=text_color)
     )
-    return fig
+    
+    # Add seed and type annotations
+    fig.add_annotation(
+        text=f"({seed}) {team_name}",
+        xref="paper", yref="paper",
+        x=0.5, y=1.05,
+        showarrow=False,
+        font=dict(size=14, color=text_color),
+        align="center"
+    )
+    
+    fig.add_annotation(
+        text=f"{team_type}",
+        xref="paper", yref="paper",
+        x=0.5, y=0.95,
+        showarrow=False,
+        font=dict(size=12, color=text_color),
+        align="center"
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
 # ----------------------------------------------------------------------------
 # Treemap Function
@@ -1036,6 +1063,74 @@ def run_simulation(use_analytics=True, simulations=1):
         }
         all_results.append(sim_result)
     return all_results
+
+def display_simulation_results(simulation_results, container=None):
+    """Display simulation results in a visually appealing way directly in Streamlit"""
+    if container is None:
+        container = st
+        
+    # Define colors for rounds using Streamlit's color system
+    round_styles = {
+        "Round of 64": "blue",
+        "Round of 32": "cyan",
+        "Sweet 16": "green",
+        "Elite 8": "orange",
+        "Final Four": "violet",
+        "Championship": "red"
+    }
+    
+    if not simulation_results:
+        container.warning("No simulation results to display.")
+        return
+        
+    # Get the first simulation result (if multiple)
+    result = simulation_results[0]
+    games = result['all_games']
+    
+    # Group games by round
+    games_by_round = {}
+    for game in games:
+        round_name = game['round_name']
+        if round_name not in games_by_round:
+            games_by_round[round_name] = []
+        games_by_round[round_name].append(game)
+    
+    # Display games by round in expandable sections
+    for round_name in ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]:
+        if round_name not in games_by_round:
+            continue
+            
+        with container.expander(f"🏀 {round_name}", expanded=(round_name in ["Final Four", "Championship"])):
+            for game in games_by_round[round_name]:
+                # Format win probability as percentage
+                win_prob = f"{game['win_prob']*100:.1f}%" if 'win_prob' in game else "N/A"
+                
+                # Create matchup text with winner highlighted
+                if game['winner'] == game['team1']:
+                    matchup_text = f"**({game['seed1']}) {game['team1']}** vs ({game['seed2']}) {game['team2']}"
+                else:
+                    matchup_text = f"({game['seed1']}) {game['team1']} vs **({game['seed2']}) {game['team2']}**"
+                
+                # Create colored box with matchup info
+                container.markdown(
+                    f"""<div style="padding: 8px; border-radius: 5px; margin-bottom: 8px; 
+                    background-color: rgba(var(--{round_styles[round_name]}-50), 0.2); 
+                    border-left: 4px solid var(--{round_styles[round_name]}-500);">
+                    {matchup_text} | Win Prob: {win_prob} | {game.get('region', 'National')} Region
+                    </div>""", 
+                    unsafe_allow_html=True
+                )
+    
+    # Display champion
+    container.markdown("## 🏆 Tournament Champion")
+    champion = result['champion']
+    container.markdown(
+        f"""<div style="padding: 15px; border-radius: 5px; margin: 10px 0; 
+        background-color: rgba(var(--red-50), 0.3); border: 2px solid var(--red-500);">
+        <h3 style="margin:0;text-align:center;">({champion['Seed']}) {champion['Team']}</h3>
+        </div>""", 
+        unsafe_allow_html=True
+    )
 
 def analyze_simulation_results(all_results):
     num_simulations = len(all_results)
@@ -1662,104 +1757,269 @@ def color_log_text(round_name, text):
 with tab_pred:
     st.header("Bracket Simulation")
 
-    # 2) Let the user decide if they want to see detailed logs (single-run example)
-    show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
+    # Create two columns for simulation controls and bracket visualization
+    sim_col, viz_col = st.columns([3, 2])
 
-    st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-    
-    # 3) Single button with a unique key argument
-    if st.button("Run Bracket Simulation", key="btn_run_bracket"):
-        with st.spinner("Simulating tournament..."):
-            # Run your existing multi-simulation
-            aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
-
-        st.success("Simulation complete!")
-
-        # -----------------------------------------
-        # Apply advanced styling to two result DataFrames:
-        #   (1) Championship Win Probabilities
-        #   (2) Upset Summary
-        # for consistency with the rest of the app.
-        # -----------------------------------------
-
-        # (A) Championship Win Probabilities
-        st.subheader("Championship Win Probabilities")
-        champ_df = aggregated_analysis['champion_probabilities'].copy()
+    with sim_col:
+        # 2) Let the user decide if they want to see detailed logs (single-run example)
+        show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
+        st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
         
-        # Convert numeric columns to background gradient
-        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
-        styled_champ = (
-            champ_df.style
-            .format("{:.2%}", subset=["Championship_Probability"])  # percentage style
-            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
-            .set_table_styles(detailed_table_styles)
-            .set_caption("Championship Win Probabilities by Team")
-        )
-        # Render as HTML
-        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+        # 3) Single button with a unique key argument
+        if st.button("Run Bracket Simulation", key="btn_run_bracket"):
+            with st.spinner("Simulating tournament..."):
+                # Run your existing multi-simulation
+                aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
+                
+                # Also run a single simulation to display detailed results
+                single_sim_results = run_simulation(use_analytics=True, simulations=1)
+                st.session_state['single_sim_results'] = single_sim_results
 
-        # (B) Regional Win Probabilities Chart (plotly)
-        st.subheader("Regional Win Probabilities")
-        if 'region_probabilities' in aggregated_analysis:
-            fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
-            st.plotly_chart(fig_regional, use_container_width=True)
+            st.success("Simulation complete!")
+
+            # -----------------------------------------
+            # Apply advanced styling to two result DataFrames:
+            #   (1) Championship Win Probabilities
+            #   (2) Upset Summary
+            # for consistency with the rest of the app.
+            # -----------------------------------------
+
+            # (A) Championship Win Probabilities
+            st.subheader("Championship Win Probabilities")
+            champ_df = aggregated_analysis['champion_probabilities'].copy()
+            
+            # Convert numeric columns to background gradient
+            numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+            styled_champ = (
+                champ_df.style
+                .format("{:.2%}", subset=["Championship_Probability"])  # percentage style
+                .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+                .set_table_styles(detailed_table_styles)
+                .set_caption("Championship Win Probabilities by Team")
+            )
+            # Render as HTML
+            st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+
+            # (B) Regional Win Probabilities Chart (plotly)
+            st.subheader("Regional Win Probabilities")
+            if 'region_probabilities' in aggregated_analysis:
+                fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
+                st.plotly_chart(fig_regional, use_container_width=True)
+            else:
+                st.warning("Regional win probabilities data not available.")
+
+            # (C) Upset Analysis
+            st.subheader("Aggregated Upset Analysis")
+            upset_summary_df = pd.DataFrame({
+                'Round': aggregated_analysis['upset_pct_aggregated'].index,
+                'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
+            })
+            # Style that similarly
+            numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+            styled_upsets = (
+                upset_summary_df.style
+                .format("{:.1f}", subset=["Upset %"])
+                .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+                .set_table_styles(detailed_table_styles)
+                .set_caption("Upset Analysis by Round")
+            )
+            st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+
+            # (D) Show aggregated matplotlib figure with uniform styling
+            try:
+                agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
+                st.pyplot(agg_viz_fig, use_container_width=True)  # Pass figure explicitly
+            except Exception as e:
+                st.error(f"Could not generate aggregated visualizations: {e}")
+
+            # (E) Enhanced detailed simulation display for single run results
+            if show_detailed_logs and 'single_sim_results' in st.session_state:
+                st.info("Detailed game outcomes for a single simulation run:")
+                
+                # Use our new enhanced display function
+                display_simulation_results(st.session_state['single_sim_results'], st)
+            
+            # Legacy detailed logs (can keep both or replace with enhanced version)
+            elif show_detailed_logs:
+                st.info("Detailed logs below show one example simulation's game outcomes:")
+                single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
+                detailed_games = single_run_results["all_games"]
+
+                st.write("---")
+                st.write("### Detailed Game Outcomes (Single Simulation):")
+
+                # Print each round's outcome in color-coded HTML
+                for gm in detailed_games:
+                    round_label   = gm["round_name"]
+                    t1, t2        = gm["team1"], gm["team2"]
+                    winner        = gm["winner"]
+                    prob_to_win   = gm["win_prob"]
+                    colored_label = color_log_text(round_label, f"[{round_label}]")
+
+                    # Mark upsets for emphasis
+                    upset_flag = ""
+                    if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
+                        upset_flag = "<b>(UPSET!)</b>"
+
+                    line_html = (
+                        f"{colored_label} &nbsp;"
+                        f"{t1} vs. {t2} → "
+                        f"<b>Winner:</b> {winner} "
+                        f"<small>(win prob {prob_to_win:.1%})</small> "
+                        f"{upset_flag}"
+                    )
+                    st.markdown(line_html, unsafe_allow_html=True)
+
+    # Add bracket visualization in the second column or below the simulation section
+    with viz_col:
+        st.subheader("Bracket Visualization")
+        st.markdown("Select a view to explore the tournament teams")
+        
+        viz_type = st.radio(
+            "Visualization Type", 
+            ["Team Stats", "Bracket Overview"],
+            horizontal=True
+        )
+        
+        if viz_type == "Team Stats":
+            # Display a team selector dropdown
+            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_TR'].tolist()
+            selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
+            
+            # Display the radar for just this team
+            team_data = TR_df[TR_df['TM_TR'] == selected_team].iloc[0]
+            create_team_radar(team_data, dark_mode=True)
+            
+            # Show key team stats below the radar
+            st.markdown("### Key Team Stats")
+            
+            # Extract and display key stats in a neat format
+            key_stats = {
+                "Seed": f"{int(team_data['REG_SEED_25'])} ({team_data['REGION_25']})",
+                "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
+                "NET Rank": f"{int(team_data['NET_25'])}",
+                "KenPom Rank": f"{int(team_data['KP_Rank'])}",
+                "Offense Rank": f"{int(team_data['TR_ORk_25'])}",
+                "Defense Rank": f"{int(team_data['TR_DRk_25'])}"
+            }
+            
+            # Create two columns for stats
+            stat_col1, stat_col2 = st.columns(2)
+            
+            # Display stats in columns
+            for i, (stat, value) in enumerate(key_stats.items()):
+                if i % 2 == 0:
+                    stat_col1.metric(stat, value)
+                else:
+                    stat_col2.metric(stat, value)
+                    
         else:
-            st.warning("Regional win probabilities data not available.")
+            # Show button to load full bracket visualization
+            if st.button("Load Full Bracket Visualization"):
+                with st.spinner("Generating bracket visualization..."):
+                    create_bracket_radar_grid()
 
-        # (C) Upset Analysis
-        st.subheader("Aggregated Upset Analysis")
-        upset_summary_df = pd.DataFrame({
-            'Round': aggregated_analysis['upset_pct_aggregated'].index,
-            'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
-        })
-        # Style that similarly
-        numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
-        styled_upsets = (
-            upset_summary_df.style
-            .format("{:.1f}", subset=["Upset %"])
-            .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
-            .set_table_styles(detailed_table_styles)
-            .set_caption("Upset Analysis by Round")
-        )
-        st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+# with tab_pred:
+#     st.header("Bracket Simulation")
 
-        # (D) Show aggregated matplotlib figure with uniform styling
-        try:
-            agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
-            st.pyplot(agg_viz_fig, use_container_width=True)  # Pass figure explicitly
-        except Exception as e:
-            st.error(f"Could not generate aggregated visualizations: {e}")
+#     # 2) Let the user decide if they want to see detailed logs (single-run example)
+#     show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
 
-        # (E) If the user checked 'Show Detailed Logs,' run a single-sim & print logs
-        if show_detailed_logs:
-            st.info("Detailed logs below show one example simulation’s game outcomes:")
-            single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
-            detailed_games = single_run_results["all_games"]
+#     st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
+    
+#     # 3) Single button with a unique key argument
+#     if st.button("Run Bracket Simulation", key="btn_run_bracket"):
+#         with st.spinner("Simulating tournament..."):
+#             # Run your existing multi-simulation
+#             aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
 
-            st.write("---")
-            st.write("### Detailed Game Outcomes (Single Simulation):")
+#         st.success("Simulation complete!")
 
-            # Print each round's outcome in color-coded HTML
-            for gm in detailed_games:
-                round_label   = gm["round_name"]
-                t1, t2        = gm["team1"], gm["team2"]
-                winner        = gm["winner"]
-                prob_to_win   = gm["win_prob"]
-                colored_label = color_log_text(round_label, f"[{round_label}]")
+#         # -----------------------------------------
+#         # Apply advanced styling to two result DataFrames:
+#         #   (1) Championship Win Probabilities
+#         #   (2) Upset Summary
+#         # for consistency with the rest of the app.
+#         # -----------------------------------------
 
-                # Mark upsets for emphasis
-                upset_flag = ""
-                if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
-                    upset_flag = "<b>(UPSET!)</b>"
+#         # (A) Championship Win Probabilities
+#         st.subheader("Championship Win Probabilities")
+#         champ_df = aggregated_analysis['champion_probabilities'].copy()
+        
+#         # Convert numeric columns to background gradient
+#         numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+#         styled_champ = (
+#             champ_df.style
+#             .format("{:.2%}", subset=["Championship_Probability"])  # percentage style
+#             .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+#             .set_table_styles(detailed_table_styles)
+#             .set_caption("Championship Win Probabilities by Team")
+#         )
+#         # Render as HTML
+#         st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
 
-                line_html = (
-                    f"{colored_label} &nbsp;"
-                    f"{t1} vs. {t2} → "
-                    f"<b>Winner:</b> {winner} "
-                    f"<small>(win prob {prob_to_win:.1%})</small> "
-                    f"{upset_flag}"
-                )
-                st.markdown(line_html, unsafe_allow_html=True)
+#         # (B) Regional Win Probabilities Chart (plotly)
+#         st.subheader("Regional Win Probabilities")
+#         if 'region_probabilities' in aggregated_analysis:
+#             fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
+#             st.plotly_chart(fig_regional, use_container_width=True)
+#         else:
+#             st.warning("Regional win probabilities data not available.")
+
+#         # (C) Upset Analysis
+#         st.subheader("Aggregated Upset Analysis")
+#         upset_summary_df = pd.DataFrame({
+#             'Round': aggregated_analysis['upset_pct_aggregated'].index,
+#             'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
+#         })
+#         # Style that similarly
+#         numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+#         styled_upsets = (
+#             upset_summary_df.style
+#             .format("{:.1f}", subset=["Upset %"])
+#             .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+#             .set_table_styles(detailed_table_styles)
+#             .set_caption("Upset Analysis by Round")
+#         )
+#         st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+
+#         # (D) Show aggregated matplotlib figure with uniform styling
+#         try:
+#             agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
+#             st.pyplot(agg_viz_fig, use_container_width=True)  # Pass figure explicitly
+#         except Exception as e:
+#             st.error(f"Could not generate aggregated visualizations: {e}")
+
+#         # (E) If the user checked 'Show Detailed Logs,' run a single-sim & print logs
+#         if show_detailed_logs:
+#             st.info("Detailed logs below show one example simulation’s game outcomes:")
+#             single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
+#             detailed_games = single_run_results["all_games"]
+
+#             st.write("---")
+#             st.write("### Detailed Game Outcomes (Single Simulation):")
+
+#             # Print each round's outcome in color-coded HTML
+#             for gm in detailed_games:
+#                 round_label   = gm["round_name"]
+#                 t1, t2        = gm["team1"], gm["team2"]
+#                 winner        = gm["winner"]
+#                 prob_to_win   = gm["win_prob"]
+#                 colored_label = color_log_text(round_label, f"[{round_label}]")
+
+#                 # Mark upsets for emphasis
+#                 upset_flag = ""
+#                 if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
+#                     upset_flag = "<b>(UPSET!)</b>"
+
+#                 line_html = (
+#                     f"{colored_label} &nbsp;"
+#                     f"{t1} vs. {t2} → "
+#                     f"<b>Winner:</b> {winner} "
+#                     f"<small>(win prob {prob_to_win:.1%})</small> "
+#                     f"{upset_flag}"
+#                 )
+#                 st.markdown(line_html, unsafe_allow_html=True)
 
 
 # with tab_pred:
