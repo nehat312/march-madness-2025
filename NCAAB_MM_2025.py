@@ -1375,7 +1375,7 @@ with tab_radar:
     st.header("Seed-by-Seed Radar Charts (16x4)")
 
     # Create the big 16x4 grid figure
-    bracket_radar_fig = create_seed_radar_grid(df_main, region_teams)
+    bracket_radar_fig = create_bracket_radar_grid(df_main, region_teams)
 
     if bracket_radar_fig:
         st.plotly_chart(bracket_radar_fig, use_container_width=True)
