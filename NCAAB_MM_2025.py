@@ -1237,20 +1237,23 @@ round_colors = {
     "Championship": RED
 }
 
-# Use actual tournament data from the primary dataframe
 def prepare_tournament_data():
+    """
+    Prepare tournament data using the actual bracket seeds and regions from the main dataframe.
+    Returns a dictionary with tournament teams, region names, and teams organized by region.
+    """
     # Make a copy of the main dataframe
-    TR_df = df_main.copy()
+    tournament_df = df_main.copy()
     
     # Ensure required columns exist and handle missing values
     required_cols = ['SEED_25', 'REGION_25', 'KP_Rank', 'KP_AdjEM', 'OFF EFF', 'DEF EFF']
     for col in required_cols:
-        if col not in TR_df.columns:
+        if col not in tournament_df.columns:
             sim_logger.warning(f"Missing required column: {col}")
             return None
     
     # Drop teams with missing essential data
-    tournament_teams = TR_df.dropna(subset=required_cols).copy()
+    tournament_teams = tournament_df.dropna(subset=required_cols).copy()
     
     # Ensure we have the team name column
     if 'TM_KP' not in tournament_teams.columns:
