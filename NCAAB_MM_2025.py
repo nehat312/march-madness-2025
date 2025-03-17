@@ -1419,25 +1419,27 @@ with tab_home:
 
     detailed_table_styles = [header, index_style, cell_style, adj_em_group_style]
 
-    
-    ## CONFERENCE POWER RANKINGS DATAFRAME
+
     if "CONFERENCE" in df_main.columns:
-        if "KP_AdjEM" in df_main.columns and "KP_AdjO" in df_main.columns and "KP_AdjD" in df_main.columns: # Check for new columns too
+        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
+        if "KP_AdjEM" in df_main.columns:
             # Aggregate multiple stats at once.  This is MUCH more efficient.
             conf_stats = df_main.groupby("CONFERENCE").agg(
                 {
                     "KP_AdjEM": ["count", "max", "mean", "min"],
-                    "SEED_25": "mean",
+                    "SEED_25": "mean",  # Example of adding a new stat
                     "NET_25": "mean",
-                    "KP_AdjO": "mean",   # Add KenPom AdjO
-                    "KP_AdjD": "mean",   # Add KenPom AdjD
+                    #"TR_OEff_25": "mean",
+                    #"TR_DEff_25": "mean",
                 }
             ).reset_index()
 
             # Flatten the multi-level column index
             conf_stats.columns = [
                 "CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-                "AVG SEED_25", "AVG NET_25", "AVG KP_AdjO", "AVG KP_AdjD"
+                "AVG SEED_25", "AVG NET_25", #"AVG TR_OEff_25", "AVG TR_DEff_25",
             ]
 
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
@@ -1455,110 +1457,36 @@ with tab_home:
                     - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
                     - **AVG SEED_25**: Average tournament seed (lower is better)
                     - **AVG NET_25**: Average NET ranking (lower is better)
-                    - **AVG KP_AdjO**: Average KenPom Adjusted Offensive Efficiency
-                    - **AVG KP_AdjD**: Average KenPom Adjusted Defensive Efficiency
+                    
                     """)
 
-            # Apply logo and styling *before* converting to HTML
-            conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
+# - **AVG TR_OEff_25 / AVG TR_DEff_25**:  Average Torvik Offensive/Defensive Efficiency
 
+        # Apply logo and styling *before* converting to HTML
+        conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
 
-            styled_conf_stats = (
-                conf_stats.style
-                .format({
-                    "MEAN AdjEM": "{:.2f}",
-                    "MIN AdjEM": "{:.2f}",
-                    "MAX AdjEM": "{:.2f}",
-                    "AVG SEED_25": "{:.1f}",
-                    "AVG NET_25": "{:.1f}",
-                    "AVG KP_AdjO": "{:.1f}",
-                    "AVG KP_AdjD": "{:.1f}",
-                })
-                .background_gradient(cmap="RdYlGn", subset=[
-                    "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM", "AVG KP_AdjO"
-                ])
-                .background_gradient(cmap="RdYlGn_r", subset=[  #Reverse for metrics where lower is better
-                    "AVG SEED_25", "AVG NET_25", "AVG KP_AdjD"
-                ])
-                .set_table_styles(detailed_table_styles)
-            )
+        styled_conf_stats = (
+            conf_stats.style
+            .format({
+                "MEAN AdjEM": "{:.2f}",
+                "MIN AdjEM": "{:.2f}",
+                "MAX AdjEM": "{:.2f}",
+                "AVG SEED_25": "{:.1f}",
+                "AVG NET_25": "{:.1f}",
+                #"AVG TR_OEff_25": "{:.1f}",
+                #"AVG TR_DEff_25": "{:.1f}",
+            })
+            .background_gradient(cmap="RdYlGn", subset=[
+                "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
+                #"AVG TR_OEff_25",
+            ])
+            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25",
+                                                          #"AVG TR_DEff_25",
+                                                          ])
+            .set_table_styles(detailed_table_styles)
+        )
 
-            st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-
-        else:
-            st.error("Required columns (KP_AdjEM, KP_AdjO, KP_AdjD) are not present in the DataFrame.")
-
-    else:
-        st.error("'CONFERENCE' column is not present in the DataFrame.")
-
-
-#     if "CONFERENCE" in df_main.columns:
-#         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-#         conf_counts.columns = ["CONFERENCE", "# TEAMS"]
-
-#         if "KP_AdjEM" in df_main.columns:
-#             # Aggregate multiple stats at once.  This is MUCH more efficient.
-#             conf_stats = df_main.groupby("CONFERENCE").agg(
-#                 {
-#                     "KP_AdjEM": ["count", "max", "mean", "min"],
-#                     "SEED_25": "mean",  # Example of adding a new stat
-#                     "NET_25": "mean",
-#                     #"TR_OEff_25": "mean",
-#                     #"TR_DEff_25": "mean",
-#                 }
-#             ).reset_index()
-
-#             # Flatten the multi-level column index
-#             conf_stats.columns = [
-#                 "CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-#                 "AVG SEED_25", "AVG NET_25", #"AVG TR_OEff_25", "AVG TR_DEff_25",
-#             ]
-
-#             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-
-#             # --- Apply normal index ---
-#             conf_stats = conf_stats.reset_index(drop=True)
-#             conf_stats.index = conf_stats.index + 1  # Start index at 1
-#             conf_stats.index.name = "RANK"
-
-#             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
-#             with st.expander("*About Conference Power Rankings:*"):
-#                 st.markdown("""
-#                     Simple-average rollup of each conference:
-#                     - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-#                     - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-#                     - **AVG SEED_25**: Average tournament seed (lower is better)
-#                     - **AVG NET_25**: Average NET ranking (lower is better)
-                    
-#                     """)
-
-# # - **AVG TR_OEff_25 / AVG TR_DEff_25**:  Average Torvik Offensive/Defensive Efficiency
-
-#         # Apply logo and styling *before* converting to HTML
-#         conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-
-#         styled_conf_stats = (
-#             conf_stats.style
-#             .format({
-#                 "MEAN AdjEM": "{:.2f}",
-#                 "MIN AdjEM": "{:.2f}",
-#                 "MAX AdjEM": "{:.2f}",
-#                 "AVG SEED_25": "{:.1f}",
-#                 "AVG NET_25": "{:.1f}",
-#                 #"AVG TR_OEff_25": "{:.1f}",
-#                 #"AVG TR_DEff_25": "{:.1f}",
-#             })
-#             .background_gradient(cmap="RdYlGn", subset=[
-#                 "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
-#                 #"AVG TR_OEff_25",
-#             ])
-#             .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25",
-#                                                           #"AVG TR_DEff_25",
-#                                                           ])
-#             .set_table_styles(detailed_table_styles)
-#         )
-
-#         st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
+        st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
 
 
 # --- Radar Charts Tab ---
