@@ -611,19 +611,21 @@ def create_region_seeding_radar_grid(df):
     Creates a 4x16 grid of radar charts for tournament seeding.
     Requires the 'SEED_25' column and at least one of 'REGION_25' or 'REG_CODE_25'.
     Each column represents a region (East, West, South, Midwest) and each row a seed (1 to 16).
+    The function normalizes region names (e.g. "EAST" → "East") to ensure proper matching.
     """
     # Ensure required columns exist
     if 'SEED_25' not in df.columns or ('REGION_25' not in df.columns and 'REG_CODE_25' not in df.columns):
         st.error("Required columns for bracket visualization are missing")
         return
 
-    # Filter teams to only those in the tournament (non-null seed values)
+    # Filter to teams with a non-null seed; also, force seed to numeric (if not already)
+    df['SEED_25'] = pd.to_numeric(df['SEED_25'], errors='coerce')
     tourney_teams = df[df['SEED_25'].notna()].copy()
 
-    # Define the four regions
+    # Define the four regions as expected (in title-case)
     regions = ["East", "West", "South", "Midwest"]
 
-    # Apply custom CSS for the dark background container
+    # Apply custom CSS for the radar grid container
     st.markdown("""
     <style>
     .radar-grid-container {
@@ -637,7 +639,7 @@ def create_region_seeding_radar_grid(df):
     with st.container():
         st.markdown('<div class="radar-grid-container">', unsafe_allow_html=True)
         
-        # Create a header row with region names
+        # Create header row with region names
         header_cols = st.columns(4)
         for i, region in enumerate(regions):
             header_cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
@@ -646,11 +648,15 @@ def create_region_seeding_radar_grid(df):
         for seed in range(1, 17):
             row_cols = st.columns(4)
             for i, region in enumerate(regions):
-                # Use 'REGION_25' if available; otherwise use 'REG_CODE_25'
+                # Determine which region column to use
                 if 'REGION_25' in tourney_teams.columns:
-                    team = tourney_teams[(tourney_teams['REGION_25'] == region) & (tourney_teams['SEED_25'] == seed)]
+                    # Normalize by converting to lower-case and stripping spaces
+                    team_filter = tourney_teams['REGION_25'].str.strip().str.lower() == region.lower()
                 else:
-                    team = tourney_teams[(tourney_teams['REG_CODE_25'] == region) & (tourney_teams['SEED_25'] == seed)]
+                    team_filter = tourney_teams['REG_CODE_25'].str.strip().str.lower() == region.lower()
+
+                # Also match the seed number
+                team = tourney_teams[team_filter & (tourney_teams['SEED_25'] == seed)]
                 
                 if not team.empty:
                     team = team.iloc[0]
