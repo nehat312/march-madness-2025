@@ -1970,9 +1970,9 @@ with tab_pred:
         viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
         
         if viz_type == "Team Stats":
-            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_TR'].tolist()
+            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
-            team_data = TR_df[TR_df['TM_TR'] == selected_team].iloc[0]
+            team_data = TR_df[TR_df['TM_KP'] == selected_team].iloc[0]
             create_team_radar(team_data, dark_mode=True)
             st.markdown("### Key Team Stats")
             key_stats = {
