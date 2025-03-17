@@ -1241,19 +1241,22 @@ def prepare_tournament_data():
     """
     Prepare tournament data using the actual bracket seeds and regions from the main dataframe.
     Returns a dictionary with tournament teams, region names, and teams organized by region.
+    Also creates TR_df for compatibility with visualization features.
     """
-    # Make a copy of the main dataframe
-    tournament_df = df_main.copy()
+    global TR_df  # Make TR_df accessible throughout the application
+    
+    # Make a copy of the main dataframe for tournament data
+    TR_df = df_main.copy()
     
     # Ensure required columns exist and handle missing values
     required_cols = ['SEED_25', 'REGION_25', 'KP_Rank', 'KP_AdjEM', 'OFF EFF', 'DEF EFF']
     for col in required_cols:
-        if col not in tournament_df.columns:
+        if col not in TR_df.columns:
             sim_logger.warning(f"Missing required column: {col}")
             return None
     
     # Drop teams with missing essential data
-    tournament_teams = tournament_df.dropna(subset=required_cols).copy()
+    tournament_teams = TR_df.dropna(subset=required_cols).copy()
     
     # Ensure we have the team name column
     if 'TM_KP' not in tournament_teams.columns:
@@ -1564,6 +1567,371 @@ def run_simulation(use_analytics=True, simulations=1):
     
     return all_results
 
+# Function to display detailed simulation results
+def display_simulation_results(sim_results, st_container):
+    """Display the detailed results of a single tournament simulation."""
+    if not sim_results or len(sim_results) == 0:
+        st_container.warning("No simulation results available.")
+        return
+    
+    # Use the first simulation result
+    sim_result = sim_results[0]
+    
+    # Show champion
+    champion = sim_result.get('champion', {})
+    if champion:
+        champion_team = champion.get('Team', 'Unknown')
+        champion_seed = champion.get('Seed', 'N/A')
+        st_container.success(f"🏆 Tournament Champion: {champion_team} (Seed {champion_seed})")
+    
+    # Display all games by round
+    all_games = sim_result.get('all_games', [])
+    if not all_games:
+        st_container.warning("No game data available for this simulation.")
+        return
+    
+    # Group games by round
+    rounds = sorted(set(game['round_name'] for game in all_games))
+    
+    for round_name in rounds:
+        round_games = [g for g in all_games if g['round_name'] == round_name]
+        if not round_games:
+            continue
+            
+        st_container.subheader(round_name)
+        
+        # Create a DataFrame for easier display
+        games_data = []
+        for g in round_games:
+            # Calculate upset (if winner seed is higher than loser seed)
+            is_upset = False
+            if g['seed1'] < g['seed2'] and g['winner'] == g['team2']:
+                is_upset = True
+            elif g['seed2'] < g['seed1'] and g['winner'] == g['team1']:
+                is_upset = True
+                
+            # Format matchup with upset indicator
+            upset_indicator = "⚠️ UPSET" if is_upset else ""
+            
+            # Format the win probability
+            win_prob = g.get('win_prob', 0.5)
+            prob_display = f"{win_prob:.1%}"
+            
+            # Add to games data
+            games_data.append({
+                'Matchup': f"{g['team1']} ({g['seed1']}) vs {g['team2']} ({g['seed2']})",
+                'Winner': f"{g['winner']} ({g['winner_seed']})",
+                'Win Prob': prob_display,
+                'Upset': upset_indicator,
+                'Region': g['region']
+            })
+        
+        # Create and display the DataFrame
+        games_df = pd.DataFrame(games_data)
+        table_styles = [
+            {'selector': 'th', 'props': [('text-align', 'left'), ('background-color', '#111111'), ('color', 'white')]},
+            {'selector': 'td', 'props': [('text-align', 'left')]}
+        ]
+        
+        st_container.dataframe(games_df, use_container_width=True)
+
+# Function to run multiple simulations and aggregate results
+def run_tournament_simulation(num_simulations=100, use_analytics=True):
+    """
+    Run multiple tournament simulations and aggregate the results.
+    
+    Parameters:
+    num_simulations (int): Number of simulations to run
+    use_analytics (bool): Whether to use advanced analytics for win probabilities
+    
+    Returns:
+    dict: Aggregated simulation results and statistics
+    """
+    # Run simulations
+    all_sim_results = run_simulation(use_analytics=use_analytics, simulations=num_simulations)
+    
+    if not all_sim_results:
+        return {
+            'error': "No simulation results generated",
+            'champion_probabilities': pd.DataFrame(),
+            'upset_pct_aggregated': pd.Series()
+        }
+    
+    # Collect champions
+    champions = {}
+    for sim in all_sim_results:
+        champ = sim.get('champion', {})
+        champ_team = champ.get('Team', 'Unknown')
+        champ_seed = champ.get('Seed', 'N/A')
+        
+        if champ_team not in champions:
+            champions[champ_team] = {
+                'team': champ_team,
+                'seed': champ_seed,
+                'count': 0
+            }
+        champions[champ_team]['count'] += 1
+    
+    # Convert to DataFrame
+    champ_data = []
+    for team, data in champions.items():
+        champ_data.append({
+            'Team': data['team'],
+            'Seed': data['seed'],
+            'Championship_Count': data['count'],
+            'Championship_Probability': data['count'] / num_simulations
+        })
+    
+    champ_df = pd.DataFrame(champ_data)
+    champ_df = champ_df.sort_values('Championship_Count', ascending=False).reset_index(drop=True)
+    
+    # Collect regional champions
+    region_champions = {}
+    for sim in all_sim_results:
+        for region, champ in sim.get('region_champions', {}).items():
+            if region not in region_champions:
+                region_champions[region] = {}
+                
+            team = champ.get('Team', 'Unknown')
+            if team not in region_champions[region]:
+                region_champions[region][team] = 0
+            region_champions[region][team] += 1
+    
+    # Convert to DataFrame
+    region_data = []
+    for region, teams in region_champions.items():
+        for team, count in teams.items():
+            region_data.append({
+                'Region': region,
+                'Team': team,
+                'Count': count,
+                'Probability': count / num_simulations
+            })
+    
+    region_df = pd.DataFrame(region_data)
+    region_df = region_df.sort_values(['Region', 'Count'], ascending=[True, False])
+    
+    # Analyze upsets
+    all_games = []
+    for sim in all_sim_results:
+        all_games.extend(sim.get('all_games', []))
+    
+    # Count upsets by round
+    upsets_by_round = {}
+    games_by_round = {}
+    
+    for game in all_games:
+        round_name = game.get('round_name', 'Unknown')
+        
+        # Count games by round
+        if round_name not in games_by_round:
+            games_by_round[round_name] = 0
+        games_by_round[round_name] += 1
+        
+        # Check for upset (winner seed > loser seed)
+        seed1 = game.get('seed1', 0)
+        seed2 = game.get('seed2', 0)
+        winner = game.get('winner', '')
+        team1 = game.get('team1', '')
+        team2 = game.get('team2', '')
+        
+        is_upset = False
+        if seed1 < seed2 and winner == team2:
+            is_upset = True
+        elif seed2 < seed1 and winner == team1:
+            is_upset = True
+            
+        if is_upset:
+            if round_name not in upsets_by_round:
+                upsets_by_round[round_name] = 0
+            upsets_by_round[round_name] += 1
+    
+    # Calculate upset percentages
+    upset_pct = {}
+    for round_name, count in upsets_by_round.items():
+        total_games = games_by_round.get(round_name, 0)
+        if total_games > 0:
+            upset_pct[round_name] = (count / total_games) * 100
+    
+    # Convert to Series for easier visualization
+    upset_pct_series = pd.Series(upset_pct)
+    
+    # Return aggregated results
+    return {
+        'champion_probabilities': champ_df,
+        'region_probabilities': region_df,
+        'upset_pct_aggregated': upset_pct_series,
+        'total_simulations': num_simulations
+    }
+
+# Visualization function for aggregated results
+def visualize_aggregated_results(aggregated_analysis):
+    """Create visualizations for aggregated simulation results."""
+    # Create figure with multiple subplots
+    fig, axs = plt.subplots(2, 1, figsize=(10, 12), facecolor='#0E1117')
+    
+    # Championship probability chart
+    champ_df = aggregated_analysis.get('champion_probabilities')
+    if champ_df is not None and not champ_df.empty:
+        # Limit to top 10 teams for readability
+        top_teams = champ_df.head(10)
+        
+        # Plot championship probabilities
+        ax1 = axs[0]
+        bars = ax1.barh(
+            top_teams['Team'], 
+            top_teams['Championship_Probability'] * 100,
+            color=plt.cm.RdYlGn(top_teams['Championship_Probability'])
+        )
+        
+        # Add percentage labels
+        for bar in bars:
+            width = bar.get_width()
+            ax1.text(
+                width + 0.5, 
+                bar.get_y() + bar.get_height()/2,
+                f"{width:.1f}%",
+                va='center', 
+                color='white'
+            )
+        
+        # Set chart properties
+        ax1.set_title('Championship Win Probability (Top 10 Teams)', color='white', fontsize=14)
+        ax1.set_xlabel('Probability (%)', color='white')
+        ax1.set_ylabel('Team', color='white')
+        ax1.tick_params(colors='white')
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+        ax1.spines['bottom'].set_color('white')
+        ax1.spines['left'].set_color('white')
+        ax1.invert_yaxis()  # Highest probability at top
+        ax1.set_facecolor('#0E1117')
+    
+    # Upset analysis chart
+    upset_pct = aggregated_analysis.get('upset_pct_aggregated')
+    if upset_pct is not None and not upset_pct.empty:
+        # Plot upset percentages by round
+        ax2 = axs[1]
+        
+        # Sort rounds in typical tournament order
+        round_order = [
+            "Round of 64", "Round of 32", "Sweet 16", 
+            "Elite 8", "Final Four", "Championship"
+        ]
+        ordered_pct = pd.Series(
+            {r: upset_pct.get(r, 0) for r in round_order if r in upset_pct.index}
+        )
+        
+        bars = ax2.bar(
+            ordered_pct.index,
+            ordered_pct.values,
+            color=plt.cm.viridis(np.linspace(0, 1, len(ordered_pct)))
+        )
+        
+        # Add percentage labels
+        for bar in bars:
+            height = bar.get_height()
+            ax2.text(
+                bar.get_x() + bar.get_width()/2,
+                height + 0.5,
+                f"{height:.1f}%",
+                ha='center',
+                va='bottom',
+                color='white'
+            )
+        
+        # Set chart properties
+        ax2.set_title('Upset Percentage by Tournament Round', color='white', fontsize=14)
+        ax2.set_xlabel('Tournament Round', color='white')
+        ax2.set_ylabel('Upset Percentage (%)', color='white')
+        ax2.tick_params(colors='white')
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+        ax2.spines['bottom'].set_color('white')
+        ax2.spines['left'].set_color('white')
+        ax2.set_ylim(0, max(ordered_pct.values) * 1.2)  # Add space for labels
+        ax2.set_facecolor('#0E1117')
+        plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    
+    # Adjust layout and spacing
+    plt.tight_layout()
+    
+    return fig
+
+def create_regional_prob_chart(region_df):
+    """Create a visualization for regional champion probabilities."""
+    if region_df is None or region_df.empty:
+        return None
+    
+    # Get top 5 teams per region for readability
+    top_teams_by_region = []
+    for region in region_df['Region'].unique():
+        region_data = region_df[region_df['Region'] == region].sort_values('Probability', ascending=False).head(5)
+        top_teams_by_region.append(region_data)
+    
+    # Combine filtered data
+    filtered_df = pd.concat(top_teams_by_region)
+    
+    # Create the figure
+    fig = px.bar(
+        filtered_df,
+        x='Team',
+        y='Probability',
+        color='Region',
+        barmode='group',
+        facet_col='Region',
+        facet_col_wrap=2,
+        labels={'Probability': 'Win Probability', 'Team': 'Team'},
+        title='Regional Championship Probabilities (Top 5 Teams per Region)',
+        color_discrete_sequence=px.colors.qualitative.G10
+    )
+    
+    # Update layout for better readability
+    fig.update_layout(
+        legend_title_text='Region',
+        showlegend=True,
+        template='plotly_dark',
+        height=600,
+        margin=dict(t=80, l=50, r=50, b=100),
+        title_font=dict(size=18),
+        xaxis_tickangle=-45,
+    )
+    
+    # Format y-axis as percentage
+    fig.update_yaxes(tickformat='.0%')
+    
+    # Remove facet labels (they're redundant with color grouping)
+    for annotation in fig.layout.annotations:
+        annotation.text = annotation.text.split("=")[1]
+    
+    # Add percentage annotations on bars
+    for data in fig.data:
+        fig.add_traces(
+            go.Scatter(
+                x=data.x,
+                y=data.y,
+                text=[f"{y:.1%}" for y in data.y],
+                mode="text",
+                ))
+
+
+        # # Set chart properties
+        # ax2.set_title('Upset Percentage by Tournament Round', color='white', fontsize=14)
+        # ax2.set_xlabel('Tournament Round', color='white')
+        # ax2.set_ylabel('Upset Percentage (%)', color='white')
+        # ax2.tick_params(colors='white')
+        # ax2.spines['top'].set_visible(False)
+        # ax2.spines['right'].set_visible(False)
+        # ax2.spines['bottom'].set_color('white')
+        # ax2.spines['left'].set_color('white')
+        # ax2.set_ylim(0, max(ordered_pct.values) * 1.2)  # Add space for labels
+        # ax2.set_facecolor('#0E1117')
+        # plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    
+    # Adjust layout and spacing
+    plt.tight_layout()
+    
+    return fig
 
 # ----------------------------------------------------------------------------
 # --- App Header & Tabs ---
