@@ -145,6 +145,7 @@ mm_database_2025 = load_data()
 core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "KP_Rank", "NET_25", "SEED_25", 'REGION_25',
              "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
+             #'TR_ORk_25', 
              "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
              "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
              "OFF REB/GM", "DEF REB/GM",
@@ -1982,8 +1983,13 @@ with tab_pred:
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
-                "Offense Rank": f"{int(team_data['TR_ORk_25'])}",
-                "Defense Rank": f"{int(team_data['TR_DRk_25'])}"
+                "KenPom OEff": f"{int(team_data['KP_AdjO'])}",
+                "KenPom DEff.": f"{int(team_data['KP_AdjD'])}",
+                "TeamRankings OEff": f"{int(team_data['OFF EFF'])}",
+                "TeamRankings DEff.": f"{int(team_data['DEF EFF'])}",
+
+                # "Offense Rank": f"{int(team_data['TR_ORk_25'])}",
+                # "Defense Rank": f"{int(team_data['TR_DRk_25'])}"
             }
             stat_col1, stat_col2 = st.columns(2)
             for i, (stat, value) in enumerate(key_stats.items()):
