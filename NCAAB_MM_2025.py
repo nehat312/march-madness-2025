@@ -180,6 +180,7 @@ else:
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
+A10_logo_path = "images/A10_logo.png"
 ACC_logo_path = "images/ACC_logo.png"
 AAC_logo_path = "images/AAC_logo.png"
 AEC_logo_path = "images/AEC_logo.png"
@@ -214,6 +215,7 @@ WCC_logo_path = "images/WCC_logo.png"
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
+A10_logo = Image.open(A10_logo_path) if os.path.exists(A10_logo_path) else None
 ACC_logo = Image.open(ACC_logo_path) if os.path.exists(ACC_logo_path) else None
 AAC_logo = Image.open(AAC_logo_path) if os.path.exists(AAC_logo_path) else None
 AEC_logo = Image.open(AEC_logo_path) if os.path.exists(AEC_logo_path) else None
@@ -245,12 +247,12 @@ Southland_logo = Image.open(Southland_logo_path) if os.path.exists(Southland_log
 WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
 WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
-conference_logo_map = {"ACC": ACC_logo, "AAC": AAC_logo, "AEC": AEC_logo, "ASUN": ASUN_logo, "B10": B10_logo, "B12": B12_logo, "BE": BE_logo,
-                       "Big South": BSouth_logo, "Big Sky": BSky_logo, "Big West": BWest_logo, "CAA": CAA_logo, "CUSA": CUSA_logo, "Horizon": Horizon_logo,
-                       "Ivy": Ivy_logo, "MAAC": MAAC_logo, "MAC": MAC_logo, "MEAC": MEAC_logo, "MVC": MVC_logo, "MWC": MWC_logo, "NEC": NEC_logo,
-                       "OVC": OVC_logo, "Patriot": Patriot_logo, "SBC": SBC_logo, "SEC": SEC_logo, "SoCon": SoCon_logo, "Southland": Southland_logo, "Summit": Summit_logo,
-                       "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
-}
+conference_logo_map = {"A10": A10_logo, "ACC": ACC_logo, "Amer": AAC_logo, "AE": AEC_logo, "ASun": ASUN_logo, "B10": B10_logo, "B12": B12_logo,
+                       "BE": BE_logo, "Big South": BSouth_logo, "BSky": BSky_logo, "BW": BWest_logo, "CAA": CAA_logo, "CUSA": CUSA_logo,
+                       "Horz": Horizon_logo, "Ivy": Ivy_logo, "MAAC": MAAC_logo, "MAC": MAC_logo, "MEAC": MEAC_logo, "MVC": MVC_logo, "MWC": MWC_logo,
+                       "NEC": NEC_logo, "OVC": OVC_logo, "Patriot": Patriot_logo, "SB": SBC_logo, "SEC": SEC_logo, "SoCon": SoCon_logo, "Southland": Southland_logo,
+                       "Summit": Summit_logo, "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
+                       }
 
 #####################################
 def image_to_base64(img_obj):  # Convert PIL Image to base64
@@ -954,7 +956,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
 # --- App Header & Tabs ---
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
-st.caption(":green[_Cure your bracket brain and propel your bracket up the leaderboards by exploring the tabs below:_]")
+st.caption(":primary[_Cure your bracket brain and propel yourself up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["📊 HOME", 
                                                                           "📡 RADAR CHARTS",
@@ -966,7 +968,7 @@ tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["📊 
 # --- Home Tab ---
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
-    st.caption(":green[_DATA AS OF: 3/12/2025_]")
+    st.caption(":green[_DATA AS OF: 3/15/2025_]")
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
@@ -1413,6 +1415,96 @@ with tab_team:
         """)
         
 # --- 🔮 PREDICTIONS Tab (Bracket Simulation) ---
+# 1) Define a small helper function to color-code round logs
+def color_log_text(round_name, text):
+    """Return HTML string with color-coded text for each round."""
+    round_html_colors = {
+        "Round of 64":    "#3498DB",  # Blue
+        "Round of 32":    "#00CCCC",  # Cyan
+        "Sweet 16":       "#2ECC71",  # Green
+        "Elite 8":        "#F1C40F",  # Yellow
+        "Final Four":     "#9B59B6",  # Magenta
+        "Championship":   "#E74C3C",  # Red
+    }
+    color_hex = round_html_colors.get(round_name, "#FFFFFF")
+    return f"<span style='color:{color_hex}; font-weight:bold;'>{text}</span>"
+
+
+with tab_pred:
+    st.header("Bracket Simulation")
+
+    # 2) Let the user decide if they want to see detailed logs
+    show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
+
+    st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
+
+    if st.button("Run Bracket Simulation"):
+        with st.spinner("Simulating tournament..."):
+            # Run your existing simulation (100 times by default)
+            aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
+
+        st.success("Simulation complete!")
+
+        # 3) Display aggregated simulation results as before
+        st.subheader("Championship Win Probabilities")
+        st.dataframe(aggregated_analysis['champion_probabilities'])
+
+        st.subheader("Regional Win Probabilities")
+        if 'region_probabilities' in aggregated_analysis:
+            fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
+            st.plotly_chart(fig_regional, use_container_width=True)
+        else:
+            st.warning("Regional win probabilities data not available.")
+
+        st.subheader("Aggregated Upset Analysis")
+        upset_summary_df = pd.DataFrame({
+            'Round': aggregated_analysis['upset_pct_aggregated'].index,
+            'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
+        })
+        st.dataframe(upset_summary_df)
+
+        # 4) Attempt to display the existing aggregated charts
+        try:
+            agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
+            st.pyplot(agg_viz_fig)
+        except Exception as e:
+            st.error(f"Could not generate aggregated visualizations: {e}")
+
+        # 5) If the user opted for "Detailed Logs," show game-by-game logs
+        if show_detailed_logs:
+            # Just re-run a SINGLE simulation to produce logs below (less clutter).
+            st.info("Detailed logs below show one example simulation’s game outcomes:")
+            single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
+            detailed_games = single_run_results["all_games"]
+
+            st.write("---")
+            st.write("### Detailed Game Outcomes:")
+
+            # Print each round's outcome in color
+            for gm in detailed_games:
+                round_label   = gm["round_name"]
+                t1, t2        = gm["team1"], gm["team2"]
+                winner        = gm["winner"]
+                prob_to_win   = gm["win_prob"]
+                colored_label = color_log_text(round_label, f"[{round_label}]")
+
+                # Mark upsets for emphasis:
+                upset_flag = ""
+                if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
+                    upset_flag = "<b>(UPSET!)</b>"
+
+                # Build final line with color-coded round name
+                line_html = (
+                    f"{colored_label} &nbsp;"
+                    f"{t1} vs. {t2} → "
+                    f"<b>Winner:</b> {winner} "
+                    f"<small>(win prob {prob_to_win:.1%})</small> "
+                    f"{upset_flag}"
+                )
+
+                st.markdown(line_html, unsafe_allow_html=True)
+
+
 with tab_pred:
     st.header("Bracket Simulation")
     st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
