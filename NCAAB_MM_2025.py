@@ -1209,7 +1209,6 @@ def create_treemap(df_notnull):
         st.error(f"An error occurred while generating treemap: {e}")
         return None
 
-# ------------------ BRACKET SIMULATION FUNCTIONS ------------------
 # Set up logging for simulation (suppress detailed logs in Streamlit)
 sim_logger = logging.getLogger("simulation")
 if sim_logger.hasHandlers():
@@ -1628,11 +1627,6 @@ def display_simulation_results(sim_results, st_container):
         
         # Create and display the DataFrame
         games_df = pd.DataFrame(games_data)
-        table_styles = [
-            {'selector': 'th', 'props': [('text-align', 'left'), ('background-color', '#111111'), ('color', 'white')]},
-            {'selector': 'td', 'props': [('text-align', 'left')]}
-        ]
-        
         st_container.dataframe(games_df, use_container_width=True)
 
 # Function to run multiple simulations and aggregate results
@@ -1872,7 +1866,7 @@ def create_regional_prob_chart(region_df):
     # Combine filtered data
     filtered_df = pd.concat(top_teams_by_region)
     
-    # Create the figure
+    # Create the figure using Plotly
     fig = px.bar(
         filtered_df,
         x='Team',
@@ -1901,39 +1895,26 @@ def create_regional_prob_chart(region_df):
     fig.update_yaxes(tickformat='.0%')
     
     # Remove facet labels (they're redundant with color grouping)
-    for annotation in fig.layout.annotations:
-        annotation.text = annotation.text.split("=")[1]
+    if fig.layout.annotations:
+        for annotation in fig.layout.annotations:
+            if "=" in annotation.text:
+                annotation.text = annotation.text.split("=")[1]
     
-    # Add percentage annotations on bars
+    # Add percentage annotations on bars (using add_trace for each trace)
     for data in fig.data:
-        fig.add_traces(
+        fig.add_trace(
             go.Scatter(
                 x=data.x,
                 y=data.y,
                 text=[f"{y:.1%}" for y in data.y],
-                mode="text",
-                ))
-
-
-        # # Set chart properties
-        # ax2.set_title('Upset Percentage by Tournament Round', color='white', fontsize=14)
-        # ax2.set_xlabel('Tournament Round', color='white')
-        # ax2.set_ylabel('Upset Percentage (%)', color='white')
-        # ax2.tick_params(colors='white')
-        # ax2.spines['top'].set_visible(False)
-        # ax2.spines['right'].set_visible(False)
-        # ax2.spines['bottom'].set_color('white')
-        # ax2.spines['left'].set_color('white')
-        # ax2.set_ylim(0, max(ordered_pct.values) * 1.2)  # Add space for labels
-        # ax2.set_facecolor('#0E1117')
-        # plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+                mode="text"
+            )
+        )
     
-    # Adjust layout and spacing
-    plt.tight_layout()
+    # (Removed plt.tight_layout() call since it is not applicable to Plotly figures)
     
     return fig
 
-# ----------------------------------------------------------------------------
 # --- App Header & Tabs ---
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
@@ -2502,6 +2483,7 @@ with tab_team:
         - **AVG MARGIN**: Average scoring margin
         """)
         
+# ----------------------------------------------------------------------------
 # --- 🔮 PREDICTIONS Tab (Bracket Simulation) ---
 
 def color_log_text(round_name, text):
@@ -2591,6 +2573,10 @@ with tab_pred:
         
         viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
         
+        # Ensure TR_df is defined (prepare tournament data if needed)
+        if 'TR_df' not in globals():
+            _ = prepare_tournament_data()
+        
         if viz_type == "Team Stats":
             all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
@@ -2606,13 +2592,8 @@ with tab_pred:
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
-                #"KenPom OEff": f"{int(team_data['KP_AdjO'])}",
-                #"KenPom DEff.": f"{int(team_data['KP_AdjD'])}",
                 "TeamRankings OEff": f"{int(team_data['OFF EFF'])}",
                 "TeamRankings DEff.": f"{int(team_data['DEF EFF'])}",
-
-                # "Offense Rank": f"{int(team_data['TR_ORk_25'])}",
-                # "Defense Rank": f"{int(team_data['TR_DRk_25'])}"
             }
             stat_col1, stat_col2 = st.columns(2)
             for i, (stat, value) in enumerate(key_stats.items()):
@@ -2620,6 +2601,9 @@ with tab_pred:
                     stat_col1.metric(stat, value)
                 else:
                     stat_col2.metric(stat, value)
+        else:
+            st.markdown("### Bracket Overview")
+            # Placeholder: Additional bracket overview visualizations, etc here.
 
 
 # with tab_pred:
