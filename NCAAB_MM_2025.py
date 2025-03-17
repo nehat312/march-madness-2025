@@ -684,7 +684,7 @@ def create_radar_chart(selected_teams, full_df):
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
     
-    subplot_titles =
+    subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
