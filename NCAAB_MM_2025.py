@@ -606,6 +606,63 @@ def get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df):
 
     return team_scaled, ncaam_scaled, conf_scaled, used_metrics
 
+def create_region_seeding_radar_grid(df):
+    """
+    Creates a 4x16 grid of radar charts for tournament seeding.
+    Requires the 'SEED_25' column and at least one of 'REGION_25' or 'REG_CODE_25'.
+    Each column represents a region (East, West, South, Midwest) and each row a seed (1 to 16).
+    """
+    # Ensure required columns exist
+    if 'SEED_25' not in df.columns or ('REGION_25' not in df.columns and 'REG_CODE_25' not in df.columns):
+        st.error("Required columns for bracket visualization are missing")
+        return
+
+    # Filter teams to only those in the tournament (non-null seed values)
+    tourney_teams = df[df['SEED_25'].notna()].copy()
+
+    # Define the four regions
+    regions = ["East", "West", "South", "Midwest"]
+
+    # Apply custom CSS for the dark background container
+    st.markdown("""
+    <style>
+    .radar-grid-container {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div class="radar-grid-container">', unsafe_allow_html=True)
+        
+        # Create a header row with region names
+        header_cols = st.columns(4)
+        for i, region in enumerate(regions):
+            header_cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
+        
+        # Loop over seeds 1 to 16 and create a row for each
+        for seed in range(1, 17):
+            row_cols = st.columns(4)
+            for i, region in enumerate(regions):
+                # Use 'REGION_25' if available; otherwise use 'REG_CODE_25'
+                if 'REGION_25' in tourney_teams.columns:
+                    team = tourney_teams[(tourney_teams['REGION_25'] == region) & (tourney_teams['SEED_25'] == seed)]
+                else:
+                    team = tourney_teams[(tourney_teams['REG_CODE_25'] == region) & (tourney_teams['SEED_25'] == seed)]
+                
+                if not team.empty:
+                    team = team.iloc[0]
+                    with row_cols[i]:
+                        create_team_radar(team, dark_mode=True)
+                else:
+                    row_cols[i].markdown(
+                        f"<div style='height:200px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>",
+                        unsafe_allow_html=True
+                    )
+        st.markdown('</div>', unsafe_allow_html=True)
+
 def create_bracket_radar_grid():
     """Creates a 4x16 grid of radar charts, one for each region and seed"""
     
@@ -1523,7 +1580,7 @@ with tab_home:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header("REGIONAL SEEDING RADAR CHARTS")
-    create_seed_radar_grid(df_main, region_teams)   # Directly call function to render radar grid
+    create_region_seeding_radar_grid(df_main) #, region_teams
     with st.expander("*About Radar Grid:*"):
         st.markdown("""
         **Each row** represents seeds 1 through 16.<br>
