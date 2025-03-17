@@ -500,8 +500,8 @@ def create_single_radar_chart(team_row, full_df, key=None):
     # Add performance rating annotation
     perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
     fig.add_annotation(
-        x=0.03,
-        y=0.95,
+        x=0.01,
+        y=0.99,
         xref="paper",
         yref="paper",
         text=f"<b>{perf_data['text']}</b>",
@@ -515,7 +515,7 @@ def create_single_radar_chart(team_row, full_df, key=None):
             "badge-weak": "#F44336"
         }.get(perf_data['class'], "#2196F3"),
         bordercolor="white",
-        borderwidth=1,
+        borderwidth=1.5,
         borderpad=4,
         opacity=0.9
     )
@@ -611,8 +611,8 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
     # Add performance rating annotation
     perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
     fig.add_annotation(
-        x=0.03,
-        y=0.95,
+        x=0.01,
+        y=0.99,
         xref="paper",
         yref="paper",
         text=f"<b>{perf_data['text']}</b>",
@@ -626,14 +626,14 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
             "badge-weak": "#F44336"
         }.get(perf_data['class'], "#2196F3"),
         bordercolor="white",
-        borderwidth=1,
+        borderwidth=1.5,
         borderpad=4,
         opacity=0.9
     )
 
     seed_str = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
-        seed_str = f"(Seed {int(team_row['SEED_25'])}) "
+        seed_str = f"Seed #{int(team_row['SEED_25'])} "
     team_str = f"{seed_str}{team_row.name}"
 
     if not is_subplot:
