@@ -433,6 +433,107 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     )
     return [trace_team, trace_ncaam, trace_conf]
 
+def create_single_radar_chart(team_row, full_df, key=None):
+    """
+    Creates a single-team radar chart using the same style/hyperparameters
+    as create_radar_chart() in the TEAM METRICS tab.
+    This includes 3 traces: Team, NCAAM avg, Conference avg.
+    """
+    # Safety checks
+    if team_row is None or team_row.empty:
+        st.warning("No data found for this team.")
+        return
+
+    # Grab overall averages, stdevs
+    t_avgs, t_stdevs = compute_tournament_stats(full_df)
+
+    # Prepare a small figure
+    fig = make_subplots(
+        rows=1, cols=1,
+        specs=[[{'type': 'polar'}]],
+    )
+    fig.update_layout(
+        template='plotly_dark',
+        font=dict(family="Arial, sans-serif", size=12),
+        showlegend=False,
+        margin=dict(l=20, r=20, t=60, b=20),
+        paper_bgcolor="rgba(0,0,0,0.0)",
+        plot_bgcolor="rgba(0,0,0,0.8)",
+        height=350,  # Adjust as desired
+    )
+    fig.update_polars(
+        radialaxis=dict(
+            tickmode='array',
+            tickvals=[0,2,4,6,8,10],
+            ticktext=['0','2','4','6','8','10'],
+            tickfont=dict(size=11, family="Arial, sans-serif"),
+            showline=False,
+            gridcolor='rgba(255,255,255,0.2)',
+        ),
+        angularaxis=dict(
+            tickfont=dict(size=12, family="Arial, sans-serif", color="white"),
+            tickangle=0,
+            showline=False,
+            gridcolor='rgba(255,255,255,0.2)',
+            linecolor='rgba(255,255,255,0.2)'
+        ),
+        bgcolor="rgba(0,0,0,0.8)"
+    )
+
+    # Identify team's conference
+    conf = team_row.get('CONFERENCE', None)
+    if conf:
+        conf_df = full_df[full_df['CONFERENCE'] == conf]
+    else:
+        conf_df = pd.DataFrame()
+
+    # Build radar traces
+    show_legend = False  # Single chart => no separate legend needed
+    traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
+    for tr in traces:
+        fig.add_trace(tr, row=1, col=1)
+
+    # Add performance rating annotation
+    perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
+    fig.add_annotation(
+        x=0.03,
+        y=0.95,
+        xref="paper",
+        yref="paper",
+        text=f"<b>{perf_data['text']}</b>",
+        showarrow=False,
+        font=dict(size=14, color="black"),
+        bgcolor={
+            "badge-elite": "gold",
+            "badge-solid": "#4CAF50",
+            "badge-mid": "#2196F3",
+            "badge-subpar": "#FF9800",
+            "badge-weak": "#F44336"
+        }.get(perf_data['class'], "#2196F3"),
+        bordercolor="white",
+        borderwidth=1,
+        borderpad=4,
+        opacity=0.9
+    )
+
+    seed_str = ""
+    if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']): # Display seed/team name as title annotation
+        seed_str = f"(Seed {int(team_row['SEED_25'])}) "
+    team_str = f"{seed_str}{team_row.name}"
+
+    fig.add_annotation(
+        text=team_str,
+        x=0.5, y=1.08,
+        xref="paper", yref="paper",
+        showarrow=False,
+        font=dict(size=14, color="white"),
+        align="center"
+    )
+
+    # Render in Streamlit with a unique key
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
+
+
 def create_radar_chart(selected_teams, full_df):
     """
     Generates a radar chart subplot grid for the selected teams.
@@ -608,12 +709,9 @@ def get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df):
 
 def create_region_seeding_radar_grid(df):
     """
-    Creates a unified 4x16 grid of radar charts for tournament seeding.
-    Requires the 'SEED_25' column and at least one of 'REGION_25' or 'REG_CODE_25'.
-    Each column represents a region (East, West, South, Midwest) and each row a seed (1 to 16).
-    Region names are normalized for matching.
+    Creates a unified 4x16 grid of radar charts for tournament seeding,
+    using the same style as the TEAM METRICS tab.
     """
-    # Ensure required columns exist
     if 'SEED_25' not in df.columns or ('REGION_25' not in df.columns and 'REG_CODE_25' not in df.columns):
         st.error("Required columns for bracket visualization are missing")
         return
@@ -622,10 +720,8 @@ def create_region_seeding_radar_grid(df):
     df['SEED_25'] = pd.to_numeric(df['SEED_25'], errors='coerce')
     tourney_teams = df[df['SEED_25'].notna()].copy()
 
-    # Define the four regions in title-case
     regions = ["East", "West", "South", "Midwest"]
 
-    # Apply custom CSS for the radar grid container
     st.markdown("""
     <style>
     .radar-grid-container {
@@ -644,31 +740,29 @@ def create_region_seeding_radar_grid(df):
         for i, region in enumerate(regions):
             header_cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
         
-        # Loop over seeds 1 to 16 to create each row
+        # Loop over seeds 1 to 16
         for seed in range(1, 17):
             row_cols = st.columns(4)
             for i, region in enumerate(regions):
-                # Choose region column: prefer 'REGION_25' if available
+                # If we have REGION_25, use it; otherwise use REG_CODE_25
                 if 'REGION_25' in tourney_teams.columns:
                     team_filter = tourney_teams['REGION_25'].str.strip().str.lower() == region.lower()
                 else:
                     team_filter = tourney_teams['REG_CODE_25'].str.strip().str.lower() == region.lower()
 
-                # Filter by seed number
                 team = tourney_teams[team_filter & (tourney_teams['SEED_25'] == seed)]
-                
                 if not team.empty:
                     team = team.iloc[0]
-                    # Generate a unique key using team name, seed, and region
-                    unique_key = f"radar_{team['TM_KP']}_{team['SEED_25']}_{region}_{seed}"
+                    unique_key = f"bracket_radar_{team['TM_KP']}_{region}_{seed}"
                     with row_cols[i]:
-                        create_team_radar(team, dark_mode=True, key=unique_key)
+                        create_single_radar_chart(team, df, key=unique_key)
                 else:
                     row_cols[i].markdown(
-                        f"<div style='height:200px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>",
+                        f"<div style='height:300px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>",
                         unsafe_allow_html=True
                     )
         st.markdown('</div>', unsafe_allow_html=True)
+
 
 def create_bracket_radar_grid():
     """Creates a 4x16 grid of radar charts, one for each region and seed"""
@@ -1007,8 +1101,7 @@ round_colors = {
     "Championship": RED
 }
 
-# For simulation, we use TR_df; here we simply set it equal to df_main.
-# (Make sure that df_main contains the necessary columns for simulation.)
+# For simulation -- REMOVE THISSSSS
 TR_df = df_main.copy()
 
 # Prepare simulation teams (top 64 by KP_Rank)
@@ -1213,7 +1306,7 @@ def display_simulation_results(simulation_results, container=None):
     """Display simulation results in a visually appealing way directly in Streamlit"""
     if container is None:
         container = st
-        
+
     # Define colors for rounds using Streamlit's color system
     round_styles = {
         "Round of 64": "blue",
@@ -1223,60 +1316,68 @@ def display_simulation_results(simulation_results, container=None):
         "Final Four": "violet",
         "Championship": "red"
     }
-    
+
     if not simulation_results:
         container.warning("No simulation results to display.")
         return
-        
+
     # Get the first simulation result (if multiple)
     result = simulation_results[0]
     games = result['all_games']
-    
+
     # Group games by round
     games_by_round = {}
     for game in games:
         round_name = game['round_name']
         if round_name not in games_by_round:
-            games_by_round[round_name] = []
+            games_by_round[round_name] =
         games_by_round[round_name].append(game)
-    
+
     # Display games by round in expandable sections
     for round_name in ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]:
         if round_name not in games_by_round:
             continue
-            
-        with container.expander(f"🏀 {round_name}", expanded=(round_name in ["Final Four", "Championship"])):
-            for game in games_by_round[round_name]:
-                # Format win probability as percentage
-                win_prob = f"{game['win_prob']*100:.1f}%" if 'win_prob' in game else "N/A"
-                
-                # Create matchup text with winner highlighted
-                if game['winner'] == game['team1']:
-                    matchup_text = f"**({game['seed1']}) {game['team1']}** vs ({game['seed2']}) {game['team2']}"
-                else:
-                    matchup_text = f"({game['seed1']}) {game['team1']} vs **({game['seed2']}) {game['team2']}**"
-                
-                # Create colored box with matchup info
-                container.markdown(
-                    f"""<div style="padding: 8px; border-radius: 5px; margin-bottom: 8px; 
-                    background-color: rgba(var(--{round_styles[round_name]}-50), 0.2); 
-                    border-left: 4px solid var(--{round_styles[round_name]}-500);">
-                    {matchup_text} | Win Prob: {win_prob} | {game.get('region', 'National')} Region
-                    </div>""", 
-                    unsafe_allow_html=True
-                )
-    
+
+        container.markdown(f"### {round_name}",
+                         unsafe_allow_html=True)  # Round header
+
+        for game in games_by_round[round_name]:
+            # Format win probability as percentage
+            win_prob = f"{game['win_prob'] * 100:.1f}%" if 'win_prob' in game else "N/A"
+
+            # Create matchup text with winner highlighted
+            if game['winner'] == game['team1']:
+                matchup_text = f"**({game['seed1']}) {game['team1']}** vs ({game['seed2']}) {game['team2']}"
+            else:
+                matchup_text = f"({game['seed1']}) {game['team1']} vs **({game['seed2']}) {game['team2']}**"
+
+            # Upset alert
+            upset_alert = " 🚨 Upset Alert 🚨" if game['winner_seed'] > min(game['seed1'], game['seed2']) else ""
+
+            # Display matchup info
+            container.markdown(
+                f"""
+                <div style="padding: 8px; border-radius: 5px; margin-bottom: 8px;
+                background-color: rgba(var(--{round_styles[round_name]}-50), 0.2);
+                border-left: 4px solid var(--{round_styles[round_name]}-500);">
+                {matchup_text} | Win Prob: {win_prob} | {game.get('region', 'National')} Region {upset_alert}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
     # Display champion
     container.markdown("## 🏆 Tournament Champion")
     champion = result['champion']
     container.markdown(
-        f"""<div style="padding: 15px; border-radius: 5px; margin: 10px 0; 
+        f"""
+        <div style="padding: 15px; border-radius: 5px; margin: 10px 0;
         background-color: rgba(var(--red-50), 0.3); border: 2px solid var(--red-500);">
         <h3 style="margin:0;text-align:center;">({champion['Seed']}) {champion['Team']}</h3>
-        </div>""", 
+        </div>
+        """,
         unsafe_allow_html=True
     )
-
 def analyze_simulation_results(all_results):
     num_simulations = len(all_results)
     if num_simulations == 0:
@@ -1648,32 +1749,38 @@ with tab_regions:
     mean_series = mean_series.reindex(df_heat.columns, fill_value=np.nan)
     df_heat.loc["TOURNEY AVG"] = mean_series
     df_heat_T = df_heat.T
+
     east_teams_2025 = [
-        "Duke", "Tennessee", "Iowa St.", "Maryland", "Texas A&M", "Kansas", "UCLA", "Mississippi St.",
-        "Georgia", "Ohio St.", "New Mexico", "Indiana", "Memphis", "Villanova", "Santa Clara", "Pittsburgh",
-        "TOURNEY AVG"
+        "Duke", "Alabama", "Iowa St.", "Maryland",
+        "Memphis", "Mississippi", "Saint Mary's", "Mississippi St.",
+        "Baylor", "Vanderbilt", "North Carolina", "Colorado St.",
+        "Grand Canyon", "Lipscomb", "Robert Morris", "American", #"TOURNEY AVG",
     ]
     west_teams_2025 = [
-        "Auburn", "Alabama", "Gonzaga", "Purdue", "Illinois", "Saint Mary's", "Marquette", "Michigan",
-        "Connecticut", "Oklahoma", "Xavier", "Northwestern", "Boise St.", "West Virginia", "Drake", "Liberty",
-        "TOURNEY AVG"
+        "Auburn", "St. John's", "Texas Tech", "Texas A&M",
+        "Michigan", "Missouri", "UCLA", "Gonzaga",
+        "Georgia", "Utah St.", "Drake", "UC San Diego",
+        "Yale", "UNC Wilmington", "Nebraska Omaha", "Alabama St.", #"TOURNEY AVG",
     ]
     south_teams_2025 = [
-        "Houston", "Texas Tech", "Kentucky", "St. John's", "Clemson", "Louisville", "Mississippi", "VCU",
-        "North Carolina", "UC San Diego", "San Diego St.", "Vanderbilt", "Colorado St.", "Nebraska", "Penn St.", "Iowa",
-        "TOURNEY AVG"
+        "Florida", "Michigan St.", "Kentucky", "Arizona",
+        "Oregon", "Illinois", "Marquette", "Connecticut",
+        "Oklahoma", "New Mexico", "Texas", "Liberty",
+        "Akron", "Troy", "Bryant", "Norfolk St.", #"TOURNEY AVG",
     ]
     midwest_teams_2025 = [
-        "Florida", "Michigan St.", "Wisconsin", "Arizona", "Missouri", "BYU", "Baylor", "Oregon",
-        "Creighton", "Arkansas", "Texas", "SMU", "Utah St.", "Cincinnati", "McNeese", "USC",
-        "TOURNEY AVG"
+        "Houston", "Tennessee", "Wisconsin", "Purdue",
+        "Clemson", "BYU", "Kansas", "Louisville",
+        "Creighton", "Arkansas", "VCU", "McNeese",
+        "High Point", "Montana", "Wofford", "SIU Edwardsville", #"TOURNEY AVG",
     ]
     regions = {
         "W Region": east_teams_2025,
-        "X Region": west_teams_2025,
+        "X Region": midwest_teams_2025,
         "Y Region": south_teams_2025,
-        "Z Region": midwest_teams_2025
+        "Z Region": west_teams_2025
     }
+
     def safe_format(x):
         try:
             val = float(x)
