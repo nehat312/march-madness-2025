@@ -1976,7 +1976,7 @@ with tab_pred:
             create_team_radar(team_data, dark_mode=True)
             st.markdown("### Key Team Stats")
             key_stats = {
-                "Seed": f"{int(team_data['REG_SEED_25'])} ({team_data['REGION_25']})",
+                "Seed": f"{int(team_data['SEED_25'])} ({team_data['REGION_25']})",
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
