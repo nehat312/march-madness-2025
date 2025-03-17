@@ -608,21 +608,21 @@ def get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df):
 
 def create_region_seeding_radar_grid(df):
     """
-    Creates a 4x16 grid of radar charts for tournament seeding.
+    Creates a unified 4x16 grid of radar charts for tournament seeding.
     Requires the 'SEED_25' column and at least one of 'REGION_25' or 'REG_CODE_25'.
     Each column represents a region (East, West, South, Midwest) and each row a seed (1 to 16).
-    The function normalizes region names (e.g. "EAST" → "East") to ensure proper matching.
+    Region names are normalized for matching.
     """
     # Ensure required columns exist
     if 'SEED_25' not in df.columns or ('REGION_25' not in df.columns and 'REG_CODE_25' not in df.columns):
         st.error("Required columns for bracket visualization are missing")
         return
 
-    # Filter to teams with a non-null seed; also, force seed to numeric (if not already)
+    # Force seed to numeric and filter to teams with a valid seed
     df['SEED_25'] = pd.to_numeric(df['SEED_25'], errors='coerce')
     tourney_teams = df[df['SEED_25'].notna()].copy()
 
-    # Define the four regions as expected (in title-case)
+    # Define the four regions in title-case
     regions = ["East", "West", "South", "Midwest"]
 
     # Apply custom CSS for the radar grid container
@@ -644,24 +644,25 @@ def create_region_seeding_radar_grid(df):
         for i, region in enumerate(regions):
             header_cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
         
-        # Loop over seeds 1 to 16 and create a row for each
+        # Loop over seeds 1 to 16 to create each row
         for seed in range(1, 17):
             row_cols = st.columns(4)
             for i, region in enumerate(regions):
-                # Determine which region column to use
+                # Choose region column: prefer 'REGION_25' if available
                 if 'REGION_25' in tourney_teams.columns:
-                    # Normalize by converting to lower-case and stripping spaces
                     team_filter = tourney_teams['REGION_25'].str.strip().str.lower() == region.lower()
                 else:
                     team_filter = tourney_teams['REG_CODE_25'].str.strip().str.lower() == region.lower()
 
-                # Also match the seed number
+                # Filter by seed number
                 team = tourney_teams[team_filter & (tourney_teams['SEED_25'] == seed)]
                 
                 if not team.empty:
                     team = team.iloc[0]
+                    # Generate a unique key using team name, seed, and region
+                    unique_key = f"radar_{team['TM_KP']}_{team['SEED_25']}_{region}_{seed}"
                     with row_cols[i]:
-                        create_team_radar(team, dark_mode=True)
+                        create_team_radar(team, dark_mode=True, key=unique_key)
                 else:
                     row_cols[i].markdown(
                         f"<div style='height:200px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>",
@@ -774,7 +775,7 @@ def create_seed_radar_grid(df, region_teams):
                     )
         st.markdown('</div>', unsafe_allow_html=True)
 
-def create_team_radar(team, dark_mode=True):
+def create_team_radar(team, dark_mode=True, key=None):
     """Creates a radar chart for a single team with proper annotations and color."""
     
     # Get team data safely
@@ -887,7 +888,7 @@ def create_team_radar(team, dark_mode=True):
         align="center"
     )
     
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
 
 
 # ----------------------------------------------------------------------------
