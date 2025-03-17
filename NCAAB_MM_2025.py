@@ -1330,7 +1330,7 @@ def display_simulation_results(simulation_results, container=None):
     for game in games:
         round_name = game['round_name']
         if round_name not in games_by_round:
-            games_by_round[round_name] =
+            games_by_round[round_name] = []
         games_by_round[round_name].append(game)
 
     # Display games by round in expandable sections
