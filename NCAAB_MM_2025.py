@@ -510,6 +510,191 @@ def create_radar_chart(selected_teams, full_df):
         )
     return fig
 
+def get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df):
+    """
+    Returns three series of radial values: TEAM, NCAAM AVG, and CONF
+    all in [0..10] scale, for your existing six metrics.
+    """
+    metrics = get_default_metrics()
+    # Fallback if team row missing columns
+    available_metrics = [m for m in metrics if m in team_row and m in t_avgs]
+    if not available_metrics:
+        return [], [], [], available_metrics
+
+    z_scores = []
+    for m in available_metrics:
+        val = team_row[m]
+        std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
+        # Flip sign for defensive metrics if you want 'lower=better'
+        if m in ['DEF EFF', 'TO/GM']:
+            z = -(val - t_avgs[m]) / std
+        else:
+            z = (val - t_avgs[m]) / std
+        z_scores.append(z)
+
+    # Scale z-scores into [0..10]
+    scale_factor = 1.5
+    team_scaled = [max(0, min(10, 5 + z*scale_factor)) for z in z_scores]
+
+    # National average is exactly 5 for each metric
+    ncaam_scaled = [5]*len(z_scores)
+
+    # Conference average
+    conf_scaled = []
+    for m in available_metrics:
+        conf_val = conf_df[m].mean() if (conf_df is not None and m in conf_df.columns) else t_avgs[m]
+        std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
+        if m in ['DEF EFF', 'TO/GM']:
+            zc = -(conf_val - t_avgs[m])/std
+        else:
+            zc = (conf_val - t_avgs[m])/std
+        val_scaled = max(0, min(10, 5 + zc*scale_factor))
+        conf_scaled.append(val_scaled)
+
+    return team_scaled, ncaam_scaled, conf_scaled, available_metrics
+
+def create_seed_radar_grid(df_main, region_teams):
+    """
+    Builds a 16x4 polar radar chart grid. Each row is a seed (1..16),
+    each column is a region in [East, West, South, Midwest].
+    Smaller tick labels, minimal spacing.
+    """
+    # Precompute overall and stdev
+    t_avgs, t_stdevs = compute_tournament_stats(df_main)
+
+    # We'll create a 16 (rows) x 4 (cols) grid
+    nrows, ncols = 16, 4
+    fig = make_subplots(
+        rows=nrows, cols=ncols,
+        specs=[ [{'type': 'polar'}]*ncols for _ in range(nrows) ],
+        horizontal_spacing=0.01,
+        vertical_spacing=0.02,
+        subplot_titles=[ "" for _ in range(nrows*ncols)]
+    )
+
+    region_order = ["East", "West", "South", "Midwest"]
+
+    for row_idx in range(1, nrows+1):
+        # row_idx is the seed
+        seed_num = row_idx
+        for col_idx, region_name in enumerate(region_order, start=1):
+            # region_teams[region_name] is a list of 16 teams
+            # each is a dictionary with key 'Team' etc.
+            if seed_num-1 < len(region_teams[region_name]):
+                team_dict = region_teams[region_name][seed_num-1]
+            else:
+                continue
+
+            # Extract the TM_KP name so we can look up row in df_main
+            tm_name = team_dict['Team']
+            team_row = df_main[df_main['TM_KP'] == tm_name].copy()
+            if team_row.empty:
+                continue
+            team_row = team_row.iloc[0]
+
+            # Grab that team's conference subset
+            conf_name = team_row.get("CONFERENCE", None)
+            if conf_name:
+                conf_df = df_main[df_main["CONFERENCE"]==conf_name]
+            else:
+                conf_df = None
+
+            # Build z-scores
+            team_scaled, ncaam_scaled, conf_scaled, metrics_used = get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df)
+            if not metrics_used:
+                continue
+
+            # Close the radial dimension
+            team_scaled_circ = team_scaled + [team_scaled[0]]
+            ncaam_scaled_circ = ncaam_scaled + [ncaam_scaled[0]]
+            conf_scaled_circ = conf_scaled + [conf_scaled[0]]
+            metrics_circ = metrics_used + [metrics_used[0]]
+
+            # Build scatter traces
+            show_legend = (row_idx==1 and col_idx==1)
+            # Team
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=team_scaled_circ,
+                    theta=metrics_circ,
+                    fill='toself',
+                    fillcolor='rgba(30,144,255,0.3)',
+                    name='TEAM',
+                    line=dict(color='dodgerblue', width=2),
+                    showlegend=show_legend,
+                    hovertemplate=f"<b>{tm_name}</b><br>%{{theta}}: %{{r:.1f}}<extra></extra>"
+                ),
+                row=row_idx, col=col_idx
+            )
+            # NCAAM
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=ncaam_scaled_circ,
+                    theta=metrics_circ,
+                    fill='toself',
+                    fillcolor='rgba(255,99,71,0.2)',
+                    name='NCAAM AVG',
+                    line=dict(color='tomato', width=2, dash='dash'),
+                    showlegend=show_legend,
+                    hoverinfo='skip'
+                ),
+                row=row_idx, col=col_idx
+            )
+            # Conf
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=conf_scaled_circ,
+                    theta=metrics_circ,
+                    fill='toself',
+                    fillcolor='rgba(50,205,50,0.2)',
+                    name='CONF',
+                    line=dict(color='limegreen', width=2, dash='dot'),
+                    showlegend=show_legend,
+                    hoverinfo='skip'
+                ),
+                row=row_idx, col=col_idx
+            )
+
+            # Title text for each subplot: "Seed # - [Team], [Region]"
+            subplot_title = f"Seed {seed_num}: {tm_name}<br>({region_name})"
+            fig.layout.annotations[(row_idx-1)*ncols + (col_idx-1)].text = subplot_title
+
+    # Some layout styling
+    fig.update_layout(
+        height=4000,  # 16 rows can get tall
+        template='plotly_dark',
+        margin=dict(l=30, r=30, t=50, b=30),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.01,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    # Adjust each polar radial axis to have small ticks in [0..10]
+    fig.update_polars(
+        radialaxis=dict(
+            tickmode='array',
+            tickvals=[0,2,4,6,8,10],
+            ticktext=['0','2','4','6','8','10'],
+            tickfont=dict(size=9),
+            showline=False,
+            gridcolor='rgba(255,255,255,0.2)'
+        ),
+        angularaxis=dict(
+            tickfont=dict(size=9, color="white"),
+            tickangle=0,
+            showline=False,
+            gridcolor='rgba(255,255,255,0.2)'
+        ),
+        bgcolor="rgba(0,0,0,0)"
+    )
+
+    return fig
+
 # ----------------------------------------------------------------------------
 # Treemap Function
 def create_treemap(df_notnull):
@@ -1068,45 +1253,65 @@ with tab_home:
 
 # --- Radar Charts Tab ---
 with tab_radar:
-    st.header("TEAM RADAR CHARTS")
-    radar_metrics = get_default_metrics()
-    available_radar_metrics = [m for m in radar_metrics if m in df_main.columns]
-    if len(available_radar_metrics) < 3:
-        st.warning(f"Not enough radar metrics available. Need at least 4: {', '.join(radar_metrics)}")
+    st.header("Seed-by-Seed Radar Charts (16x4)")
+
+    # Create the big 16x4 grid figure
+    bracket_radar_fig = create_seed_radar_grid(df_main, region_teams)
+
+    if bracket_radar_fig:
+        st.plotly_chart(bracket_radar_fig, use_container_width=True)
     else:
-        if "TM_KP" in df_main.columns:
-            all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
-            default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston']
-            if "KP_AdjEM" in df_main.columns:
-                top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(4)
-                if "TM_KP" in top_teams.columns:
-                    default_teams = top_teams["TM_KP"].tolist()
-            if not default_teams and all_teams:
-                default_teams = all_teams[:4]
-            selected_teams = st.multiselect(
-                "Select Teams to Compare:",
-                options=all_teams,
-                default=default_teams
-            )
-            if selected_teams:
-                radar_fig = create_radar_chart(selected_teams, df_main)
-                if radar_fig:
-                    st.plotly_chart(radar_fig, use_container_width=True)
-                else:
-                    st.warning("Failed to display radar chart(s) for selected teams.")
-            else:
-                st.info("Please select at least one team to display radar charts.")
-            with st.expander("About Radar Charts:"):
-                st.markdown("""
-                    Radar charts visualize team performance across 8 key metrics, compared to:
-                    - NCAAM Average (red dashed line)
-                    - Conference Average (green dotted line)
-                    Each metric is scaled, where 5 == NCAAM average.
-                    Values >5 are better; values <5 are worse.
-                    Overall performance rating is derived from the average z-score across all metrics.
-                """)
-        else:
-            st.warning("Team names not available in dataset.")
+        st.warning("No data found for bracket radar grid.")
+
+    with st.expander("About This Radar Grid:"):
+        st.markdown("""
+        **Each row** represents seeds 1 through 16.<br>
+        **Each column** represents one of the four major regions (East, West, South, Midwest).<br>
+        Each subplot compares the team to the national average (red) and their conference average (green).<br>
+        - Radial scale 0..10, where 5 is NCAA average.
+        - Values above 5 are better than average, below 5 are worse.
+        """, unsafe_allow_html=True)
+
+# with tab_radar:
+#     st.header("TEAM RADAR CHARTS")
+#     radar_metrics = get_default_metrics()
+#     available_radar_metrics = [m for m in radar_metrics if m in df_main.columns]
+#     if len(available_radar_metrics) < 3:
+#         st.warning(f"Not enough radar metrics available. Need at least 4: {', '.join(radar_metrics)}")
+#     else:
+#         if "TM_KP" in df_main.columns:
+#             all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
+#             default_teams = ['Duke', 'Kansas', 'Auburn', 'Houston']
+#             if "KP_AdjEM" in df_main.columns:
+#                 top_teams = df_main.sort_values("KP_AdjEM", ascending=False).head(4)
+#                 if "TM_KP" in top_teams.columns:
+#                     default_teams = top_teams["TM_KP"].tolist()
+#             if not default_teams and all_teams:
+#                 default_teams = all_teams[:4]
+#             selected_teams = st.multiselect(
+#                 "Select Teams to Compare:",
+#                 options=all_teams,
+#                 default=default_teams
+#             )
+#             if selected_teams:
+#                 radar_fig = create_radar_chart(selected_teams, df_main)
+#                 if radar_fig:
+#                     st.plotly_chart(radar_fig, use_container_width=True)
+#                 else:
+#                     st.warning("Failed to display radar chart(s) for selected teams.")
+#             else:
+#                 st.info("Please select at least one team to display radar charts.")
+#             with st.expander("About Radar Charts:"):
+#                 st.markdown("""
+#                     Radar charts visualize team performance across 8 key metrics, compared to:
+#                     - NCAAM Average (red dashed line)
+#                     - Conference Average (green dotted line)
+#                     Each metric is scaled, where 5 == NCAAM average.
+#                     Values >5 are better; values <5 are worse.
+#                     Overall performance rating is derived from the average z-score across all metrics.
+#                 """)
+#         else:
+#             st.warning("Team names not available in dataset.")
 
 # --- Regional Heatmaps Tab ---
 with tab_regions:
