@@ -307,16 +307,20 @@ def get_default_metrics():
         'AST/TO%',
         'STOCKS-TOV/GM'
     ]
+
 def compute_tournament_stats(df):
     """
-    Compute overall average, std dev for radar metrics used to scale z-scores.
+    Compute overall average and standard deviation for radar metrics used to scale z-scores.
     """
     metrics = get_default_metrics()
     avgs = {m: df[m].mean() for m in metrics if m in df.columns}
-    stdevs = {m: df[m].std()  for m in metrics if m in df.columns}
+    stdevs = {m: df[m].std() for m in metrics if m in df.columns}
     return avgs, stdevs
 
 def compute_performance_text(team_row, t_avgs, t_stdevs):
+    """
+    Return a performance rating dict containing text and CSS badge class based on the average z-score.
+    """
     metrics = get_default_metrics()
     z_vals = []
     for m in metrics:
@@ -341,6 +345,12 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         return {"text": "WEAK", "class": "badge-weak"}
 
 def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
+    """
+    Returns three Scatterpolar traces for:
+      1) TEAM performance,
+      2) National average (flat line at 5),
+      3) Conference average.
+    """
     metrics = get_default_metrics()
     available_metrics = [m for m in metrics if m in team_row.index and m in t_avgs]
     if not available_metrics:
@@ -355,6 +365,8 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     scale_factor = 1.5
     scaled_team = [min(max(5 + z * scale_factor, 0), 10) for z in z_scores]
     scaled_ncaam = [5] * len(available_metrics)
+    
+    # Compute conference scaled values if available
     conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
     if conf and not conf_df.empty:
         conf_vals = []
@@ -371,14 +383,19 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
         scaled_conf = [min(max(5 + z * scale_factor, 0), 10) for z in conf_vals]
     else:
         scaled_conf = [5] * len(available_metrics)
+    
+    # Close the loop on the metrics
     metrics_circ = available_metrics + [available_metrics[0]]
     team_scaled_circ = scaled_team + [scaled_team[0]]
     ncaam_scaled_circ = scaled_ncaam + [scaled_ncaam[0]]
     conf_scaled_circ = scaled_conf + [scaled_conf[0]]
+    
+    # Append seed info if available for hover text
     seed_info = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
         seed_info = f"(Seed {int(team_row['SEED_25'])})"
     team_name = f"{team_row.name} {seed_info}".strip()
+    
     trace_team = go.Scatterpolar(
         r=team_scaled_circ,
         theta=metrics_circ,
@@ -412,6 +429,11 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     return [trace_team, trace_ncaam, trace_conf]
 
 def create_radar_chart(selected_teams, full_df):
+    """
+    Generates a radar chart subplot grid for the selected teams.
+    The grid layout adapts based on the number of teams.
+    Each subplot includes a clean annotation showing the overall rating badge.
+    """
     metrics = get_default_metrics()
     available_radar_metrics = [m for m in metrics if m in full_df.columns]
     if len(available_radar_metrics) < 3:
@@ -425,6 +447,7 @@ def create_radar_chart(selected_teams, full_df):
     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
+    
     subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
@@ -434,6 +457,7 @@ def create_radar_chart(selected_teams, full_df):
             seed_str = f" - Seed {int(row['SEED_25'])}"
         perf_data = compute_performance_text(row, t_avgs, t_stdevs)
         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
+    
     fig = make_subplots(
         rows=row_count,
         cols=col_count,
@@ -477,6 +501,8 @@ def create_radar_chart(selected_teams, full_df):
         ),
         bgcolor="rgba(0,0,0,0.8)"
     )
+    
+    # Loop through each team and add traces with refined annotations
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
         c = idx % col_count + 1
@@ -486,16 +512,21 @@ def create_radar_chart(selected_teams, full_df):
         traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
         for tr in traces:
             fig.add_trace(tr, row=r, col=c)
+        
+        # Compute performance rating badge
         perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
         polar_idx = (r - 1) * col_count + c
         polar_key = "polar" if polar_idx == 1 else f"polar{polar_idx}"
         if polar_key in fig.layout:
             domain_x = fig.layout[polar_key].domain.x
             domain_y = fig.layout[polar_key].domain.y
-            x_annot = domain_x[0] + 0.02
-            y_annot = domain_y[1] - 0.02
+            # Increased offset for cleaner annotations
+            x_annot = domain_x[0] + 0.03
+            y_annot = domain_y[1] - 0.03
         else:
             x_annot, y_annot = 0.05, 0.95
+        
+        # Add annotation displaying overall performance badge
         fig.add_annotation(
             x=x_annot,
             y=y_annot,
@@ -503,8 +534,8 @@ def create_radar_chart(selected_teams, full_df):
             yref="paper",
             text=f"<b>{perf_data['text']}</b>",
             showarrow=False,
-            font=dict(size=12, color="black"),
-            bgcolor={
+            font=dict(size=14, color="black"),
+            bgcolor={  # Use the same badge classes from the app styling
                 "badge-elite": "gold",
                 "badge-solid": "#4CAF50",
                 "badge-mid": "#2196F3",
@@ -1491,11 +1522,9 @@ with tab_home:
 
 # --- Radar Charts Tab ---
 with tab_radar:
-    st.header("Seed-by-Seed Radar Charts (16x4)")
-    # Directly call the function to render the grid (it handles its own rendering)
-    create_seed_radar_grid(df_main, region_teams)
-    
-    with st.expander("About This Radar Grid:"):
+    st.header("REGIONAL SEEDING RADAR CHARTS")
+    create_seed_radar_grid(df_main, region_teams)   # Directly call function to render radar grid
+    with st.expander("*About Radar Grid:*"):
         st.markdown("""
         **Each row** represents seeds 1 through 16.<br>
         **Each column** represents one of the four major regions (East, West, South, Midwest).<br>
@@ -1941,9 +1970,9 @@ with tab_pred:
         viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
         
         if viz_type == "Team Stats":
-            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
+            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_TR'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
-            team_data = TR_df[TR_df['TM_KP'] == selected_team].iloc[0]
+            team_data = TR_df[TR_df['TM_TR'] == selected_team].iloc[0]
             create_team_radar(team_data, dark_mode=True)
             st.markdown("### Key Team Stats")
             key_stats = {
