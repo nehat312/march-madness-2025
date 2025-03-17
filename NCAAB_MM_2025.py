@@ -625,6 +625,56 @@ def create_bracket_radar_grid():
         
         st.markdown('</div>', unsafe_allow_html=True)
 
+def create_seed_radar_grid(df, region_teams):
+    """
+    Creates a 4x16 grid of radar charts, one for each region and seed.
+    Expects df to contain the following columns: 'SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25'
+    """
+    required_cols = ['SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25']
+    if not all(col in df.columns for col in required_cols):
+        st.error("Required columns for bracket visualization are missing")
+        return
+
+    # Select teams that are in the tournament
+    tourney_teams = df[df['SEED_25'].notna()].copy()
+
+    # Apply custom CSS for a dark background in the radar grid
+    st.markdown("""
+    <style>
+    .radar-grid-container {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div class="radar-grid-container">', unsafe_allow_html=True)
+        
+        # Create header row for the four regions
+        cols = st.columns(4)
+        regions = ["East", "West", "South", "Midwest"]
+        for i, region in enumerate(regions):
+            cols[i].markdown(f"<h3 style='text-align:center;color:white;'>{region}</h3>", unsafe_allow_html=True)
+        
+        # Create radar charts for each seed (from 1 to 16)
+        for seed in range(1, 17):
+            cols = st.columns(4)
+            for i, region in enumerate(regions):
+                team = tourney_teams[(tourney_teams['REGION_25'] == region) & 
+                                     (tourney_teams['REG_SEED_25'] == seed)]
+                if not team.empty:
+                    team = team.iloc[0]
+                    with cols[i]:
+                        create_team_radar(team, dark_mode=True)
+                else:
+                    cols[i].markdown(
+                        f"<div style='height:200px;display:flex;align-items:center;justify-content:center;color:white;'>No Team (Seed {seed})</div>", 
+                        unsafe_allow_html=True
+                    )
+        st.markdown('</div>', unsafe_allow_html=True)
+
 def create_team_radar(team, dark_mode=True):
     """Creates a radar chart for a single team with proper annotations and color"""
     
@@ -1373,21 +1423,15 @@ with tab_home:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header("Seed-by-Seed Radar Charts (16x4)")
-
-    # Create the big 16x4 grid figure
-    bracket_radar_fig = create_bracket_radar_grid(df_main, region_teams)
-
-    if bracket_radar_fig:
-        st.plotly_chart(bracket_radar_fig, use_container_width=True)
-    else:
-        st.warning("No data found for bracket radar grid.")
-
+    # Directly call the function to render the grid (it handles its own rendering)
+    create_seed_radar_grid(df_main, region_teams)
+    
     with st.expander("About This Radar Grid:"):
         st.markdown("""
         **Each row** represents seeds 1 through 16.<br>
         **Each column** represents one of the four major regions (East, West, South, Midwest).<br>
         Each subplot compares the team to the national average (red) and their conference average (green).<br>
-        - Radial scale 0..10, where 5 is NCAA average.
+        - Radial scale 0-10, where 5 is NCAA average.
         - Values above 5 are better than average, below 5 are worse.
         """, unsafe_allow_html=True)
 
@@ -1739,8 +1783,7 @@ with tab_team:
         """)
         
 # --- 🔮 PREDICTIONS Tab (Bracket Simulation) ---
-# 1) Define a small helper function to color-code round logs
-# 1) Define a small helper function to color-code round logs
+
 def color_log_text(round_name, text):
     """Return HTML string with color-coded text for each round."""
     round_html_colors = {
@@ -1761,46 +1804,32 @@ with tab_pred:
     sim_col, viz_col = st.columns([3, 2])
 
     with sim_col:
-        # 2) Let the user decide if they want to see detailed logs (single-run example)
-        show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
+        # Set the checkbox default to True so logs appear by default
+        show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=True)
         st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
         
-        # 3) Single button with a unique key argument
+        # Run the simulation when the button is clicked
         if st.button("Run Bracket Simulation", key="btn_run_bracket"):
             with st.spinner("Simulating tournament..."):
-                # Run your existing multi-simulation
                 aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
-                
-                # Also run a single simulation to display detailed results
                 single_sim_results = run_simulation(use_analytics=True, simulations=1)
                 st.session_state['single_sim_results'] = single_sim_results
-
             st.success("Simulation complete!")
 
-            # -----------------------------------------
-            # Apply advanced styling to two result DataFrames:
-            #   (1) Championship Win Probabilities
-            #   (2) Upset Summary
-            # for consistency with the rest of the app.
-            # -----------------------------------------
-
-            # (A) Championship Win Probabilities
+            # Display Championship Win Probabilities
             st.subheader("Championship Win Probabilities")
             champ_df = aggregated_analysis['champion_probabilities'].copy()
-            
-            # Convert numeric columns to background gradient
             numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
             styled_champ = (
                 champ_df.style
-                .format("{:.2%}", subset=["Championship_Probability"])  # percentage style
+                .format("{:.2%}", subset=["Championship_Probability"])
                 .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
                 .set_table_styles(detailed_table_styles)
                 .set_caption("Championship Win Probabilities by Team")
             )
-            # Render as HTML
             st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
 
-            # (B) Regional Win Probabilities Chart (plotly)
+            # Display Regional Win Probabilities Chart
             st.subheader("Regional Win Probabilities")
             if 'region_probabilities' in aggregated_analysis:
                 fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
@@ -1808,13 +1837,12 @@ with tab_pred:
             else:
                 st.warning("Regional win probabilities data not available.")
 
-            # (C) Upset Analysis
+            # Display Upset Analysis
             st.subheader("Aggregated Upset Analysis")
             upset_summary_df = pd.DataFrame({
                 'Round': aggregated_analysis['upset_pct_aggregated'].index,
                 'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
             })
-            # Style that similarly
             numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
             styled_upsets = (
                 upset_summary_df.style
@@ -1825,75 +1853,30 @@ with tab_pred:
             )
             st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
 
-            # (D) Show aggregated matplotlib figure with uniform styling
+            # Display aggregated matplotlib figure
             try:
                 agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
-                st.pyplot(agg_viz_fig, use_container_width=True)  # Pass figure explicitly
+                st.pyplot(agg_viz_fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Could not generate aggregated visualizations: {e}")
 
-            # (E) Enhanced detailed simulation display for single run results
-            if show_detailed_logs and 'single_sim_results' in st.session_state:
+            # Always display detailed simulation logs if available
+            if 'single_sim_results' in st.session_state:
                 st.info("Detailed game outcomes for a single simulation run:")
-                
-                # Use our new enhanced display function
                 display_simulation_results(st.session_state['single_sim_results'], st)
-            
-            # Legacy detailed logs (can keep both or replace with enhanced version)
-            elif show_detailed_logs:
-                st.info("Detailed logs below show one example simulation's game outcomes:")
-                single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
-                detailed_games = single_run_results["all_games"]
 
-                st.write("---")
-                st.write("### Detailed Game Outcomes (Single Simulation):")
-
-                # Print each round's outcome in color-coded HTML
-                for gm in detailed_games:
-                    round_label   = gm["round_name"]
-                    t1, t2        = gm["team1"], gm["team2"]
-                    winner        = gm["winner"]
-                    prob_to_win   = gm["win_prob"]
-                    colored_label = color_log_text(round_label, f"[{round_label}]")
-
-                    # Mark upsets for emphasis
-                    upset_flag = ""
-                    if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
-                        upset_flag = "<b>(UPSET!)</b>"
-
-                    line_html = (
-                        f"{colored_label} &nbsp;"
-                        f"{t1} vs. {t2} → "
-                        f"<b>Winner:</b> {winner} "
-                        f"<small>(win prob {prob_to_win:.1%})</small> "
-                        f"{upset_flag}"
-                    )
-                    st.markdown(line_html, unsafe_allow_html=True)
-
-    # Add bracket visualization in the second column or below the simulation section
     with viz_col:
         st.subheader("Bracket Visualization")
         st.markdown("Select a view to explore the tournament teams")
         
-        viz_type = st.radio(
-            "Visualization Type", 
-            ["Team Stats", "Bracket Overview"],
-            horizontal=True
-        )
+        viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
         
         if viz_type == "Team Stats":
-            # Display a team selector dropdown
             all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_TR'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
-            
-            # Display the radar for just this team
             team_data = TR_df[TR_df['TM_TR'] == selected_team].iloc[0]
             create_team_radar(team_data, dark_mode=True)
-            
-            # Show key team stats below the radar
             st.markdown("### Key Team Stats")
-            
-            # Extract and display key stats in a neat format
             key_stats = {
                 "Seed": f"{int(team_data['REG_SEED_25'])} ({team_data['REGION_25']})",
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
@@ -1902,23 +1885,18 @@ with tab_pred:
                 "Offense Rank": f"{int(team_data['TR_ORk_25'])}",
                 "Defense Rank": f"{int(team_data['TR_DRk_25'])}"
             }
-            
-            # Create two columns for stats
             stat_col1, stat_col2 = st.columns(2)
-            
-            # Display stats in columns
             for i, (stat, value) in enumerate(key_stats.items()):
                 if i % 2 == 0:
                     stat_col1.metric(stat, value)
                 else:
                     stat_col2.metric(stat, value)
-                    
         else:
-            # Show button to load full bracket visualization
             if st.button("Load Full Bracket Visualization"):
                 with st.spinner("Generating bracket visualization..."):
-                    create_bracket_radar_grid()
-
+                    # You may choose to call the radar grid function here as well if desired
+                    create_seed_radar_grid(df_main, region_teams)
+                    
 # with tab_pred:
 #     st.header("Bracket Simulation")
 
