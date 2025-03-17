@@ -679,7 +679,7 @@ def create_team_radar(team, dark_mode=True):
     """Creates a radar chart for a single team with proper annotations and color"""
     
     # Get team data
-    team_name = team['TM_TR']
+    team_name = team['TM_KP']
     seed = int(team['REG_SEED_25'])
     
     # Calculate Z-scores for key metrics
@@ -1872,9 +1872,9 @@ with tab_pred:
         viz_type = st.radio("Visualization Type", ["Team Stats", "Bracket Overview"], horizontal=True)
         
         if viz_type == "Team Stats":
-            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_TR'].tolist()
+            all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
-            team_data = TR_df[TR_df['TM_TR'] == selected_team].iloc[0]
+            team_data = TR_df[TR_df['TM_KP'] == selected_team].iloc[0]
             create_team_radar(team_data, dark_mode=True)
             st.markdown("### Key Team Stats")
             key_stats = {
@@ -1896,7 +1896,7 @@ with tab_pred:
                 with st.spinner("Generating bracket visualization..."):
                     # You may choose to call the radar grid function here as well if desired
                     create_seed_radar_grid(df_main, region_teams)
-                    
+
 # with tab_pred:
 #     st.header("Bracket Simulation")
 
