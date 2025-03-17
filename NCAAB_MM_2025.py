@@ -557,62 +557,59 @@ def create_seed_radar_grid(df_main, region_teams):
     """
     Builds a 16x4 polar radar chart grid. Each row is a seed (1..16),
     each column is a region in [East, West, South, Midwest].
-    Smaller tick labels, minimal spacing.
+    We skip any seeds above #16 or missing seeds. 
+    If a region has multiple #11 seeds or any "play-in" anomalies,
+    we won't crash; we just won't show seeds beyond 16.
     """
-    # Precompute overall and stdev
+    # Precompute overall means/stdev for radar metrics
     t_avgs, t_stdevs = compute_tournament_stats(df_main)
 
-    # We'll create a 16 (rows) x 4 (cols) grid
+    # We create a fixed 16 (rows) x 4 (cols) grid
     nrows, ncols = 16, 4
     fig = make_subplots(
         rows=nrows, cols=ncols,
         specs=[ [{'type': 'polar'}]*ncols for _ in range(nrows) ],
         horizontal_spacing=0.01,
         vertical_spacing=0.02,
-        subplot_titles=[ "" for _ in range(nrows*ncols)]
+        subplot_titles=[ "" for _ in range(nrows*ncols) ]
     )
 
     region_order = ["East", "West", "South", "Midwest"]
 
     for row_idx in range(1, nrows+1):
-        # row_idx is the seed
         seed_num = row_idx
         for col_idx, region_name in enumerate(region_order, start=1):
-            # region_teams[region_name] is a list of 16 teams
-            # each is a dictionary with key 'Team' etc.
-            if seed_num-1 < len(region_teams[region_name]):
-                team_dict = region_teams[region_name][seed_num-1]
-            else:
-                continue
+            # Safely skip if region_teams[region_name] has < seed_num
+            if seed_num-1 >= len(region_teams[region_name]):
+                continue  # no such seed in this region
 
-            # Extract the TM_KP name so we can look up row in df_main
+            # Grab the dictionary that describes the team at (seed_num)
+            team_dict = region_teams[region_name][seed_num-1]
             tm_name = team_dict['Team']
-            team_row = df_main[df_main['TM_KP'] == tm_name].copy()
+
+            # Look up full row in df_main
+            team_row = df_main[df_main['TM_KP'] == tm_name]
             if team_row.empty:
                 continue
             team_row = team_row.iloc[0]
 
-            # Grab that team's conference subset
+            # Get conference subset
             conf_name = team_row.get("CONFERENCE", None)
-            if conf_name:
-                conf_df = df_main[df_main["CONFERENCE"]==conf_name]
-            else:
-                conf_df = None
+            conf_df = df_main[df_main["CONFERENCE"]==conf_name] if conf_name else None
 
-            # Build z-scores
+            # Build scaled radial values
             team_scaled, ncaam_scaled, conf_scaled, metrics_used = get_radar_zscores(team_row, t_avgs, t_stdevs, conf_df)
             if not metrics_used:
                 continue
 
-            # Close the radial dimension
-            team_scaled_circ = team_scaled + [team_scaled[0]]
+            # Close each radial list
+            team_scaled_circ  = team_scaled  + [team_scaled[0]]
             ncaam_scaled_circ = ncaam_scaled + [ncaam_scaled[0]]
-            conf_scaled_circ = conf_scaled + [conf_scaled[0]]
-            metrics_circ = metrics_used + [metrics_used[0]]
+            conf_scaled_circ  = conf_scaled  + [conf_scaled[0]]
+            metrics_circ      = metrics_used + [metrics_used[0]]
 
-            # Build scatter traces
-            show_legend = (row_idx==1 and col_idx==1)
-            # Team
+            # Place the three traces (TEAM / NCAAM / CONF) on the subplot
+            show_legend = (row_idx == 1 and col_idx == 1)
             fig.add_trace(
                 go.Scatterpolar(
                     r=team_scaled_circ,
@@ -626,7 +623,6 @@ def create_seed_radar_grid(df_main, region_teams):
                 ),
                 row=row_idx, col=col_idx
             )
-            # NCAAM
             fig.add_trace(
                 go.Scatterpolar(
                     r=ncaam_scaled_circ,
@@ -640,7 +636,6 @@ def create_seed_radar_grid(df_main, region_teams):
                 ),
                 row=row_idx, col=col_idx
             )
-            # Conf
             fig.add_trace(
                 go.Scatterpolar(
                     r=conf_scaled_circ,
@@ -655,13 +650,16 @@ def create_seed_radar_grid(df_main, region_teams):
                 row=row_idx, col=col_idx
             )
 
-            # Title text for each subplot: "Seed # - [Team], [Region]"
-            subplot_title = f"Seed {seed_num}: {tm_name}<br>({region_name})"
-            fig.layout.annotations[(row_idx-1)*ncols + (col_idx-1)].text = subplot_title
+            # Attempt to set the subplot title, but only if the index is in range
+            annotation_idx = (row_idx-1)*ncols + (col_idx-1)
+            if annotation_idx < len(fig.layout.annotations):
+                fig.layout.annotations[annotation_idx].text = (
+                    f"Seed {seed_num}: {tm_name}<br>({region_name})"
+                )
 
-    # Some layout styling
+    # Overall figure styling
     fig.update_layout(
-        height=4000,  # 16 rows can get tall
+        height=4000,
         template='plotly_dark',
         margin=dict(l=30, r=30, t=50, b=30),
         showlegend=True,
@@ -673,8 +671,7 @@ def create_seed_radar_grid(df_main, region_teams):
             x=1
         )
     )
-
-    # Adjust each polar radial axis to have small ticks in [0..10]
+    # Make the polar radial axis smaller ticks
     fig.update_polars(
         radialaxis=dict(
             tickmode='array',
@@ -692,7 +689,6 @@ def create_seed_radar_grid(df_main, region_teams):
         ),
         bgcolor="rgba(0,0,0,0)"
     )
-
     return fig
 
 # ----------------------------------------------------------------------------
