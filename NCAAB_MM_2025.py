@@ -1481,7 +1481,7 @@ def run_simulation(use_analytics=True, simulations=1):
     region_names = tournament_data['region_names']
     region_teams = tournament_data['region_teams']
 
-    all_results =
+    all_results = []
 
     for sim in range(simulations):
         region_results = {}
