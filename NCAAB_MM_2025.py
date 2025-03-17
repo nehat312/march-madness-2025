@@ -457,8 +457,9 @@ def create_single_radar_chart(team_row, full_df, key=None):
         font=dict(family="Arial, sans-serif", size=12),
         showlegend=False,
         margin=dict(l=20, r=20, t=60, b=20),
-        paper_bgcolor="rgba(0,0,0,0.0)",
-        plot_bgcolor="rgba(0,0,0,0.8)",
+        # Make background darker
+        paper_bgcolor="rgba(0,0,0,0.8)",  # Slightly transparent dark gray
+        plot_bgcolor="rgba(0,0,0,0.8)",    # Slightly transparent dark gray
         height=350,  # Adjust as desired
     )
     fig.update_polars(
@@ -468,12 +469,15 @@ def create_single_radar_chart(team_row, full_df, key=None):
             ticktext=['0','2','4','6','8','10'],
             tickfont=dict(size=11, family="Arial, sans-serif"),
             showline=False,
+            # Adjust grid color for contrast
             gridcolor='rgba(255,255,255,0.2)',
         ),
         angularaxis=dict(
+            # Adjust tick font color for contrast
             tickfont=dict(size=12, family="Arial, sans-serif", color="white"),
             tickangle=0,
             showline=False,
+            # Adjust grid color for contrast
             gridcolor='rgba(255,255,255,0.2)',
             linecolor='rgba(255,255,255,0.2)'
         ),
@@ -534,6 +538,132 @@ def create_single_radar_chart(team_row, full_df, key=None):
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
 
 
+def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=None, subplot_col=None):
+    """
+    Creates a Plotly radar chart figure (or adds traces to a subplot).
+
+    Args:
+        team_row (pd.Series):  Data for the team.
+        full_df (pd.DataFrame): The full dataset.
+        is_subplot (bool):  True if it's part of a subplot.
+        subplot_row (int, optional): The subplot row.
+        subplot_col (int, optional): The subplot column.
+
+    Returns:
+        plotly.graph_objects.Figure: The Plotly figure.
+    """
+    # Grab overall averages, stdevs
+    t_avgs, t_stdevs = compute_tournament_stats(full_df)
+
+    # Identify team's conference
+    conf = team_row.get('CONFERENCE', None)
+    if conf:
+        conf_df = full_df[full_df['CONFERENCE'] == conf]
+    else:
+        conf_df = pd.DataFrame()
+
+    # Build radar traces
+    show_legend = not is_subplot  # Only show legend for the first subplot
+    traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
+
+    # Create figure or add traces to existing figure
+    if not is_subplot:
+        fig = make_subplots(
+            rows=1, cols=1,
+            specs=[[{'type': 'polar'}]],
+        )
+        fig.update_layout(
+            template='plotly_dark',
+            font=dict(family="Arial, sans-serif", size=12),
+            showlegend=False,
+            margin=dict(l=20, r=20, t=60, b=20),
+            paper_bgcolor="rgba(0,0,0,0.8)",  # Dark background
+            plot_bgcolor="rgba(0,0,0,0.8)",    # Dark background
+            height=350,
+        )
+        fig.update_polars(
+            radialaxis=dict(
+                tickmode='array',
+                tickvals=[0, 2, 4, 6, 8, 10],
+                ticktext=['0', '2', '4', '6', '8', '10'],
+                tickfont=dict(size=11, family="Arial, sans-serif"),
+                showline=False,
+                gridcolor='rgba(255,255,255,0.2)',  # Light grid
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=12, family="Arial, sans-serif", color="white"),  # Light labels
+                tickangle=0,
+                showline=False,
+                gridcolor='rgba(255,255,255,0.2)', # Light grid
+                linecolor='rgba(255,255,255,0.2)'
+            ),
+            bgcolor="rgba(0,0,0,0.8)"
+        )
+    else:
+        fig = go.Figure()  # Placeholder, will be populated by the calling function
+
+    for tr in traces:
+        if is_subplot:
+            fig.add_trace(tr, row=subplot_row, col=subplot_col)
+        else:
+            fig.add_trace(tr, row=1, col=1)
+
+    # Add performance rating annotation
+    perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
+    fig.add_annotation(
+        x=0.03,
+        y=0.95,
+        xref="paper",
+        yref="paper",
+        text=f"<b>{perf_data['text']}</b>",
+        showarrow=False,
+        font=dict(size=14, color="black"),
+        bgcolor={
+            "badge-elite": "gold",
+            "badge-solid": "#4CAF50",
+            "badge-mid": "#2196F3",
+            "badge-subpar": "#FF9800",
+            "badge-weak": "#F44336"
+        }.get(perf_data['class'], "#2196F3"),
+        bordercolor="white",
+        borderwidth=1,
+        borderpad=4,
+        opacity=0.9
+    )
+
+    seed_str = ""
+    if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
+        seed_str = f"(Seed {int(team_row['SEED_25'])}) "
+    team_str = f"{seed_str}{team_row.name}"
+
+    if not is_subplot:
+        fig.add_annotation(
+            text=team_str,
+            x=0.5, y=1.08,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font=dict(size=14, color="white"),
+            align="center"
+        )
+
+    return fig
+
+
+def create_single_radar_chart(team_row, full_df, key=None):
+    """
+    Creates a single-team radar chart using the same style/hyperparameters
+    as create_radar_chart() in the TEAM METRICS tab.
+    This includes 3 traces: Team, NCAAM avg, Conference avg.
+    """
+    # Safety checks
+    if team_row is None or team_row.empty:
+        st.warning("No data found for this team.")
+        return
+
+    fig = create_radar_chart_figure(team_row, full_df)  # Use the core function
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
+
+
 def create_radar_chart(selected_teams, full_df):
     """
     Generates a radar chart subplot grid for the selected teams.
@@ -541,7 +671,7 @@ def create_radar_chart(selected_teams, full_df):
     Each subplot includes a clean annotation showing the overall rating badge.
     """
     metrics = get_default_metrics()
-    available_radar_metrics = [m for m in metrics if m in full_df.columns]
+    available_radar_metrics = [m for m in full_df.columns]
     if len(available_radar_metrics) < 3:
         return None
     team_mask = full_df['TM_KP'].isin(selected_teams)
@@ -554,7 +684,7 @@ def create_radar_chart(selected_teams, full_df):
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
     
-    subplot_titles = []
+    subplot_titles =
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
@@ -586,8 +716,9 @@ def create_radar_chart(selected_teams, full_df):
             bgcolor="rgba(0,0,0,0.1)"
         ),
         margin=dict(l=50, r=50, t=80, b=50),
-        paper_bgcolor="rgba(0,0,0,0.0)",
-        plot_bgcolor="rgba(0,0,0,0.8)"
+        # Make background darker
+        paper_bgcolor="rgba(0,0,0,0.8)", # Slightly transparent dark gray
+        plot_bgcolor="rgba(0,0,0,0.8)"  # Slightly transparent dark gray
     )
     fig.update_polars(
         radialaxis=dict(
@@ -596,12 +727,15 @@ def create_radar_chart(selected_teams, full_df):
             ticktext=['0', '2', '4', '6', '8', '10'],
             tickfont=dict(size=11, family="Arial, sans-serif"),
             showline=False,
+            # Adjust grid color for contrast
             gridcolor='rgba(255,255,255,0.2)'
         ),
         angularaxis=dict(
+            # Adjust tick font color for contrast
             tickfont=dict(size=12, family="Arial, sans-serif", color="white"),
             tickangle=0,
             showline=False,
+            # Adjust grid color for contrast
             gridcolor='rgba(255,255,255,0.2)',
             linecolor='rgba(255,255,255,0.2)'
         ),
@@ -613,10 +747,9 @@ def create_radar_chart(selected_teams, full_df):
         r = idx // col_count + 1
         c = idx % col_count + 1
         show_legend = (idx == 0)
-        conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
-        conf_df = full_df[full_df['CONFERENCE'] == conf] if conf else pd.DataFrame()
-        traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
-        for tr in traces:
+        
+        fig = create_radar_chart_figure(team_row, full_df, is_subplot=True, subplot_row=r, subplot_col=c) # Use the core function
+        for tr in fig.data:
             fig.add_trace(tr, row=r, col=c)
         
         # Compute performance rating badge
