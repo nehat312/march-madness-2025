@@ -1984,8 +1984,8 @@ with tab_pred:
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
-                "KenPom OEff": f"{int(team_data['KP_AdjO'])}",
-                "KenPom DEff.": f"{int(team_data['KP_AdjD'])}",
+                #"KenPom OEff": f"{int(team_data['KP_AdjO'])}",
+                #"KenPom DEff.": f"{int(team_data['KP_AdjD'])}",
                 "TeamRankings OEff": f"{int(team_data['OFF EFF'])}",
                 "TeamRankings DEff.": f"{int(team_data['DEF EFF'])}",
 
