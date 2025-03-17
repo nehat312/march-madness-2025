@@ -1243,20 +1243,20 @@ def prepare_tournament_data():
     Also creates TR_df for compatibility with visualization features.
     """
     global TR_df  # Make TR_df accessible throughout the application
-    
+
     # Make a copy of the main dataframe for tournament data
     TR_df = df_main.copy()
-    
+
     # Ensure required columns exist and handle missing values
     required_cols = ['SEED_25', 'REGION_25', 'KP_Rank', 'KP_AdjEM', 'OFF EFF', 'DEF EFF']
     for col in required_cols:
         if col not in TR_df.columns:
             sim_logger.warning(f"Missing required column: {col}")
             return None
-    
+
     # Drop teams with missing essential data
     tournament_teams = TR_df.dropna(subset=required_cols).copy()
-    
+
     # Ensure we have the team name column
     if 'TM_KP' not in tournament_teams.columns:
         if 'TM_TR' in tournament_teams.columns:
@@ -1264,37 +1264,32 @@ def prepare_tournament_data():
         else:
             sim_logger.warning("No team name column found (TM_KP or TM_TR)")
             return None
-    
+
     # Convert seeds to integers for proper sorting
     tournament_teams['SEED_25'] = tournament_teams['SEED_25'].astype(int)
-    
+
     # Add example bonuses for historical success and tournament experience
     tournament_teams['TOURNEY_SUCCESS'] = 0.0
     for team in ["Duke", "Kentucky", "Kansas", "North Carolina", "Gonzaga", "Michigan St."]:
         if team in tournament_teams['TM_KP'].values:
             tournament_teams.loc[tournament_teams['TM_KP'] == team, 'TOURNEY_SUCCESS'] = 2.0
-    
+
     tournament_teams['TOURNEY_EXPERIENCE'] = 0.0
     if 'SEED_23' in tournament_teams.columns:
         tournament_teams.loc[tournament_teams['SEED_23'].notna() & (tournament_teams['SEED_23'] <= 16), 'TOURNEY_EXPERIENCE'] = 1.0
         tournament_teams.loc[tournament_teams['SEED_23'].notna() & (tournament_teams['SEED_23'] <= 4), 'TOURNEY_EXPERIENCE'] = 2.0
-    
-    # Verify we have enough regions and teams
+
+    # Identify all regions present
     region_names = tournament_teams['REGION_25'].unique().tolist()
-    if len(region_names) < 4:
-        sim_logger.warning(f"Not enough regions found: {len(region_names)}")
-        return None
-    
-    # Build region_teams dictionary using actual data
+
+    # Build region_teams dictionary, ensuring 16 seeds per region
     region_teams = {}
     for reg in region_names:
         df_reg = tournament_teams[tournament_teams['REGION_25'] == reg].sort_values('SEED_25')
-        
-        # Check if we have enough teams in each region
+
         if len(df_reg) < 16:
-            sim_logger.warning(f"Region {reg} has only {len(df_reg)} teams, expected 16.")
-            continue
-            
+            sim_logger.warning(f"Region {reg} has only {len(df_reg)} teams, expected 16. Adding dummy teams.")
+
         teams_list = df_reg.apply(lambda row: {
             'Team': row['TM_KP'],
             'Seed': int(row['SEED_25']),
@@ -1311,9 +1306,33 @@ def prepare_tournament_data():
             'SOS': row.get('KP_SOS_AdjEM', 0),
             'Region': row['REGION_25']
         }, axis=1).tolist()
-        
+
+        # Create dummy "BYE" teams for missing seeds
+        present_seeds = {team['Seed'] for team in teams_list}
+        missing_seeds = [seed for seed in range(1, 17) if seed not in present_seeds]
+        for seed in missing_seeds:
+            dummy_team = {
+                'Team': f"BYE_{reg}_{seed}",
+                'Seed': seed,
+                'KP_Rank': 9999,
+                'KP_AdjEM': -999,
+                'OFF EFF': 0,
+                'DEF EFF': 100,
+                'KP_AdjO': 0,
+                'KP_AdjD': 0,
+                'TOURNEY_SUCCESS': 0,
+                'TOURNEY_EXPERIENCE': 0,
+                'WIN_PCT': 0,
+                'CLOSE_GAME_PCT': 0,
+                'SOS': 0,
+                'Region': reg
+            }
+            teams_list.append(dummy_team)
+
+        # Sort final region teams by their seed
+        teams_list = sorted(teams_list, key=lambda x: x['Seed'])
         region_teams[reg] = teams_list
-    
+
     return {
         'tournament_teams': tournament_teams,
         'region_names': region_names,
@@ -1679,6 +1698,23 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
     champ_df = pd.DataFrame(champ_data)
     champ_df = champ_df.sort_values('Championship_Count', ascending=False).reset_index(drop=True)
     
+    champ_df = aggregated_analysis['champion_probabilities'].copy()
+
+    # Check if 'champ_df' is empty or missing the Championship_Probability column
+    if champ_df.empty or 'Championship_Probability' not in champ_df.columns:
+        st.warning("No simulation results found. Possibly a region does not have 16 teams.")
+    else:
+        # Proceed with styling safely
+        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+        styled_champ = (
+            champ_df.style
+            .format("{:.2%}", subset=["Championship_Probability"])
+            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+            .set_table_styles(detailed_table_styles)
+            .set_caption("Championship Win Probabilities by Team")
+        )
+        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+
     # Collect regional champions
     region_champions = {}
     for sim in all_sim_results:
@@ -2522,14 +2558,20 @@ with tab_pred:
             st.subheader("Championship Win Probabilities")
             champ_df = aggregated_analysis['champion_probabilities'].copy()
             numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+
+            if "Championship_Probability" in champ_df.columns:
+                styled_champ = champ_df.style.format("{:.2%}", subset=["Championship_Probability"])
+            else:
+                styled_champ = champ_df.style
+
             styled_champ = (
-                champ_df.style
-                .format("{:.2%}", subset=["Championship_Probability"])
+                styled_champ
                 .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
                 .set_table_styles(detailed_table_styles)
                 .set_caption("Championship Win Probabilities by Team")
             )
             st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+
 
             # Display Regional Win Probabilities Chart
             st.subheader("Regional Win Probabilities")
