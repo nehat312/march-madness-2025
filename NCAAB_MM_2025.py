@@ -143,7 +143,7 @@ mm_database_2025 = load_data()
 # ----------------------------------------------------------------------------
 # Select Relevant Columns (including radar metrics)
 core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-             "KP_Rank", "NET_25", "SEED_25",
+             "KP_Rank", "NET_25", "SEED_25", 'REGION_25',
              "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
              "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
              "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
@@ -157,9 +157,11 @@ all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
 
-# Ensure team label (if "TM_KP" is missing, use index)
 if "TM_KP" not in df_main.columns:
     df_main["TM_KP"] = df_main.index
+
+if "TM_TR" not in df_main.columns:
+    df_main["TM_TR"] = df_main.index
 
 # Offset KP_AdjEM for marker sizes (avoid negatives)
 if "KP_AdjEM" in df_main.columns:
@@ -288,7 +290,8 @@ header = {
         ('text-align', 'center'),
         ('vertical-align', 'middle'),
         ('font-weight', 'bold'),
-        ('border-bottom', '2px solid #000000')
+        ('border-bottom', '2px solid #000000'),
+        ('border-right', '1px dashed #000000'),
     ]
 }
 detailed_table_styles = [header]
@@ -707,17 +710,17 @@ def create_seed_radar_grid(df, region_teams):
         st.markdown('</div>', unsafe_allow_html=True)
 
 def create_team_radar(team, dark_mode=True):
-    """Creates a radar chart for a single team with proper annotations and color"""
+    """Creates a radar chart for a single team with proper annotations and color."""
     
-    # Get team data
+    # Get team data safely
     team_name = team['TM_KP']
-    seed = int(team['SEED_25'])
+    seed = int(team['SEED_25']) if pd.notna(team['SEED_25']) else 0
     
-    # Calculate Z-scores for key metrics
+    # Define your metrics and corresponding labels
     metrics = ['TR_OEff_25', 'TR_DEff_25', 'NET_eFG%', 'NET AST/TOV RATIO', 'TTL REB%', 'STOCKS/GM']
     labels = ['Offense', 'Defense', 'Shooting', 'Ball Control', 'Rebounding', 'Stocks']
     
-    # Make sure all metrics exist
+    # Filter out metrics that are missing
     available_metrics = [m for m in metrics if m in team.index]
     available_labels = [labels[metrics.index(m)] for m in available_metrics]
     
@@ -725,51 +728,46 @@ def create_team_radar(team, dark_mode=True):
         st.markdown(f"<div style='height:200px;text-align:center;color:white;'><p>({seed}) {team_name}</p><p>No metrics available</p></div>", unsafe_allow_html=True)
         return
     
-    # Get values and compute Z-scores
+    # Calculate normalized values based on z-scores
     values = []
     for metric in available_metrics:
         if pd.notna(team[metric]):
-            # Get all values for this metric to compute z-score
             all_values = TR_df[metric].dropna()
             if len(all_values) > 0:
                 mean = all_values.mean()
                 std = all_values.std() if all_values.std() > 0 else 1
                 z_score = (team[metric] - mean) / std
-                # Cap z-scores at -3 to 3 range
+                # Cap and normalize to a 0-100 scale
                 z_score = max(min(z_score, 3), -3)
-                # Normalize to 0-100 scale
                 norm_value = (z_score + 3) * (100 / 6)
                 values.append(norm_value)
             else:
-                values.append(50)  # Default if no data
+                values.append(50)
         else:
-            values.append(50)  # Default if metric is NA
+            values.append(50)
     
-    # Team type categorization
+    # Categorize team type based on strengths
     strengths = []
-    if len(values) >= 6:  # If we have all metrics
-        if values[0] > 65 and values[2] > 65:  # Good offense and shooting
+    if len(values) >= 6:
+        if values[0] > 65 and values[2] > 65:
             strengths.append("Offensive")
-        if values[1] > 65 and values[5] > 65:  # Good defense and stocks
+        if values[1] > 65 and values[5] > 65:
             strengths.append("Defensive")
-        if values[3] > 65 and values[4] > 65:  # Good ball control and rebounding
+        if values[3] > 65 and values[4] > 65:
             strengths.append("Fundamental")
-    
     team_type = " & ".join(strengths) if strengths else "Balanced"
     
-    # Color code based on seed
+    # Color code based on seed ranges
     seed_colors = {
-        range(1, 5): "rgba(0, 255, 0, 0.7)",    # Seeds 1-4: Green
-        range(5, 9): "rgba(255, 255, 0, 0.7)",  # Seeds 5-8: Yellow
-        range(9, 13): "rgba(255, 165, 0, 0.7)", # Seeds 9-12: Orange
-        range(13, 17): "rgba(255, 0, 0, 0.7)"   # Seeds 13-16: Red
+        range(1, 5): "rgba(0, 255, 0, 0.7)",
+        range(5, 9): "rgba(255, 255, 0, 0.7)",
+        range(9, 13): "rgba(255, 165, 0, 0.7)",
+        range(13, 17): "rgba(255, 0, 0, 0.7)"
     }
-    
     color = next((c for r, c in seed_colors.items() if seed in r), "rgba(255, 255, 255, 0.7)")
     
-    # Create radar chart
+    # Create radar chart figure using Plotly
     fig = go.Figure()
-    
     fig.add_trace(go.Scatterpolar(
         r=values,
         theta=available_labels,
@@ -779,7 +777,7 @@ def create_team_radar(team, dark_mode=True):
         name=team_name
     ))
     
-    # Configure layout with dark mode if selected
+    # Configure layout for dark mode (or light mode if desired)
     bg_color = "#1E1E1E" if dark_mode else "#FFFFFF"
     text_color = "white" if dark_mode else "black"
     grid_color = "rgba(255, 255, 255, 0.1)" if dark_mode else "rgba(0, 0, 0, 0.1)"
@@ -806,7 +804,7 @@ def create_team_radar(team, dark_mode=True):
         font=dict(color=text_color)
     )
     
-    # Add seed and type annotations
+    # Add annotations for seed and team type
     fig.add_annotation(
         text=f"({seed}) {team_name}",
         xref="paper", yref="paper",
@@ -815,7 +813,6 @@ def create_team_radar(team, dark_mode=True):
         font=dict(size=14, color=text_color),
         align="center"
     )
-    
     fig.add_annotation(
         text=f"{team_type}",
         xref="paper", yref="paper",
@@ -826,6 +823,7 @@ def create_team_radar(team, dark_mode=True):
     )
     
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
 
 # ----------------------------------------------------------------------------
 # Treemap Function
@@ -1972,11 +1970,15 @@ with tab_pred:
         if viz_type == "Team Stats":
             all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
-            team_data = TR_df[TR_df['TM_KP'] == selected_team].iloc[0]
+            team_data = TR_df[TR_df["TM_KP"] == selected_team].iloc[0]
             create_team_radar(team_data, dark_mode=True)
             st.markdown("### Key Team Stats")
+            seed_str = f"{int(team_data['SEED_25'])}" if pd.notna(team_data['SEED_25']) else "N/A"
+            # Prefer REGION_25; if empty, fall back to REG_CODE_25; if both are missing, display "N/A"
+            region_str = (team_data['REGION_25'] if pd.notna(team_data['REGION_25'])
+                        else (team_data['REG_CODE_25'] if pd.notna(team_data['REG_CODE_25']) else "N/A"))
             key_stats = {
-                "Seed": f"{int(team_data['SEED_25'])} ({team_data['REGION_25']})",
+                "Seed": f"{seed_str} ({region_str})",
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
@@ -1989,11 +1991,7 @@ with tab_pred:
                     stat_col1.metric(stat, value)
                 else:
                     stat_col2.metric(stat, value)
-        else:
-            if st.button("Load Full Bracket Visualization"):
-                with st.spinner("Generating bracket visualization..."):
-                    # You may choose to call the radar grid function here as well if desired
-                    create_seed_radar_grid(df_main, region_teams)
+
 
 # with tab_pred:
 #     st.header("Bracket Simulation")
