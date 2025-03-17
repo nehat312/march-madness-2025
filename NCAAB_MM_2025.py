@@ -608,7 +608,7 @@ def create_bracket_radar_grid():
     df = TR_df.copy()
     
     # Ensure we have the necessary columns
-    if not all(col in df.columns for col in ['SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25']):
+    if not all(col in df.columns for col in ['SEED_25', 'REG_CODE_25', 'REGION_25']): #'REG_SEED_25', 
         st.error("Required columns for bracket visualization are missing")
         return
     
@@ -642,7 +642,7 @@ def create_bracket_radar_grid():
             for i, region in enumerate(regions):
                 # Find team with this seed in this region
                 team = tourney_teams[(tourney_teams['REGION_25'] == region) & 
-                                    (tourney_teams['REG_SEED_25'] == seed)]
+                                    (tourney_teams['SEED_25'] == seed)]
                 
                 if not team.empty:
                     team = team.iloc[0]
@@ -659,9 +659,9 @@ def create_bracket_radar_grid():
 def create_seed_radar_grid(df, region_teams):
     """
     Creates a 4x16 grid of radar charts, one for each region and seed.
-    Expects df to contain the following columns: 'SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25'
+    Expects df to contain the following columns: 'SEED_25', 'REG_CODE_25', 'REGION_25' #'REG_SEED_25', 
     """
-    required_cols = ['SEED_25', 'REG_SEED_25', 'REG_CODE_25', 'REGION_25']
+    required_cols = ['SEED_25', 'REG_CODE_25', 'REGION_25'] #'REG_SEED_25', 
     if not all(col in df.columns for col in required_cols):
         st.error("Required columns for bracket visualization are missing")
         return
@@ -694,7 +694,7 @@ def create_seed_radar_grid(df, region_teams):
             cols = st.columns(4)
             for i, region in enumerate(regions):
                 team = tourney_teams[(tourney_teams['REGION_25'] == region) & 
-                                     (tourney_teams['REG_SEED_25'] == seed)]
+                                     (tourney_teams['SEED_25'] == seed)]
                 if not team.empty:
                     team = team.iloc[0]
                     with cols[i]:
@@ -711,7 +711,7 @@ def create_team_radar(team, dark_mode=True):
     
     # Get team data
     team_name = team['TM_KP']
-    seed = int(team['REG_SEED_25'])
+    seed = int(team['SEED_25'])
     
     # Calculate Z-scores for key metrics
     metrics = ['TR_OEff_25', 'TR_DEff_25', 'NET_eFG%', 'NET AST/TOV RATIO', 'TTL REB%', 'STOCKS/GM']
