@@ -1416,39 +1416,60 @@ with tab_team:
         
 # --- 🔮 PREDICTIONS Tab (Bracket Simulation) ---
 # 1) Define a small helper function to color-code round logs
+# 1) Define a small helper function to color-code round logs
 def color_log_text(round_name, text):
     """Return HTML string with color-coded text for each round."""
     round_html_colors = {
-        "Round of 64":    "#3498DB",  # Blue
-        "Round of 32":    "#00CCCC",  # Cyan
-        "Sweet 16":       "#2ECC71",  # Green
-        "Elite 8":        "#F1C40F",  # Yellow
-        "Final Four":     "#9B59B6",  # Magenta
-        "Championship":   "#E74C3C",  # Red
+        "Round of 64":  "#3498DB",  # Blue
+        "Round of 32":  "#00CCCC",  # Cyan
+        "Sweet 16":     "#2ECC71",  # Green
+        "Elite 8":      "#F1C40F",  # Yellow
+        "Final Four":   "#9B59B6",  # Magenta
+        "Championship": "#E74C3C",  # Red
     }
     color_hex = round_html_colors.get(round_name, "#FFFFFF")
     return f"<span style='color:{color_hex}; font-weight:bold;'>{text}</span>"
 
-
 with tab_pred:
     st.header("Bracket Simulation")
 
-    # 2) Let the user decide if they want to see detailed logs
+    # 2) Let the user decide if they want to see detailed logs (single-run example)
     show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=False)
 
     st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-
-    if st.button("Run Bracket Simulation"):
+    
+    # 3) Single button with a unique key argument
+    if st.button("Run Bracket Simulation", key="btn_run_bracket"):
         with st.spinner("Simulating tournament..."):
-            # Run your existing simulation (100 times by default)
+            # Run your existing multi-simulation
             aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
 
         st.success("Simulation complete!")
 
-        # 3) Display aggregated simulation results as before
-        st.subheader("Championship Win Probabilities")
-        st.dataframe(aggregated_analysis['champion_probabilities'])
+        # -----------------------------------------
+        # Apply advanced styling to two result DataFrames:
+        #   (1) Championship Win Probabilities
+        #   (2) Upset Summary
+        # for consistency with the rest of the app.
+        # -----------------------------------------
 
+        # (A) Championship Win Probabilities
+        st.subheader("Championship Win Probabilities")
+        champ_df = aggregated_analysis['champion_probabilities'].copy()
+        
+        # Convert numeric columns to background gradient
+        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+        styled_champ = (
+            champ_df.style
+            .format("{:.2%}", subset=["Championship_Probability"])  # percentage style
+            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+            .set_table_styles(detailed_table_styles)
+            .set_caption("Championship Win Probabilities by Team")
+        )
+        # Render as HTML
+        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+
+        # (B) Regional Win Probabilities Chart (plotly)
         st.subheader("Regional Win Probabilities")
         if 'region_probabilities' in aggregated_analysis:
             fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
@@ -1456,31 +1477,40 @@ with tab_pred:
         else:
             st.warning("Regional win probabilities data not available.")
 
+        # (C) Upset Analysis
         st.subheader("Aggregated Upset Analysis")
         upset_summary_df = pd.DataFrame({
             'Round': aggregated_analysis['upset_pct_aggregated'].index,
             'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
         })
-        st.dataframe(upset_summary_df)
+        # Style that similarly
+        numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+        styled_upsets = (
+            upset_summary_df.style
+            .format("{:.1f}", subset=["Upset %"])
+            .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+            .set_table_styles(detailed_table_styles)
+            .set_caption("Upset Analysis by Round")
+        )
+        st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
 
-        # 4) Attempt to display the existing aggregated charts
+        # (D) Show aggregated matplotlib figure with uniform styling
         try:
             agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
-            st.pyplot(agg_viz_fig)
+            st.pyplot(agg_viz_fig, use_container_width=True)  # Pass figure explicitly
         except Exception as e:
             st.error(f"Could not generate aggregated visualizations: {e}")
 
-        # 5) If the user opted for "Detailed Logs," show game-by-game logs
+        # (E) If the user checked 'Show Detailed Logs,' run a single-sim & print logs
         if show_detailed_logs:
-            # Just re-run a SINGLE simulation to produce logs below (less clutter).
             st.info("Detailed logs below show one example simulation’s game outcomes:")
             single_run_results = run_simulation(use_analytics=True, simulations=1)[0]
             detailed_games = single_run_results["all_games"]
 
             st.write("---")
-            st.write("### Detailed Game Outcomes:")
+            st.write("### Detailed Game Outcomes (Single Simulation):")
 
-            # Print each round's outcome in color
+            # Print each round's outcome in color-coded HTML
             for gm in detailed_games:
                 round_label   = gm["round_name"]
                 t1, t2        = gm["team1"], gm["team2"]
@@ -1488,12 +1518,11 @@ with tab_pred:
                 prob_to_win   = gm["win_prob"]
                 colored_label = color_log_text(round_label, f"[{round_label}]")
 
-                # Mark upsets for emphasis:
+                # Mark upsets for emphasis
                 upset_flag = ""
                 if gm["winner_seed"] > min(gm["seed1"], gm["seed2"]):
                     upset_flag = "<b>(UPSET!)</b>"
 
-                # Build final line with color-coded round name
                 line_html = (
                     f"{colored_label} &nbsp;"
                     f"{t1} vs. {t2} → "
@@ -1501,45 +1530,44 @@ with tab_pred:
                     f"<small>(win prob {prob_to_win:.1%})</small> "
                     f"{upset_flag}"
                 )
-
                 st.markdown(line_html, unsafe_allow_html=True)
 
 
-with tab_pred:
-    st.header("Bracket Simulation")
-    st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-    if st.button("Run Bracket Simulation"):
-        with st.spinner("Simulating tournament..."):
-            # Run simulation (using 100 simulations as an example; adjust as needed)
-            aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
-        st.success("Simulation complete!")
+# with tab_pred:
+#     st.header("Bracket Simulation")
+#     st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
+#     if st.button("Run Bracket Simulation"):
+#         with st.spinner("Simulating tournament..."):
+#             # Run simulation (using 100 simulations as an example; adjust as needed)
+#             aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
+#         st.success("Simulation complete!")
         
-        # Display Championship Win Probabilities as a styled table
-        st.subheader("Championship Win Probabilities")
-        st.dataframe(aggregated_analysis['champion_probabilities'])
+#         # Display Championship Win Probabilities as a styled table
+#         st.subheader("Championship Win Probabilities")
+#         st.dataframe(aggregated_analysis['champion_probabilities'])
         
-        # Display Regional Win Probabilities as a 2x2 subplot chart for all four regions
-        st.subheader("Regional Win Probabilities")
-        if 'region_probabilities' in aggregated_analysis:
-            fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
-            st.plotly_chart(fig_regional, use_container_width=True)
-        else:
-            st.warning("Regional win probabilities data not available.")
+#         # Display Regional Win Probabilities as a 2x2 subplot chart for all four regions
+#         st.subheader("Regional Win Probabilities")
+#         if 'region_probabilities' in aggregated_analysis:
+#             fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
+#             st.plotly_chart(fig_regional, use_container_width=True)
+#         else:
+#             st.warning("Regional win probabilities data not available.")
         
-        # Display Aggregated Upset Analysis as a table
-        st.subheader("Aggregated Upset Analysis")
-        upset_summary_df = pd.DataFrame({
-            'Round': aggregated_analysis['upset_pct_aggregated'].index,
-            'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
-        })
-        st.dataframe(upset_summary_df)
+#         # Display Aggregated Upset Analysis as a table
+#         st.subheader("Aggregated Upset Analysis")
+#         upset_summary_df = pd.DataFrame({
+#             'Round': aggregated_analysis['upset_pct_aggregated'].index,
+#             'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
+#         })
+#         st.dataframe(upset_summary_df)
         
-        # Additional aggregated visualizations (if available)
-        try:
-            agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
-            st.pyplot(agg_viz_fig)
-        except Exception as e:
-            st.error(f"Could not generate aggregated visualizations: {e}")
+#         # Additional aggregated visualizations (if available)
+#         try:
+#             agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
+#             st.pyplot(agg_viz_fig)
+#         except Exception as e:
+#             st.error(f"Could not generate aggregated visualizations: {e}")
 
 
 if FinalFour25_logo:
