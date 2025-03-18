@@ -1691,7 +1691,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
         champions[champ_team]['count'] += 1
     
     # Convert to DataFrame
-    champ_data =
+    champ_data = []
     for team, data in champions.items():
         champ_data.append({
             'Team': data['team'],
@@ -1717,7 +1717,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
             region_champions[region][team] += 1
     
     # Convert to DataFrame
-    region_data =
+    region_data = []
     for region, teams in region_champions.items():
         for team, count in teams.items():
             region_data.append({
@@ -1731,7 +1731,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
     region_df = region_df.sort_values(['Region', 'Count'], ascending=[True, False])
     
     # Analyze upsets
-    all_games =
+    all_games = []
     for sim in all_sim_results:
         all_games.extend(sim.get('all_games',))
     
@@ -2539,7 +2539,7 @@ with tab_pred:
         if 'aggregated_analysis' not in st.session_state:
             st.session_state['aggregated_analysis'] = {}
         if 'single_sim_results' not in st.session_state:
-            st.session_state['single_sim_results'] =
+            st.session_state['single_sim_results'] = []
         
 
         # Run the simulation when the button is clicked
