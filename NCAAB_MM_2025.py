@@ -1471,64 +1471,107 @@ with tab_home:
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-        st.subheader("🔍 Team Spotlight", divider='grey')
-        selected_team = st.selectbox(
-            "Select a team to view detailed metrics:",
-            options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-            index=0
-        )
-        if selected_team:
-            team_data = df_main[df_main["TM_KP"] == selected_team].copy()
-            if not team_data.empty:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"### {selected_team}")
-                    conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
-                    record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
-                    seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}" if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]) else ""
-                    kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}" if "KP_Rank" in team_data.columns else ""
+    
+    st.subheader("🔍 Team Spotlight", divider='grey')
+    selected_team = st.selectbox(
+        "Select a team to view detailed metrics:",
+        options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
+        index=0
+    )
+
+    if selected_team:
+        team_data = df_main[df_main["TM_KP"] == selected_team].copy()
+        if not team_data.empty:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"### {selected_team}")
+                conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+                record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
+                seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}" if "SEED_25" in team_data.columns and not pd.isna(team_data['SEED_25'].iloc[0]) else ""
+                kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}" if "KP_Rank" in team_data.columns else ""
+
+                st.markdown(f"""
+                **Conference:** {conf}  
+                **Record:** {record}  
+                {seed_info}  
+                {kp_rank}
+                """)
+
+                # Overall performance badge (existing logic)
+                if all(m in team_data.columns for m in get_default_metrics()):
+                    t_avgs, t_stdevs = compute_tournament_stats(df_main)
+                    perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
                     st.markdown(f"""
-                    **Conference:** {conf}  
-                    **Record:** {record}  
-                    {seed_info}  
-                    {kp_rank}
-                    """)
-                    if all(m in team_data.columns for m in get_default_metrics()):
-                        t_avgs, t_stdevs = compute_tournament_stats(df_main)
-                        perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
-                        st.markdown(f"""
-                        <div style='text-align: center; margin: 20px 0;'>
-                            <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
-                                Overall Rating: {perf_data["text"]}
-                            </span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                with col2:
-                    key_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"]
-                    available_metrics = [m for m in key_metrics if m in team_data.columns]
-                    if available_metrics:
-                        radar_fig = create_radar_chart([selected_team], df_main)
-                        if radar_fig:
-                            st.plotly_chart(radar_fig, use_container_width=True)
-                with st.expander("View All Team Metrics"):
-                    detailed_metrics = [
-                        "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
-                        "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
-                        "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
-                        "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
-                        "AST/GM", "TO/GM", "AST/TO%", 
-                        "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", "STOCKS/GM", "STOCKS-TOV/GM"
-                    ]
-                    available_detailed = [m for m in detailed_metrics if m in team_data.columns]
-                    detail_df = team_data[available_detailed].T.reset_index()
-                    detail_df.columns = ["Metric", "Value"]
-                    detail_df["Value"] = detail_df.apply(
-                        lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'],
-                        axis=1
-                    )
-                    st.table(detail_df)
-            else:
-                st.warning("No data available for the selected team.")
+                    <div style='text-align: center; margin: 20px 0;'>
+                        <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                            Overall Rating: {perf_data["text"]}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # (New) "Interpretive Insights" block
+                # Provide a short textual breakdown of how the team compares to NCAA average
+                radar_metrics = get_default_metrics()  # e.g. ['AVG MARGIN','KP_AdjEM','OFF EFF','DEF EFF','AST/TO%','STOCKS-TOV/GM']
+                existing_metrics = [m for m in radar_metrics if m in team_data.columns]
+                if existing_metrics:
+                    with st.expander("📊 Interpretive Insights"):
+                        insights = []
+                        # For each metric, compare to NCAA average & append text
+                        for metric in existing_metrics:
+                            mean_val = t_avgs[metric]
+                            std_val = max(t_stdevs[metric], 1e-6)  # avoid zero-div
+                            team_val = team_data.iloc[0][metric]
+                            z = (team_val - mean_val) / std_val
+                            # Flip sign for metrics like 'DEF EFF' if you want lower=better
+                            if metric in ["DEF EFF", "TO/GM"]:
+                                z = -z
+
+                            # Build short snippet about each metric
+                            if abs(z) < 0.3:
+                                insights.append(f"**{metric}** is near the NCAA average.")
+                            elif z >= 1.0:
+                                insights.append(f"**{metric}** is a clear strength (top tier).")
+                            elif 0.3 <= z < 1.0:
+                                insights.append(f"**{metric}** is somewhat above average.")
+                            elif -1.0 < z <= -0.3:
+                                insights.append(f"**{metric}** is somewhat below average.")
+                            else:
+                                insights.append(f"**{metric}** is a notable weakness (bottom tier).")
+
+                        # Display insights as bullet points
+                        st.markdown("**Team Metric Highlights:**")
+                        for line in insights:
+                            st.write(f"- {line}")
+                        
+            with col2:
+                # Radar chart of the selected team
+                key_metrics = ["KP_AdjEM", "OFF EFF", "DEF EFF", "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"]
+                available_metrics = [m for m in key_metrics if m in team_data.columns]
+                # Reuse your existing create_radar_chart function if desired:
+                radar_fig = create_radar_chart([selected_team], df_main)
+                if radar_fig:
+                    st.plotly_chart(radar_fig, use_container_width=True)
+            
+            with st.expander("View All Team Metrics"):
+                detailed_metrics = [
+                    "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
+                    "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
+                    "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
+                    "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+                    "AST/GM", "TO/GM", "AST/TO%", 
+                    "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
+                    "STOCKS/GM", "STOCKS-TOV/GM"
+                ]
+                available_detailed = [m for m in detailed_metrics if m in team_data.columns]
+                detail_df = team_data[available_detailed].T.reset_index()
+                detail_df.columns = ["Metric", "Value"]
+                detail_df["Value"] = detail_df.apply(
+                    lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'],
+                    axis=1
+                )
+                st.table(detail_df)
+        else:
+            st.warning("No data available for the selected team.")
     
     
     # Style for the index (RANK)
@@ -1689,7 +1732,6 @@ with tab_radar:
 #             st.warning("Team names not available in dataset.")
 
 # --- Regional Heatmaps Tab ---
-# --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header("BRACKET ANALYSIS")
     st.write("REGIONAL HEATFRAMES (W, X, Y, Z)")
@@ -1699,7 +1741,7 @@ with tab_regions:
     mean_series = mean_series.reindex(df_heat.columns, fill_value=np.nan)
     df_heat.loc["TOURNEY AVG"] = mean_series
     df_heat_T = df_heat.T
-    df_heat_T = df_heat_T[core_cols]
+    #df_heat_T = df_heat_T[core_cols]
 
     east_teams_2025 = [
         "Duke", "Alabama", "Iowa St.", "Maryland",
