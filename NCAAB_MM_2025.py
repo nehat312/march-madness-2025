@@ -1775,7 +1775,7 @@ with tab_home:
             conf_stats.columns = [
                 "CONFERENCE",
                 "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-                "# BIDS", "SEED_25", "MEAN NET_25",
+                "# BIDS", "MEAN SEED_25", "MEAN NET_25",
                 #"AVG TR_OEff_25", "AVG TR_DEff_25",
                 "MEAN WIN %", "MEAN AVG MARGIN",
                 "MEAN eFG%",
@@ -1814,8 +1814,8 @@ with tab_home:
                 "MEAN AdjEM": "{:.2f}",
                 "MIN AdjEM": "{:.2f}",
                 "MAX AdjEM": "{:.2f}",
-                "AVG SEED_25": "{:.1f}",
-                "AVG NET_25": "{:.1f}",
+                "MEAN SEED_25": "{:.1f}",
+                "MEAN NET_25": "{:.1f}",
 
                 #"AVG TR_OEff_25": "{:.1f}",
                 #"AVG TR_DEff_25": "{:.1f}",
@@ -1836,7 +1836,7 @@ with tab_home:
                 "MEAN AST/TO%", "MEAN STOCKS/GM", #"MEAN STOCKS-TOV/GM",
                 
             ])
-            .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25",
+            .background_gradient(cmap="RdYlGn_r", subset=["MEAN SEED_25", "MEAN NET_25",
                                                           #"AVG TR_DEff_25",
                                                           ])
             .set_table_styles(detailed_table_styles)
