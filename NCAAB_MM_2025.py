@@ -1691,7 +1691,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
         champions[champ_team]['count'] += 1
     
     # Convert to DataFrame
-    champ_data = []
+    champ_data =
     for team, data in champions.items():
         champ_data.append({
             'Team': data['team'],
@@ -1703,22 +1703,6 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
     champ_df = pd.DataFrame(champ_data)
     champ_df = champ_df.sort_values('Championship_Count', ascending=False).reset_index(drop=True)
     
-    champ_df = aggregated_analysis['champion_probabilities'].copy()
-
-    # Check if 'champ_df' is empty or missing the Championship_Probability column
-    if champ_df.empty or 'Championship_Probability' not in champ_df.columns:
-        st.warning("No simulation results found. Possibly a region does not have 16 teams.")
-    else:
-        # Proceed with styling safely
-        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
-        styled_champ = (
-            champ_df.style
-            .format("{:.2%}", subset=["Championship_Probability"])
-            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
-            .set_table_styles(detailed_table_styles)
-            .set_caption("Championship Win Probabilities by Team")
-        )
-        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
 
     # Collect regional champions
     region_champions = {}
@@ -1733,7 +1717,7 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
             region_champions[region][team] += 1
     
     # Convert to DataFrame
-    region_data = []
+    region_data =
     for region, teams in region_champions.items():
         for team, count in teams.items():
             region_data.append({
@@ -1747,9 +1731,9 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
     region_df = region_df.sort_values(['Region', 'Count'], ascending=[True, False])
     
     # Analyze upsets
-    all_games = []
+    all_games =
     for sim in all_sim_results:
-        all_games.extend(sim.get('all_games', []))
+        all_games.extend(sim.get('all_games',))
     
     # Count upsets by round
     upsets_by_round = {}
@@ -2550,12 +2534,13 @@ with tab_pred:
         # Set the checkbox default to True so logs appear by default
         show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=True)
         st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-
+        
         # Initialize st.session_state variables if they don't exist
         if 'aggregated_analysis' not in st.session_state:
             st.session_state['aggregated_analysis'] = {}
         if 'single_sim_results' not in st.session_state:
             st.session_state['single_sim_results'] =
+        
 
         # Run the simulation when the button is clicked
         if st.button("Run Bracket Simulation", key="btn_run_bracket"):
