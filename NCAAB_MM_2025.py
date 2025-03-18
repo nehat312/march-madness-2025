@@ -452,10 +452,10 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
         template='plotly_dark',
         font=dict(family="Arial, sans-serif", size=12),
         showlegend=show_legend,
-        margin=dict(l=20, r=20, t=60, b=20),
+        margin=dict(l=20, r=20, t=30, b=20),
         paper_bgcolor="rgba(0,0,0,0.8)",
         plot_bgcolor="rgba(0,0,0,0.8)",
-        height=350,
+        height=400,
     )
     fig.update_polars(
         radialaxis=dict(
@@ -504,14 +504,14 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
     seed_str = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
         seed_str = f"#{int(team_row['SEED_25'])} | "
-    team_str = f"{seed_str}{team_row.name}{team_row.get('CONFERENCE','')}"
+    team_str = f"{seed_str}{team_row.name} | {team_row.get('REGION_25','')} | {team_row.get('CONFERENCE','')}"
     if not is_subplot:
         fig.add_annotation(
             text=team_str,
             x=0.5, y=1.08,
             xref="paper", yref="paper",
             showarrow=False,
-            font=dict(size=14, color="white"),
+            font=dict(size=15, color="white"),
             align="center"
         )
     return fig
