@@ -1759,7 +1759,7 @@ with tab_home:
             conf_stats = df_main.groupby("CONFERENCE").agg( # Aggregate multiple stats at once
                 {
                     "KP_AdjEM": ["count", "max", "mean", "min"],
-                    "SEED_25": "mean",
+                    "SEED_25": ["count", "mean"],
                     "NET_25": "mean",
                     #"BPI_25": "mean", "BPI_Rank": "mean",
                     #"TR_OEff_25": "mean", #"TR_DEff_25": "mean",
