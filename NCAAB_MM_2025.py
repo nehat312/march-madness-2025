@@ -1486,7 +1486,7 @@ def run_simulation(use_analytics=True, simulations=1):
     for sim in range(simulations):
         region_results = {}
         region_champions = {}
-        all_games =
+        all_games = []
 
         # Validate regions
         valid_regions = [reg for reg in region_names if region_teams.get(reg) and len(region_teams.get(reg)) == 16]
@@ -1521,7 +1521,7 @@ def run_simulation(use_analytics=True, simulations=1):
         semifinal_pairs = [(semifinal_regions[0], semifinal_regions[1]),
                            (semifinal_regions[2], semifinal_regions[3])]
         semifinal_results = {}
-        final_four_winners =
+        final_four_winners = []
 
         for idx, (regA, regB) in enumerate(semifinal_pairs, start=1):
             team1 = region_champions[regA]
