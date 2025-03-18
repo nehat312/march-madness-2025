@@ -146,7 +146,6 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "KP_Rank", "NET_25", "SEED_25", 'REGION_25',
              "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
              "KP_AdjO", "KP_AdjD",
-             #"TR_ORk_25", "TR_DRk_25",  
              "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
              "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
              "OFF REB/GM", "DEF REB/GM",
@@ -259,14 +258,14 @@ conference_logo_map = {"A10": A10_logo, "ACC": ACC_logo, "Amer": AAC_logo, "AE":
                        }
 
 #####################################
-def image_to_base64(img_obj):
+def image_to_base64(img_obj):  # Convert PIL Image to base64
     if img_obj is None:
         return None
     with BytesIO() as buffer:
         img_obj.save(buffer, format="PNG")
         return base64.b64encode(buffer.getvalue()).decode()
 
-def get_conf_logo_html(conf_name):
+def get_conf_logo_html(conf_name):  # Return HTML <img> + conference name for table column 
     img_obj = conference_logo_map.get(conf_name, None)
     if img_obj:
         encoded = image_to_base64(img_obj)
@@ -301,6 +300,9 @@ detailed_table_styles = [header]
 # ----------------------------------------------------------------------------
 # Radar Chart Functions
 def get_default_metrics():
+    """
+    Return metrics to be used in radar charts z-score logic.
+    """
     return [
         'AVG MARGIN',
         'KP_AdjEM',
@@ -311,12 +313,18 @@ def get_default_metrics():
     ]
 
 def compute_tournament_stats(df):
+    """
+    Compute overall average and standard deviation for radar metrics used to scale z-scores.
+    """
     metrics = get_default_metrics()
     avgs = {m: df[m].mean() for m in metrics if m in df.columns}
     stdevs = {m: df[m].std() for m in metrics if m in df.columns}
     return avgs, stdevs
 
 def compute_performance_text(team_row, t_avgs, t_stdevs):
+    """
+    Return a performance rating dict containing text and CSS badge class based on the average z-score.
+    """
     metrics = get_default_metrics()
     z_vals = []
     for m in metrics:
@@ -341,6 +349,12 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         return {"text": "WEAK", "class": "badge-weak"}
 
 def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
+    """
+    Returns three Scatterpolar traces for:
+      1) TEAM performance,
+      2) National average (flat line at 5),
+      3) Conference average.
+    """
     metrics = get_default_metrics()
     available_metrics = [m for m in metrics if m in team_row.index and m in t_avgs]
     if not available_metrics:
@@ -355,6 +369,8 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     scale_factor = 1.5
     scaled_team = [min(max(5 + z * scale_factor, 0), 10) for z in z_scores]
     scaled_ncaam = [5] * len(available_metrics)
+    
+    # Compute conference scaled values if available
     conf = team_row['CONFERENCE'] if 'CONFERENCE' in team_row else None
     if conf and not conf_df.empty:
         conf_vals = []
@@ -371,14 +387,19 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
         scaled_conf = [min(max(5 + z * scale_factor, 0), 10) for z in conf_vals]
     else:
         scaled_conf = [5] * len(available_metrics)
+    
+    # Close the loop on the metrics
     metrics_circ = available_metrics + [available_metrics[0]]
     team_scaled_circ = scaled_team + [scaled_team[0]]
     ncaam_scaled_circ = scaled_ncaam + [scaled_ncaam[0]]
     conf_scaled_circ = scaled_conf + [scaled_conf[0]]
+    
+    # Append seed info if available for hover text
     seed_info = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
         seed_info = f"(Seed {int(team_row['SEED_25'])})"
     team_name = f"{team_row.name} {seed_info}".strip()
+    
     trace_team = go.Scatterpolar(
         r=team_scaled_circ,
         theta=metrics_circ,
@@ -411,16 +432,26 @@ def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     )
     return [trace_team, trace_ncaam, trace_conf]
 
-def create_single_radar_chart(team_row, full_df, key=None):
-    if team_row is None or team_row.empty:
-        st.warning("No data found for this team.")
-        return
+# UPDATED: Always create the figure using make_subplots so that row/col references work.
+def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=None, subplot_col=None):
+    """
+    Creates a Plotly radar chart figure (or adds traces to a subplot).
+    Always uses make_subplots to create a grid so that row and col can be referenced.
+    """
     t_avgs, t_stdevs = compute_tournament_stats(full_df)
+    conf = team_row.get('CONFERENCE', None)
+    if conf:
+        conf_df = full_df[full_df['CONFERENCE'] == conf]
+    else:
+        conf_df = pd.DataFrame()
+    show_legend = not is_subplot
+    traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
+    # Always use make_subplots for a 1x1 grid
     fig = make_subplots(rows=1, cols=1, specs=[[{'type': 'polar'}]])
     fig.update_layout(
         template='plotly_dark',
         font=dict(family="Arial, sans-serif", size=12),
-        showlegend=False,
+        showlegend=show_legend,
         margin=dict(l=20, r=20, t=60, b=20),
         paper_bgcolor="rgba(0,0,0,0.8)",
         plot_bgcolor="rgba(0,0,0,0.8)",
@@ -444,90 +475,6 @@ def create_single_radar_chart(team_row, full_df, key=None):
         ),
         bgcolor="rgba(0,0,0,0.8)"
     )
-    conf = team_row.get('CONFERENCE', None)
-    if conf:
-        conf_df = full_df[full_df['CONFERENCE'] == conf]
-    else:
-        conf_df = pd.DataFrame()
-    show_legend = False
-    traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
-    for tr in traces:
-        fig.add_trace(tr, row=1, col=1)
-    perf_data = compute_performance_text(team_row, t_avgs, t_stdevs)
-    fig.add_annotation(
-        x=0.01,
-        y=0.99,
-        xref="paper",
-        yref="paper",
-        text=f"<b>{perf_data['text']}</b>",
-        showarrow=False,
-        font=dict(size=14, color="black"),
-        bgcolor={
-            "badge-elite": "gold",
-            "badge-solid": "#4CAF50",
-            "badge-mid": "#2196F3",
-            "badge-subpar": "#FF9800",
-            "badge-weak": "#F44336"
-        }.get(perf_data['class'], "#2196F3"),
-        bordercolor="white",
-        borderwidth=1.5,
-        borderpad=4,
-        opacity=0.9
-    )
-    seed_str = ""
-    if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
-        seed_str = f"(Seed {int(team_row['SEED_25'])}) "
-    team_str = f"{seed_str}{team_row.name}"
-    fig.add_annotation(
-        text=team_str,
-        x=0.5, y=1.08,
-        xref="paper", yref="paper",
-        showarrow=False,
-        font=dict(size=14, color="white"),
-        align="center"
-    )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
-
-def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=None, subplot_col=None):
-    t_avgs, t_stdevs = compute_tournament_stats(full_df)
-    conf = team_row.get('CONFERENCE', None)
-    if conf:
-        conf_df = full_df[full_df['CONFERENCE'] == conf]
-    else:
-        conf_df = pd.DataFrame()
-    show_legend = not is_subplot
-    traces = get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=show_legend)
-    if not is_subplot:
-        fig = make_subplots(rows=1, cols=1, specs=[[{'type': 'polar'}]])
-        fig.update_layout(
-            template='plotly_dark',
-            font=dict(family="Arial, sans-serif", size=12),
-            showlegend=False,
-            margin=dict(l=20, r=20, t=60, b=20),
-            paper_bgcolor="rgba(0,0,0,0.8)",
-            plot_bgcolor="rgba(0,0,0,0.8)",
-            height=350,
-        )
-        fig.update_polars(
-            radialaxis=dict(
-                tickmode='array',
-                tickvals=[0, 2, 4, 6, 8, 10],
-                ticktext=['0', '2', '4', '6', '8', '10'],
-                tickfont=dict(size=11, family="Arial, sans-serif"),
-                showline=False,
-                gridcolor='rgba(255,255,255,0.2)',
-            ),
-            angularaxis=dict(
-                tickfont=dict(size=12, family="Arial, sans-serif", color="white"),
-                tickangle=0,
-                showline=False,
-                gridcolor='rgba(255,255,255,0.2)',
-                linecolor='rgba(255,255,255,0.2)'
-            ),
-            bgcolor="rgba(0,0,0,0.8)"
-        )
-    else:
-        fig = go.Figure()
     for tr in traces:
         if is_subplot:
             fig.add_trace(tr, row=subplot_row, col=subplot_col)
@@ -557,7 +504,7 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
     seed_str = ""
     if 'SEED_25' in team_row and pd.notna(team_row['SEED_25']):
         seed_str = f"#{int(team_row['SEED_25'])} | "
-    team_str = f"{seed_str}{team_row.name}{team_row['CONFERENCE']}"
+    team_str = f"{seed_str}{team_row.name}{team_row.get('CONFERENCE','')}"
     if not is_subplot:
         fig.add_annotation(
             text=team_str,
@@ -568,6 +515,13 @@ def create_radar_chart_figure(team_row, full_df, is_subplot=False, subplot_row=N
             align="center"
         )
     return fig
+
+def create_single_radar_chart(team_row, full_df, key=None):
+    if team_row is None or team_row.empty:
+        st.warning("No data found for this team.")
+        return
+    fig = create_radar_chart_figure(team_row, full_df)
+    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
 
 def create_radar_chart(selected_teams, full_df):
     metrics = get_default_metrics()
@@ -583,7 +537,6 @@ def create_radar_chart(selected_teams, full_df):
     fig_height = 500 if n_teams <= 2 else (900 if n_teams <= 4 else 1100)
     row_count = 1 if n_teams <= 4 else 2
     col_count = n_teams if row_count == 1 else min(4, math.ceil(n_teams / 2))
-    
     subplot_titles = []
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
@@ -593,7 +546,6 @@ def create_radar_chart(selected_teams, full_df):
             seed_str = f" - Seed {int(row['SEED_25'])}"
         perf_data = compute_performance_text(row, t_avgs, t_stdevs)
         subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
-    
     fig = make_subplots(
         rows=row_count,
         cols=col_count,
@@ -637,7 +589,6 @@ def create_radar_chart(selected_teams, full_df):
         ),
         bgcolor="rgba(0,0,0,0.8)"
     )
-    
     for idx, team_row in subset.iterrows():
         r = idx // col_count + 1
         c = idx % col_count + 1
@@ -1006,7 +957,6 @@ def create_treemap(df_notnull):
 
 # --- Simulation Functions ---
 
-# Set up logging for simulation (suppress detailed logs in Streamlit)
 sim_logger = logging.getLogger("simulation")
 if sim_logger.hasHandlers():
     sim_logger.handlers.clear()
@@ -1101,8 +1051,8 @@ def calculate_win_probability(team1, team2):
     weight_matchup = 0.5
     weight_exp = 0.2
     combined_factor = (weight_kp * kp_diff +
-                       weight_matchup * matchup_adv +
-                       weight_exp * exp_diff)
+                      weight_matchup * matchup_adv +
+                      weight_exp * exp_diff)
     base_prob = 1 / (1 + np.exp(-0.1 * combined_factor))
     seed_diff = team2['Seed'] - team1['Seed']
     if seed_diff > 0:
@@ -1208,8 +1158,8 @@ def run_simulation(use_analytics=True, simulations=1):
             continue
         sim_result = {
             'region_champions': region_champions,
-            'semifinal_results': {},  # To be computed later
-            'champion': None,         # To be computed later
+            'semifinal_results': {},
+            'champion': None,
             'all_games': all_games,
             'simulation_number': sim + 1
         }
@@ -1381,7 +1331,11 @@ def visualize_aggregated_results(aggregated_analysis):
             "Elite 8", "Final Four", "Championship"
         ]
         ordered_pct = pd.Series({r: upset_pct.get(r, 0) for r in round_order if r in upset_pct.index})
-        bars = ax2.bar(ordered_pct.index, ordered_pct.values, color=plt.cm.viridis(np.linspace(0, 1, len(ordered_pct))))
+        bars = ax2.bar(
+            ordered_pct.index,
+            ordered_pct.values,
+            color=plt.cm.viridis(np.linspace(0, 1, len(ordered_pct)))
+        )
         for bar in bars:
             height = bar.get_height()
             ax2.text(
@@ -1521,11 +1475,13 @@ with tab_home:
                     available_detailed = [m for m in detailed_metrics if m in team_data.columns]
                     detail_df = team_data[available_detailed].T.reset_index()
                     detail_df.columns = ["Metric", "Value"]
-                    detail_df["Value"] = detail_df.apply(lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'], axis=1)
+                    detail_df["Value"] = detail_df.apply(
+                        lambda x: f"{x['Value']:.1f}" if isinstance(x['Value'], float) else x['Value'],
+                        axis=1
+                    )
                     st.table(detail_df)
             else:
                 st.warning("No data available for the selected team.")
-    
     index_style = {
         'selector': '.row_heading.level0',
         'props': [
@@ -1536,7 +1492,6 @@ with tab_home:
             ('border', '1px solid #000000'),
         ]
     }
-    
     cell_style = {
         'selector': 'tbody td',
         'props': [
@@ -1545,25 +1500,24 @@ with tab_home:
             ('padding', '5px 10px'),
         ]
     }
-
     adj_em_group_style = {
         'selector': 'th.col_heading.level0.col2, th.col_heading.level0.col3, th.col_heading.level0.col4',
         'props': [
             ('border-right', '3px solid #888'),
         ]
     }
-
     detailed_table_styles = [header, index_style, cell_style, adj_em_group_style]
-
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["CONFERENCE", "# TEAMS"]
         if "KP_AdjEM" in df_main.columns:
-            conf_stats = df_main.groupby("CONFERENCE").agg({
+            conf_stats = df_main.groupby("CONFERENCE").agg(
+                {
                     "KP_AdjEM": ["count", "max", "mean", "min"],
                     "SEED_25": "mean",
                     "NET_25": "mean",
-                }).reset_index()
+                }
+            ).reset_index()
             conf_stats.columns = [
                 "CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
                 "AVG SEED_25", "AVG NET_25",
@@ -1591,7 +1545,9 @@ with tab_home:
                 "AVG SEED_25": "{:.1f}",
                 "AVG NET_25": "{:.1f}",
             })
-            .background_gradient(cmap="RdYlGn", subset=["MEAN AdjEM", "MIN AdjEM", "MAX AdjEM"])
+            .background_gradient(cmap="RdYlGn", subset=[
+                "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
+            ])
             .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25"])
             .set_table_styles(detailed_table_styles)
         )
@@ -1806,7 +1762,7 @@ with tab_team:
                     "TS%": "RdBu", 
                     "OPP TS%": "RdBu_r",
                     "AST/TO%": "RdBu",
-                    "STOCKS/GM": "RdBu", 
+                    "STOCKS/GM": "RdBu"
                 }
                 styled_table = display_df.style.format({col: fmt for col, fmt in format_dict.items() if col in display_df.columns})
                 for col, cmap in color_scales.items():
@@ -1928,9 +1884,17 @@ with tab_team:
         """)
         
 # --- PREDICTIONS Tab (Bracket Simulation) ---
-# Initialize simulation session state if not already set
-if 'simulation_results' not in st.session_state:
-    st.session_state.simulation_results = {}
+def color_log_text(round_name, text):
+    round_html_colors = {
+        "Round of 64":  "#3498DB",
+        "Round of 32":  "#00CCCC",
+        "Sweet 16":     "#2ECC71",
+        "Elite 8":      "#F1C40F",
+        "Final Four":   "#9B59B6",
+        "Championship": "#E74C3C",
+    }
+    color_hex = round_html_colors.get(round_name, "#FFFFFF")
+    return f"<span style='color:{color_hex}; font-weight:bold;'>{text}</span>"
 
 with tab_pred:
     st.header("Bracket Simulation")
@@ -1940,8 +1904,8 @@ with tab_pred:
         st.write("Unique seeds in df_main:", sorted(df_main["SEED_25"].unique()))
         st.write("Unique regions in df_main:", df_main["REGION_25"].unique())
         st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-        
-        # Run simulation button
+        if 'simulation_results' not in st.session_state:
+            st.session_state.simulation_results = {}
         if st.button("Run Bracket Simulation", key="btn_run_bracket"):
             with st.spinner("Simulating tournament..."):
                 st.session_state.simulation_results['aggregated_analysis'] = run_tournament_simulation(num_simulations=100, use_analytics=True)
@@ -1956,9 +1920,6 @@ with tab_pred:
                 st.write("Length of single_sim_results:", len(st.session_state.simulation_results['single_sim_results']))
                 if len(st.session_state.simulation_results['single_sim_results']) > 0:
                     st.write("Keys in single_sim_results[0]:", st.session_state.simulation_results['single_sim_results'][0].keys())
-        
-        # Display aggregated simulation results if available
-        if st.session_state.simulation_results.get('aggregated_analysis'):
             st.subheader("Championship Win Probabilities")
             try:
                 champ_df = st.session_state.simulation_results['aggregated_analysis']['champion_probabilities'].copy()
@@ -1978,7 +1939,6 @@ with tab_pred:
                 st.error("KeyError: 'champion_probabilities' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Championship Win Probabilities: {e}")
-            
             st.subheader("Regional Win Probabilities")
             try:
                 region_probabilities = st.session_state.simulation_results['aggregated_analysis'].get('region_probabilities')
@@ -1991,46 +1951,46 @@ with tab_pred:
                 st.error("KeyError: 'region_probabilities' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Regional Win Probabilities: {e}")
-            
             st.subheader("Aggregated Upset Analysis")
             try:
                 upset_pct_aggregated = st.session_state.simulation_results['aggregated_analysis'].get('upset_pct_aggregated')
                 if upset_pct_aggregated is not None:
-                    upset_summary_df = pd.DataFrame({
-                        'Round': upset_pct_aggregated.index,
-                        'Upset %': upset_pct_aggregated.values.round(1)
-                    })
-                    numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
-                    styled_upsets = (
-                        upset_summary_df.style
-                        .format("{:.1f}", subset=["Upset %"])
-                        .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
-                        .set_table_styles(detailed_table_styles)
-                        .set_caption("Upset Analysis by Round")
-                    )
-                    st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+                  upset_summary_df = pd.DataFrame({
+                      'Round': upset_pct_aggregated.index,
+                      'Upset %': upset_pct_aggregated.values.round(1)
+                  })
+                  numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+                  styled_upsets = (
+                      upset_summary_df.style
+                      .format("{:.1f}", subset=["Upset %"])
+                      .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+                      .set_table_styles(detailed_table_styles)
+                      .set_caption("Upset Analysis by Round")
+                  )
+                  st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
                 else:
                     st.warning("Upset analysis data not available.")
             except KeyError:
                 st.error("KeyError: 'upset_pct_aggregated' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Upset Analysis: {e}")
-            
-            st.subheader("Aggregated Visualization")
             try:
                 agg_viz_fig = visualize_aggregated_results(st.session_state.simulation_results['aggregated_analysis'])
                 st.pyplot(agg_viz_fig, use_container_width=True)
             except KeyError:
-                st.error("KeyError: 'aggregated_analysis' not found in st.session_state.simulation_results.")
+                 st.error("KeyError: 'aggregated_analysis' not found in st.session_state.simulation_results.")
             except Exception as e:
                 st.error(f"Could not generate aggregated visualizations: {e}")
-            
-            if st.session_state.simulation_results.get('single_sim_results'):
-                st.info("Detailed game outcomes for a single simulation run:")
-                display_simulation_results(st.session_state.simulation_results['single_sim_results'], st)
-        else:
-            st.info("No simulation results available. Click 'Run Bracket Simulation' to begin.")
-    
+            try:
+                if st.session_state.simulation_results['single_sim_results']:
+                    st.info("Detailed game outcomes for a single simulation run:")
+                    display_simulation_results(st.session_state.simulation_results['single_sim_results'], st)
+                else:
+                    st.warning("No single simulation results to display.")
+            except KeyError:
+                st.error("KeyError: 'single_sim_results' not found in st.session_state.simulation_results.")
+            except Exception as e:
+                st.error(f"Error displaying detailed simulation logs: {e}")
     with viz_col:
         st.subheader("Bracket Visualization")
         st.markdown("Select a view to explore the tournament teams")
@@ -2065,11 +2025,7 @@ with tab_pred:
                     stat_col2.metric(stat, value)
         else:
             st.markdown("### Bracket Overview")
-            # Additional bracket overview visuals can be added here.
-
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, width=750)
-
+st.image(FinalFour25_logo, width=750)            
 st.markdown("---")
 st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
 st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
