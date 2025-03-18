@@ -1232,46 +1232,167 @@ def run_simulation(use_analytics=True, simulations=1):
 
 def display_simulation_results(sim_results, st_container):
     """
-    Display detailed results for a single simulation run.
+    Display detailed results for a single simulation run, with:
+      - Chronological round sorting (64→32→16→8→4→2),
+      - Numeric seed columns for color-scaling,
+      - Color-scaled Win Prob column,
+      - "UPSET" highlighting,
+      - Styled output (HTML) matching advanced tables in your app.
     """
+    import seaborn as sns  # ensure you have "import seaborn as sns" at top
     if not sim_results or len(sim_results) == 0:
         st_container.warning("No simulation results available.")
         return
-    
+
+    # We'll only show results from the first run in sim_results
     sim_result = sim_results[0]
+
+    # If we have a champion, show that top-level success message
     champion = sim_result.get('champion', {})
     if champion:
         champion_team = champion.get('Team', 'Unknown')
         champion_seed = champion.get('Seed', 'N/A')
         st_container.success(f"🏆 Tournament Champion: {champion_team} (Seed {champion_seed})")
-    
+
     all_games = sim_result.get('all_games', [])
     if not all_games:
         st_container.warning("No game data available for this simulation.")
         return
+
+    # 1) Custom sort order for rounds
+    round_order_map = {
+        "Round of 64": 1,
+        "Round of 32": 2,
+        "Sweet 16":    3,
+        "Elite 8":     4,
+        "Final Four":  5,
+        "Championship": 6
+    }
+
+    # 2) Convert each game dict to a row in a DataFrame
+    df_all = pd.DataFrame([
+        {
+            # For sorting by round
+            "Round_Sort":  round_order_map.get(g["round_name"], 99),
+            "Round":       g["round_name"],
+            # We'll keep original matchup strings
+            "Matchup":     f"{g['team1']} ({g['seed1']}) vs {g['team2']} ({g['seed2']})",
+            "Winner":      g["winner"],
+            # store numeric seeds in separate columns for advanced styling
+            "Seed1":       g["seed1"],
+            "Seed2":       g["seed2"],
+            "WinnerSeed":  g["winner_seed"],
+            # Win prob is numeric for now; we format as % later
+            "WinProb":     g["win_prob"],
+            # Upset indicator
+            "Upset": "⚠️ UPSET" if (
+                (g['seed1'] < g['seed2'] and g['winner'] == g['team2'])
+                or (g['seed2'] < g['seed1'] and g['winner'] == g['team1'])
+            ) else "",
+            "Region": g["region"]
+        }
+        for g in all_games
+    ])
+
+    # 3) Sort by round in ascending order
+    df_all = df_all.sort_values(by="Round_Sort").reset_index(drop=True)
+    df_all.drop(columns=["Round_Sort"], inplace=True)
+
+    # 4) Group by round, then style each group
+    #    (Alternatively, you can show one big table if you prefer.)
+    unique_rounds = df_all["Round"].unique()
     
-    rounds = sorted(set(game['round_name'] for game in all_games))
-    for round_name in rounds:
-        round_games = [g for g in all_games if g['round_name'] == round_name]
-        if not round_games:
-            continue
-        st_container.subheader(round_name)
-        games_data = []
-        for g in round_games:
-            is_upset = (g['seed1'] < g['seed2'] and g['winner'] == g['team2']) or \
-                       (g['seed2'] < g['seed1'] and g['winner'] == g['team1'])
-            upset_indicator = "⚠️ UPSET" if is_upset else ""
-            win_prob = g.get('win_prob', 0.5)
-            prob_display = f"{win_prob:.1%}"
-            games_data.append({
-                'Matchup': f"{g['team1']} ({g['seed1']}) vs {g['team2']} ({g['seed2']})",
-                'Winner': f"{g['winner']} ({g['winner_seed']})",
-                'Win Prob': prob_display,
-                'Upset': upset_indicator,
-                'Region': g['region']
-            })
-        games_df = pd.DataFrame(games_data)
-        st_container.dataframe(games_df, use_container_width=True)
+    # We'll define a helper style function to highlight upset cells
+    def highlight_upset_cell(val):
+        """Apply style if val contains 'UPSET'."""
+        if "UPSET" in str(val):
+            return "background-color: #FFCC99; font-weight: bold;"  # orange-ish highlight
+        return ""
+    
+    for rname in unique_rounds:
+        subset = df_all[df_all["Round"] == rname].copy()
+
+        # Convert numeric columns to something easily stylable
+        # e.g. WinProb as 0..1 => 0..100%
+        subset["WinProb"] = subset["WinProb"].apply(lambda x: x if pd.isna(x) else x * 100.0)
+
+        # We'll rename columns for clarity in the final display
+        subset.rename(columns={
+            "Round":       "Round",
+            "Matchup":     "Matchup",
+            "Winner":      "Winner",
+            "Seed1":       "Team1 Seed",
+            "Seed2":       "Team2 Seed",
+            "WinnerSeed":  "W Seed",
+            "WinProb":     "WinProb(%)",
+            "Upset":       "Upset",
+            "Region":      "Region"
+        }, inplace=True)
+
+        # Use a Pandas Styler to color-scale seeds & WinProb
+        # E.g. seeds: 1 => better => green, 16 => worse => red, so we'll do "RdYlGn_r"
+        # WinProb: 0 => red, 100 => green => "RdYlGn"
+        # or we can do 'Greens' for WinProb—taste is up to you.
+        styled_df = subset.style.format({
+            "WinProb(%)": "{:.1f}%",  # one decimal
+            "Team1 Seed": "{:.0f}",
+            "Team2 Seed": "{:.0f}",
+            "W Seed":     "{:.0f}"
+        })
+
+        # We apply background_gradient for seeds and WinProb
+        seed_cmap  = sns.color_palette("RdYlGn_r", as_cmap=True)
+        prob_cmap  = sns.color_palette("RdYlGn", as_cmap=True)
+        # If you want max seed = 16 or 17 just in case, you can define vmin=1, vmax=16 for seeds
+        styled_df = (
+            styled_df
+            .background_gradient(cmap=seed_cmap, subset=["Team1 Seed", "Team2 Seed", "W Seed"], vmin=1, vmax=16)
+            .background_gradient(cmap=prob_cmap, subset=["WinProb(%)"], vmin=0, vmax=100)
+            .applymap(highlight_upset_cell, subset=["Upset"])  # highlight upset col
+            .set_caption(rname)  # Title above each table
+        )
+
+        # Apply some advanced styling as in your other advanced tables
+        advanced_styles = [
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#0360CE"),
+                    ("color", "white"),
+                    ("text-align", "center"),
+                    ("border", "1px solid #222"),
+                    ("font-weight", "bold"),
+                    ("font-size", "13px")
+                ]
+            },
+            {
+                "selector": "td",
+                "props": [
+                    ("text-align", "center"),
+                    ("border", "1px solid #444"),
+                    ("padding", "8px"),
+                ]
+            },
+            # We can also style the caption
+            {
+                "selector": "caption",
+                "props": [
+                    ("caption-side", "top"),
+                    ("font-size", "15px"),
+                    ("color", "#fff"),
+                    ("background-color", "#000"),
+                    ("padding", "5px"),
+                    ("font-weight", "bold"),
+                    ("text-align", "center")
+                ]
+            }
+        ]
+        styled_df = styled_df.set_table_styles(advanced_styles)
+
+        # 5) Display final table under a subheader
+        st_container.subheader(rname)
+        st_container.markdown(styled_df.to_html(escape=False), unsafe_allow_html=True)
+
 
 def run_tournament_simulation(num_simulations=100, use_analytics=True):
     """
@@ -1482,7 +1603,7 @@ st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
 st.caption(":primary[_Cure your bracket brain and propel yourself up the leaderboards by exploring the tabs below:_]")
 
-tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🌐 HOME",  #🌐
+tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
                                                                           "🕸️ RADAR CHARTS", #📡🧭
                                                                           "🔥 REGIONAL HEATMAPS", #🌡️📍
                                                                           "📊 TEAM METRICS", #📈📋📜📰📅
@@ -1628,30 +1749,38 @@ with tab_home:
         ]
     }
 
-
     detailed_table_styles = [header, index_style, cell_style, adj_em_group_style]
-
 
     if "CONFERENCE" in df_main.columns:
         conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
         conf_counts.columns = ["CONFERENCE", "# TEAMS"]
 
-        if "KP_AdjEM" in df_main.columns:
-            # Aggregate multiple stats at once.  This is MUCH more efficient.
-            conf_stats = df_main.groupby("CONFERENCE").agg(
+        if "KP_AdjEM" in df_main.columns: 
+            conf_stats = df_main.groupby("CONFERENCE").agg( # Aggregate multiple stats at once
                 {
                     "KP_AdjEM": ["count", "max", "mean", "min"],
-                    "SEED_25": "mean",  # Example of adding a new stat
+                    "SEED_25": "mean",
                     "NET_25": "mean",
-                    #"TR_OEff_25": "mean",
-                    #"TR_DEff_25": "mean",
+                    #"BPI_25": "mean", "BPI_Rank": "mean",
+                    #"TR_OEff_25": "mean", #"TR_DEff_25": "mean",
+                    "WIN% ALL GM": "mean", #"WIN% CLOSE GM": "mean",
+                    "AVG MARGIN": "mean",
+                    "eFG%": "mean", #"TS%": "mean",
+                    "AST/TO%": "mean", #"NET AST/TOV RATIO": "mean",
+                    "STOCKS/GM": "mean", "STOCKS-TOV/GM": "mean",
                 }
             ).reset_index()
 
             # Flatten the multi-level column index
             conf_stats.columns = [
-                "CONFERENCE", "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-                "AVG SEED_25", "AVG NET_25", #"AVG TR_OEff_25", "AVG TR_DEff_25",
+                "CONFERENCE",
+                "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
+                "# BIDS", "SEED_25", "MEAN NET_25",
+                #"AVG TR_OEff_25", "AVG TR_DEff_25",
+                "MEAN WIN %", "MEAN AVG MARGIN",
+                "MEAN eFG%",
+                "MEAN AST/TO%", #"NET AST/TOV RATIO",
+                "MEAN STOCKS/GM", "MEAN STOCKS-TOV/GM", 
             ]
 
             conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
@@ -1680,17 +1809,32 @@ with tab_home:
         styled_conf_stats = (
             conf_stats.style
             .format({
+                "# TEAMS": "{:.0f}"
+                "# BIDS": "{:.0f}"
                 "MEAN AdjEM": "{:.2f}",
                 "MIN AdjEM": "{:.2f}",
                 "MAX AdjEM": "{:.2f}",
                 "AVG SEED_25": "{:.1f}",
                 "AVG NET_25": "{:.1f}",
+
                 #"AVG TR_OEff_25": "{:.1f}",
                 #"AVG TR_DEff_25": "{:.1f}",
+                "MEAN WIN %": "{:.1f}",
+                "MEAN AVG MARGIN": "{:.1f}",
+                "MEAN eFG%": "{:.1f}",
+                "MEAN AST/TO%": "{:.1f}",
+                #"NET AST/TOV RATIO": "{:.1f}",
+                "MEAN STOCKS/GM": "{:.1f}",
+                #"MEAN STOCKS-TOV/GM": "{:.1f}",
             })
             .background_gradient(cmap="RdYlGn", subset=[
+                "# TEAMS", "# BIDS", 
                 "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
                 #"AVG TR_OEff_25",
+                "MEAN WIN %", "MEAN AVG MARGIN",
+                "MEAN eFG%",
+                "MEAN AST/TO%", "MEAN STOCKS/GM", #"MEAN STOCKS-TOV/GM",
+                
             ])
             .background_gradient(cmap="RdYlGn_r", subset=["AVG SEED_25", "AVG NET_25",
                                                           #"AVG TR_DEff_25",
@@ -2302,7 +2446,7 @@ with tab_pred:
                           else (team_data['REG_CODE_25'] if pd.notna(team_data['REG_CODE_25']) else "N/A"))
             key_stats = {
                 "Seed": f"{seed_str} ({region_str})",
-                "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
+                "Record": f"{team_data['WIN_25']:.0f}-{team_data['LOSS_25']:.0f}",
                 "NET Rank": f"{int(team_data['NET_25'])}",
                 "KenPom Rank": f"{int(team_data['KP_Rank'])}",
                 "KenPom Adj EM": f"{team_data['KP_AdjEM']:.2f}",
