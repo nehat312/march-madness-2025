@@ -1809,8 +1809,8 @@ with tab_home:
         styled_conf_stats = (
             conf_stats.style
             .format({
-                "# TEAMS": "{:.0f}"
-                "# BIDS": "{:.0f}"
+                "# TEAMS": "{:.0f}",
+                "# BIDS": "{:.0f}",
                 "MEAN AdjEM": "{:.2f}",
                 "MIN AdjEM": "{:.2f}",
                 "MAX AdjEM": "{:.2f}",
