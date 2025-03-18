@@ -1366,58 +1366,83 @@ def run_tournament_simulation(num_simulations=100, use_analytics=True):
 
 def visualize_aggregated_results(aggregated_analysis):
     """
-    Create a matplotlib figure with two subplots:
-      1. Championship win probabilities (horizontal bar chart).
-      2. Upset percentages by round (bar chart).
+    Create two distinct Plotly charts that summarize the bracket simulations:
+      1) A horizontal bar chart for championship win probabilities (top 10 teams).
+      2) A bar chart for upset percentages by round.
+    Returns (fig_champ, fig_upsets) as plotly Figure objects.
     """
-    fig, axs = plt.subplots(2, 1, figsize=(10, 12), facecolor='#0E1117')
-    
+
+    # --- 1) Championship Win Probabilities ---
     champ_df = aggregated_analysis.get('champion_probabilities')
+    fig_champ = None
     if champ_df is not None and not champ_df.empty:
-        top_teams = champ_df.head(10)
-        ax1 = axs[0]
-        bars = ax1.barh(top_teams['Team'], top_teams['Championship_Probability'] * 100,
-                        color=plt.cm.RdYlGn(top_teams['Championship_Probability']))
-        for bar in bars:
-            width = bar.get_width()
-            ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f"{width:.1f}%",
-                     va='center', color='white')
-        ax1.set_title('Championship Win Probability (Top 10 Teams)', color='white', fontsize=14)
-        ax1.set_xlabel('Probability (%)', color='white')
-        ax1.set_ylabel('Team', color='white')
-        ax1.tick_params(colors='white')
-        ax1.spines['top'].set_visible(False)
-        ax1.spines['right'].set_visible(False)
-        ax1.spines['bottom'].set_color('white')
-        ax1.spines['left'].set_color('white')
-        ax1.invert_yaxis()
-        ax1.set_facecolor('#0E1117')
-    
+        # Keep only top 10
+        top_teams = champ_df.head(10).copy()
+        top_teams['Championship_Probability_PCT'] = top_teams['Championship_Probability'] * 100
+
+        # Build a Plotly horizontal bar chart
+        fig_champ = px.bar(
+            top_teams,
+            y='Team',
+            x='Championship_Probability_PCT',
+            orientation='h',
+            color='Championship_Probability_PCT',
+            color_continuous_scale='RdYlGn',
+            title="Championship Win Probability (Top 10 Teams)",
+            labels={'Championship_Probability_PCT': 'Win Probability (%)', 'Team': ''},
+            template='plotly_dark',
+            hover_data=['Seed', 'Championship_Count']  # Optional extras
+        )
+        # Invert y-axis for typical bar chart look (highest on top)
+        fig_champ.update_yaxes(autorange="reversed")
+        # Add text labels on each bar
+        fig_champ.update_traces(
+            texttemplate='%{x:.1f}%',
+            textposition='outside'
+        )
+        fig_champ.update_layout(
+            margin=dict(l=50, r=50, t=70, b=50),
+            coloraxis_showscale=False,  # hide color bar
+        )
+
+    # --- 2) Upset Percentage by Round ---
     upset_pct = aggregated_analysis.get('upset_pct_aggregated')
+    fig_upsets = None
     if upset_pct is not None and not upset_pct.empty:
-        ax2 = axs[1]
+        # Convert to DataFrame for easier plotting
+        df_upsets = pd.DataFrame({
+            'Round': upset_pct.index,
+            'Upset_PCT': upset_pct.values
+        })
+        # Optionally impose a custom round order
         round_order = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]
-        ordered_pct = pd.Series({r: upset_pct.get(r, 0) for r in round_order if r in upset_pct.index})
-        bars = ax2.bar(ordered_pct.index, ordered_pct.values,
-                       color=plt.cm.viridis(np.linspace(0, 1, len(ordered_pct))))
-        for bar in bars:
-            height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2, height + 0.5, f"{height:.1f}%",
-                     ha='center', va='bottom', color='white')
-        ax2.set_title('Upset Percentage by Tournament Round', color='white', fontsize=14)
-        ax2.set_xlabel('Tournament Round', color='white')
-        ax2.set_ylabel('Upset Percentage (%)', color='white')
-        ax2.tick_params(colors='white')
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['right'].set_visible(False)
-        ax2.spines['bottom'].set_color('white')
-        ax2.spines['left'].set_color('white')
-        ax2.set_ylim(0, max(ordered_pct.values) * 1.2)
-        ax2.set_facecolor('#0E1117')
-        plt.xticks(rotation=45)
-    
-    plt.tight_layout()
-    return fig
+        df_upsets['Round'] = pd.Categorical(df_upsets['Round'], categories=round_order, ordered=True)
+        df_upsets = df_upsets.sort_values('Round')
+
+        fig_upsets = px.bar(
+            df_upsets,
+            x='Round',
+            y='Upset_PCT',
+            text='Upset_PCT',
+            color='Upset_PCT',
+            color_continuous_scale='RdYlGn',
+            title="Upset Percentage by Tournament Round",
+            labels={'Upset_PCT': 'Upset Percentage (%)'},
+            template='plotly_dark',
+        )
+        # Format text on bars
+        fig_upsets.update_traces(
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
+        fig_upsets.update_layout(
+            margin=dict(l=50, r=50, t=70, b=50),
+            yaxis_range=[0, df_upsets['Upset_PCT'].max() * 1.2],
+            coloraxis_showscale=False,
+        )
+
+    return fig_champ, fig_upsets
+
 
 def create_regional_prob_chart(region_df):
     """
@@ -1457,12 +1482,12 @@ st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
 st.caption(":primary[_Cure your bracket brain and propel yourself up the leaderboards by exploring the tabs below:_]")
 
-tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["📊 HOME", 
-                                                                          "📡 RADAR CHARTS",
-                                                                          "🔥 REGIONAL HEATMAPS",
-                                                                          "📈 TEAM METRICS",
-                                                                          "🏆 CONFERENCE STATS",
-                                                                          "🔮 PREDICTIONS"])
+tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🌐 HOME",  #🌐
+                                                                          "🕸️ RADAR CHARTS", #📡🧭
+                                                                          "🔥 REGIONAL HEATMAPS", #🌡️📍
+                                                                          "📊 TEAM METRICS", #📈📋📜📰📅
+                                                                          "🏆 CONFERENCE STATS", #🏅
+                                                                          "🔮 PREDICTIONS"]) #🎱❓✅❌ ⚙️
 
 # --- Home Tab ---
 with tab_home:
@@ -1472,9 +1497,9 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     
-    st.subheader("🔍 Team Spotlight", divider='grey')
+    st.subheader("🔍 :primary[TEAM SPOTLIGHT]", divider='grey') # 📊 🔢 🚩🏁🎌🏟️ 📢📣🎊🎉🕒🗣️📺📱
     selected_team = st.selectbox(
-        "Select a team to view detailed metrics:",
+        ":green[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
         index=0
     )
@@ -1509,8 +1534,7 @@ with tab_home:
                     </div>
                     """, unsafe_allow_html=True)
 
-                # (New) "Interpretive Insights" block
-                # Provide a short textual breakdown of how the team compares to NCAA average
+                # "Interpretive Insights" block - provides a short textual breakdown of how the team compares to NCAA average
                 radar_metrics = get_default_metrics()  # e.g. ['AVG MARGIN','KP_AdjEM','OFF EFF','DEF EFF','AST/TO%','STOCKS-TOV/GM']
                 existing_metrics = [m for m in radar_metrics if m in team_data.columns]
                 if existing_metrics:
@@ -2207,19 +2231,15 @@ with tab_pred:
     
             st.subheader("Aggregated Simulation Visualization")
             try:
-                agg_viz_fig = visualize_aggregated_results(st.session_state.simulation_results['aggregated_analysis'])
-                st.pyplot(agg_viz_fig, use_container_width=True)
+                fig_champ, fig_upsets = visualize_aggregated_results(
+                    st.session_state.simulation_results['aggregated_analysis']
+                )
+                if fig_champ:
+                    st.plotly_chart(fig_champ, use_container_width=True)
+                if fig_upsets:
+                    st.plotly_chart(fig_upsets, use_container_width=True)
             except Exception as e:
                 st.error(f"Could not generate aggregated visualizations: {e}")
-    
-            try:
-                if st.session_state.simulation_results['single_sim_results']:
-                    st.info("Detailed game outcomes for a single simulation run:")
-                    display_simulation_results(st.session_state.simulation_results['single_sim_results'], st)
-                else:
-                    st.warning("No single simulation results to display.")
-            except Exception as e:
-                st.error(f"Error displaying detailed simulation logs: {e}")
     
     with viz_col:
         st.subheader("Bracket Visualization")
