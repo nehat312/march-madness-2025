@@ -2564,7 +2564,8 @@ with tab_pred:
             # Display Championship Win Probabilities
             st.subheader("Championship Win Probabilities")
             try:
-                champ_df = st.session_state.simulation_results.get('aggregated_analysis', {}).get('champion_probabilities', pd.DataFrame()).copy()
+                # Directly access champion_probabilities - it should be there
+                champ_df = st.session_state.simulation_results['aggregated_analysis']['champion_probabilities'].copy()
                 numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
 
                 if "Championship_Probability" in champ_df.columns:
@@ -2579,6 +2580,8 @@ with tab_pred:
                     .set_caption("Championship Win Probabilities by Team")
                 )
                 st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+            except KeyError:
+                st.error("KeyError: 'champion_probabilities' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Championship Win Probabilities: {e}")
 
@@ -2586,19 +2589,23 @@ with tab_pred:
             # Display Regional Win Probabilities Chart
             st.subheader("Regional Win Probabilities")
             try:
-                region_probabilities = st.session_state.simulation_results.get('aggregated_analysis', {}).get('region_probabilities')
+                # Directly access region_probabilities - it should be there
+                region_probabilities = st.session_state.simulation_results['aggregated_analysis'].get('region_probabilities')
                 if region_probabilities is not None and not region_probabilities.empty:
                     fig_regional = create_regional_prob_chart(region_probabilities)
                     st.plotly_chart(fig_regional, use_container_width=True)
                 else:
                     st.warning("Regional win probabilities data not available.")
+            except KeyError:
+                st.error("KeyError: 'region_probabilities' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Regional Win Probabilities: {e}")
 
             # Display Upset Analysis
             st.subheader("Aggregated Upset Analysis")
             try:
-                upset_pct_aggregated = st.session_state.simulation_results.get('aggregated_analysis', {}).get('upset_pct_aggregated', pd.Series())
+                # Directly access upset_pct_aggregated - it should be there
+                upset_pct_aggregated = st.session_state.simulation_results['aggregated_analysis'].get('upset_pct_aggregated')
                 if upset_pct_aggregated is not None:
                   upset_summary_df = pd.DataFrame({
                       'Round': upset_pct_aggregated.index,
@@ -2615,23 +2622,31 @@ with tab_pred:
                   st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
                 else:
                     st.warning("Upset analysis data not available.")
+            except KeyError:
+                st.error("KeyError: 'upset_pct_aggregated' not found in aggregated_analysis.")
             except Exception as e:
                 st.error(f"Error displaying Upset Analysis: {e}")
 
             # Display aggregated matplotlib figure
             try:
-                agg_viz_fig = visualize_aggregated_results(st.session_state.simulation_results.get('aggregated_analysis', {}))
+                # Directly access aggregated_analysis - it should be there
+                agg_viz_fig = visualize_aggregated_results(st.session_state.simulation_results['aggregated_analysis'])
                 st.pyplot(agg_viz_fig, use_container_width=True)
+            except KeyError:
+                 st.error("KeyError: 'aggregated_analysis' not found in st.session_state.simulation_results.")
             except Exception as e:
                 st.error(f"Could not generate aggregated visualizations: {e}")
 
             # Always display detailed simulation logs if available
             try:
-                if st.session_state.simulation_results.get('single_sim_results'):
+                # Access single_sim_results directly - it should be there
+                if st.session_state.simulation_results['single_sim_results']:
                     st.info("Detailed game outcomes for a single simulation run:")
                     display_simulation_results(st.session_state.simulation_results['single_sim_results'], st)
                 else:
                     st.warning("No single simulation results to display.")
+            except KeyError:
+                st.error("KeyError: 'single_sim_results' not found in st.session_state.simulation_results.")
             except Exception as e:
                 st.error(f"Error displaying detailed simulation logs: {e}")
 
