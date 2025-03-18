@@ -2534,78 +2534,82 @@ with tab_pred:
         # Set the checkbox default to True so logs appear by default
         show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=True)
         st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-        
-        # Initialize st.session_state variables if they don't exist
-        if 'aggregated_analysis' not in st.session_state:
-            st.session_state['aggregated_analysis'] = {}
-        if 'single_sim_results' not in st.session_state:
-            st.session_state['single_sim_results'] = []
-        
+
+        # Initialize session state variables
+        if 'simulation_results' not in st.session_state:
+            st.session_state.simulation_results = {}
 
         # Run the simulation when the button is clicked
         if st.button("Run Bracket Simulation", key="btn_run_bracket"):
             with st.spinner("Simulating tournament..."):
-                st.session_state['aggregated_analysis'] = run_tournament_simulation(num_simulations=100, use_analytics=True)
-                st.session_state['single_sim_results'] = run_simulation(use_analytics=True, simulations=1)
+                # Run both simulations and store the results
+                st.session_state.simulation_results['aggregated_analysis'] = run_tournament_simulation(num_simulations=100, use_analytics=True)
+                st.session_state.simulation_results['single_sim_results'] = run_simulation(use_analytics=True, simulations=1)
             st.success("Simulation complete!")
 
-        # Display Championship Win Probabilities
-        st.subheader("Championship Win Probabilities")
-        champ_df = st.session_state['aggregated_analysis'].get('champion_probabilities', pd.DataFrame()).copy()
-        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+            # Debugging: Print the keys in st.session_state.simulation_results
+            st.write("Keys in st.session_state.simulation_results:", st.session_state.simulation_results.keys())
 
-        if "Championship_Probability" in champ_df.columns:
-            styled_champ = champ_df.style.format("{:.2%}", subset=["Championship_Probability"])
-        else:
-            styled_champ = champ_df.style
+            # Display Championship Win Probabilities
+            st.subheader("Championship Win Probabilities")
+            champ_df = st.session_state.simulation_results.get('aggregated_analysis', {}).get('champion_probabilities', pd.DataFrame()).copy()
+            numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
 
-        styled_champ = (
-            styled_champ
-            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
-            .set_table_styles(detailed_table_styles)
-            .set_caption("Championship Win Probabilities by Team")
-        )
-        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+            if "Championship_Probability" in champ_df.columns:
+                styled_champ = champ_df.style.format("{:.2%}", subset=["Championship_Probability"])
+            else:
+                styled_champ = champ_df.style
 
-        # Display Regional Win Probabilities Chart
-        st.subheader("Regional Win Probabilities")
-        region_probabilities = st.session_state['aggregated_analysis'].get('region_probabilities')
-        if region_probabilities is not None and not region_probabilities.empty:
-            fig_regional = create_regional_prob_chart(region_probabilities)
-            st.plotly_chart(fig_regional, use_container_width=True)
-        else:
-            st.warning("Regional win probabilities data not available.")
+            styled_champ = (
+                styled_champ
+                .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+                .set_table_styles(detailed_table_styles)
+                .set_caption("Championship Win Probabilities by Team")
+            )
+            st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
 
-        # Display Upset Analysis
-        st.subheader("Aggregated Upset Analysis")
-        upset_pct_aggregated = st.session_state['aggregated_analysis'].get('upset_pct_aggregated', pd.Series())
-        upset_summary_df = pd.DataFrame({
-            'Round': upset_pct_aggregated.index,
-            'Upset %': upset_pct_aggregated.values.round(1)
-        })
-        numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
-        styled_upsets = (
-            upset_summary_df.style
-            .format("{:.1f}", subset=["Upset %"])
-            .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
-            .set_table_styles(detailed_table_styles)
-            .set_caption("Upset Analysis by Round")
-        )
-        st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+            # Display Regional Win Probabilities Chart
+            st.subheader("Regional Win Probabilities")
+            region_probabilities = st.session_state.simulation_results.get('aggregated_analysis', {}).get('region_probabilities')
+            if region_probabilities is not None and not region_probabilities.empty:
+                fig_regional = create_regional_prob_chart(region_probabilities)
+                st.plotly_chart(fig_regional, use_container_width=True)
+            else:
+                st.warning("Regional win probabilities data not available.")
 
-        # Display aggregated matplotlib figure
-        try:
-            agg_viz_fig = visualize_aggregated_results(st.session_state['aggregated_analysis'])
-            st.pyplot(agg_viz_fig, use_container_width=True)
-        except Exception as e:
-            st.error(f"Could not generate aggregated visualizations: {e}")
+            # Display Upset Analysis
+            st.subheader("Aggregated Upset Analysis")
+            upset_pct_aggregated = st.session_state.simulation_results.get('aggregated_analysis', {}).get('upset_pct_aggregated', pd.Series())
+            if upset_pct_aggregated is not None:
+              upset_summary_df = pd.DataFrame({
+                  'Round': upset_pct_aggregated.index,
+                  'Upset %': upset_pct_aggregated.values.round(1)
+              })
+              numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+              styled_upsets = (
+                  upset_summary_df.style
+                  .format("{:.1f}", subset=["Upset %"])
+                  .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+                  .set_table_styles(detailed_table_styles)
+                  .set_caption("Upset Analysis by Round")
+              )
+              st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+            else:
+                st.warning("Upset analysis data not available.")
 
-        # Always display detailed simulation logs if available
-        if st.session_state['single_sim_results']:
-            st.info("Detailed game outcomes for a single simulation run:")
-            display_simulation_results(st.session_state['single_sim_results'], st)
-        else:
-            st.warning("No single simulation results to display.")
+            # Display aggregated matplotlib figure
+            try:
+                agg_viz_fig = visualize_aggregated_results(st.session_state.simulation_results.get('aggregated_analysis', {}))
+                st.pyplot(agg_viz_fig, use_container_width=True)
+            except Exception as e:
+                st.error(f"Could not generate aggregated visualizations: {e}")
+
+            # Always display detailed simulation logs if available
+            if st.session_state.simulation_results.get('single_sim_results'):
+                st.info("Detailed game outcomes for a single simulation run:")
+                display_simulation_results(st.session_state.simulation_results['single_sim_results'], st)
+            else:
+                st.warning("No single simulation results to display.")
 
     with viz_col:
         st.subheader("Bracket Visualization")
