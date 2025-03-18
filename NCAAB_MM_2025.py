@@ -2550,80 +2550,88 @@ with tab_pred:
         # Set the checkbox default to True so logs appear by default
         show_detailed_logs = st.checkbox("Show Detailed Logs (Single Simulation Recommended)", value=True)
         st.write("Run the tournament simulation across multiple iterations to see aggregated outcomes.")
-        
+
+        # Initialize st.session_state variables if they don't exist
+        if 'aggregated_analysis' not in st.session_state:
+            st.session_state['aggregated_analysis'] = {}
+        if 'single_sim_results' not in st.session_state:
+            st.session_state['single_sim_results'] =
+
         # Run the simulation when the button is clicked
         if st.button("Run Bracket Simulation", key="btn_run_bracket"):
             with st.spinner("Simulating tournament..."):
-                aggregated_analysis = run_tournament_simulation(num_simulations=100, use_analytics=True)
-                single_sim_results = run_simulation(use_analytics=True, simulations=1)
-                st.session_state['single_sim_results'] = single_sim_results
+                st.session_state['aggregated_analysis'] = run_tournament_simulation(num_simulations=100, use_analytics=True)
+                st.session_state['single_sim_results'] = run_simulation(use_analytics=True, simulations=1)
             st.success("Simulation complete!")
 
-            # Display Championship Win Probabilities
-            st.subheader("Championship Win Probabilities")
-            champ_df = aggregated_analysis['champion_probabilities'].copy()
-            numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
+        # Display Championship Win Probabilities
+        st.subheader("Championship Win Probabilities")
+        champ_df = st.session_state['aggregated_analysis'].get('champion_probabilities', pd.DataFrame()).copy()
+        numeric_cols_champ = champ_df.select_dtypes(include=[float, int]).columns
 
-            if "Championship_Probability" in champ_df.columns:
-                styled_champ = champ_df.style.format("{:.2%}", subset=["Championship_Probability"])
-            else:
-                styled_champ = champ_df.style
+        if "Championship_Probability" in champ_df.columns:
+            styled_champ = champ_df.style.format("{:.2%}", subset=["Championship_Probability"])
+        else:
+            styled_champ = champ_df.style
 
-            styled_champ = (
-                styled_champ
-                .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
-                .set_table_styles(detailed_table_styles)
-                .set_caption("Championship Win Probabilities by Team")
-            )
-            st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
+        styled_champ = (
+            styled_champ
+            .background_gradient(cmap="RdYlGn", subset=numeric_cols_champ)
+            .set_table_styles(detailed_table_styles)
+            .set_caption("Championship Win Probabilities by Team")
+        )
+        st.markdown(styled_champ.to_html(), unsafe_allow_html=True)
 
+        # Display Regional Win Probabilities Chart
+        st.subheader("Regional Win Probabilities")
+        region_probabilities = st.session_state['aggregated_analysis'].get('region_probabilities')
+        if region_probabilities is not None and not region_probabilities.empty:
+            fig_regional = create_regional_prob_chart(region_probabilities)
+            st.plotly_chart(fig_regional, use_container_width=True)
+        else:
+            st.warning("Regional win probabilities data not available.")
 
-            # Display Regional Win Probabilities Chart
-            st.subheader("Regional Win Probabilities")
-            if 'region_probabilities' in aggregated_analysis:
-                fig_regional = create_regional_prob_chart(aggregated_analysis['region_probabilities'])
-                st.plotly_chart(fig_regional, use_container_width=True)
-            else:
-                st.warning("Regional win probabilities data not available.")
+        # Display Upset Analysis
+        st.subheader("Aggregated Upset Analysis")
+        upset_pct_aggregated = st.session_state['aggregated_analysis'].get('upset_pct_aggregated', pd.Series())
+        upset_summary_df = pd.DataFrame({
+            'Round': upset_pct_aggregated.index,
+            'Upset %': upset_pct_aggregated.values.round(1)
+        })
+        numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
+        styled_upsets = (
+            upset_summary_df.style
+            .format("{:.1f}", subset=["Upset %"])
+            .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
+            .set_table_styles(detailed_table_styles)
+            .set_caption("Upset Analysis by Round")
+        )
+        st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
 
-            # Display Upset Analysis
-            st.subheader("Aggregated Upset Analysis")
-            upset_summary_df = pd.DataFrame({
-                'Round': aggregated_analysis['upset_pct_aggregated'].index,
-                'Upset %': aggregated_analysis['upset_pct_aggregated'].values.round(1)
-            })
-            numeric_cols_upsets = upset_summary_df.select_dtypes(include=[float, int]).columns
-            styled_upsets = (
-                upset_summary_df.style
-                .format("{:.1f}", subset=["Upset %"])
-                .background_gradient(cmap="RdYlGn", subset=numeric_cols_upsets)
-                .set_table_styles(detailed_table_styles)
-                .set_caption("Upset Analysis by Round")
-            )
-            st.markdown(styled_upsets.to_html(), unsafe_allow_html=True)
+        # Display aggregated matplotlib figure
+        try:
+            agg_viz_fig = visualize_aggregated_results(st.session_state['aggregated_analysis'])
+            st.pyplot(agg_viz_fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not generate aggregated visualizations: {e}")
 
-            # Display aggregated matplotlib figure
-            try:
-                agg_viz_fig = visualize_aggregated_results(aggregated_analysis)
-                st.pyplot(agg_viz_fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"Could not generate aggregated visualizations: {e}")
-
-            # Always display detailed simulation logs if available
-            if 'single_sim_results' in st.session_state:
-                st.info("Detailed game outcomes for a single simulation run:")
-                display_simulation_results(st.session_state['single_sim_results'], st)
+        # Always display detailed simulation logs if available
+        if st.session_state['single_sim_results']:
+            st.info("Detailed game outcomes for a single simulation run:")
+            display_simulation_results(st.session_state['single_sim_results'], st)
+        else:
+            st.warning("No single simulation results to display.")
 
     with viz_col:
         st.subheader("Bracket Visualization")
         st.markdown("Select a view to explore the tournament teams")
-        
-        viz_type = st.radio("Visualization Type", ["Team Stats", ], horizontal=True) #"Bracket Overview"
-        
+
+        viz_type = st.radio("Visualization Type", ["Team Stats", ], horizontal=True)  # "Bracket Overview"
+
         # Ensure TR_df is defined (prepare tournament data if needed)
         if 'TR_df' not in globals():
             _ = prepare_tournament_data()
-        
+
         if viz_type == "Team Stats":
             all_tourney_teams = TR_df[TR_df['SEED_25'].notna()]['TM_KP'].tolist()
             selected_team = st.selectbox("Select Team", sorted(all_tourney_teams))
@@ -2633,7 +2641,7 @@ with tab_pred:
             seed_str = f"{int(team_data['SEED_25'])}" if pd.notna(team_data['SEED_25']) else "N/A"
             # Prefer REGION_25; if empty, fall back to REG_CODE_25; if both are missing, display "N/A"
             region_str = (team_data['REGION_25'] if pd.notna(team_data['REGION_25'])
-                        else (team_data['REG_CODE_25'] if pd.notna(team_data['REG_CODE_25']) else "N/A"))
+                          else (team_data['REG_CODE_25'] if pd.notna(team_data['REG_CODE_25']) else "N/A"))
             key_stats = {
                 "Seed": f"{seed_str} ({region_str})",
                 "Record": f"{team_data['WIN_25']}-{team_data['LOSS_25']}",
