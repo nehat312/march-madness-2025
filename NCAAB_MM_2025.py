@@ -1699,6 +1699,7 @@ with tab_regions:
     mean_series = mean_series.reindex(df_heat.columns, fill_value=np.nan)
     df_heat.loc["TOURNEY AVG"] = mean_series
     df_heat_T = df_heat.T
+    df_heat_T = df_heat_T[core_cols]
 
     east_teams_2025 = [
         "Duke", "Alabama", "Iowa St.", "Maryland",
@@ -1753,7 +1754,8 @@ with tab_regions:
         "TS%": "RdBu",
         "OPP TS%": "RdBu_r",
         "AST/TO%": "RdBu",
-        "STOCKS/GM": "RdBu"
+        "STOCKS/GM": "RdBu",
+
     }
 
     # Advanced table styling to match TEAM METRICS tab
