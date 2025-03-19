@@ -2415,178 +2415,68 @@ with tab_home:
                 if radar_fig:
                     st.plotly_chart(radar_fig, use_container_width=True)
             
-with tab_pred:
-    st.header(":primary[BRACKET SIMULATION]")
+            with st.expander("View All Team Metrics"):
+                detailed_metrics = [
+                    "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
+                    "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
+                    "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
+                    "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+                    "AST/GM", "TO/GM", "AST/TO%", 
+                    "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
+                    "STOCKS/GM", "STOCKS-TOV/GM"
+                ]
+                available_detailed = [m for m in detailed_metrics if m in team_data.columns]
+                detail_df = team_data[available_detailed].T.reset_index()
+                detail_df.columns = ["Metric", "Value"]
 
-    show_logs = st.checkbox("Show Detailed Single-Sim Logs", value=True)
-    if st.button("Run Bracket Simulation"):
-        with st.spinner("Simulating..."):
-            # (1) Aggregated results from your multi-run simulation
-            aggregated = run_tournament_simulation(num_sims=100)
+                # Format numeric columns
+                def _fmt(v):
+                    if isinstance(v, float):
+                        return f"{v:.2f}"
+                    else:
+                        return str(v)
 
-            # (2) Single-run logs (a single bracket outcome)
-            single_run = run_simulation_once(df_main)
+                detail_df["Value"] = detail_df["Value"].apply(_fmt)
 
-        st.success("Simulation complete!")
-
-        # 1) If requested, show single-run logs first
-        if show_logs and single_run:
-            st.subheader("Detailed Round-by-Round (Single Simulation)")
-            display_simulation_results(single_run)
-        else:
-            st.info("Single-run logs hidden. Check box above to display them.")
-
-        # 2) Now show aggregated results
-        if not aggregated:
-            st.error("No aggregated results. Check bracket data or code.")
-            st.stop()
-
-        st.subheader("Aggregated Simulation Results (100 sims)")
-
-        # A) Champion probabilities turned into a styled DataFrame
-        champ_probs = aggregated.get("Champion", {})
-        if not champ_probs:
-            st.warning("No champion probabilities found in aggregator.")
-            st.stop()
-
-        # Build a table with columns: [Team,Champ%,Seed,Region,Conference,KP_AdjEM,NET_25]
-        champion_items = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)
-        data_rows = []
-        for team, pct in champion_items:
-            row = {"Team": team, "Champ%": pct}
-            subset = df_main[df_main["TM_KP"] == team]
-            if not subset.empty:
-                row["Conference"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
-                row["Seed"] = int(subset["SEED_25"].iloc[0]) if ("SEED_25" in subset.columns and not pd.isna(subset["SEED_25"].iloc[0])) else ""
-                row["Region"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
-                row["KP_AdjEM"] = subset["KP_AdjEM"].iloc[0] if "KP_AdjEM" in subset.columns else None
-                row["NET_25"]   = subset["NET_25"].iloc[0]   if "NET_25" in subset.columns else None
-            data_rows.append(row)
-
-        champion_df = pd.DataFrame(data_rows)
-        champion_df["Champ%"] = champion_df["Champ%"].round(1)
-        champion_df.rename(columns={"Champ%": "Champ Probability (%)"}, inplace=True)
-
-        # Reorder columns
-        champion_df = champion_df[["Team", "Champ Probability (%)", "Seed", "Region", "Conference", "KP_AdjEM", "NET_25"]]
-
-        # Create a Styler
-        champion_styler = (
-            champion_df.style
-            .format({
-                "Champ Probability (%)": "{:.1f}",
-                "KP_AdjEM": "{:.1f}",
-                "NET_25": "{:.0f}"
-            })
-            .background_gradient(
-                cmap="RdYlGn", 
-                subset=["Champ Probability (%)", "KP_AdjEM"]
-            )
-            .set_properties(**{"text-align": "center"})
-            .set_table_styles([
-                {
-                    "selector": "table",
-                    "props": [
-                        ("border-collapse", "collapse"),
-                        ("border", "2px solid #222"),
-                        ("border-radius", "8px"),
-                        ("overflow", "hidden"),
-                        ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
-                    ]
-                },
-                {
-                    "selector": "th",
-                    "props": [
-                        ("background-color", "#0360CE"),
-                        ("color", "white"),
-                        ("font-weight", "bold"),
-                        ("text-align", "center"),
-                        ("padding", "8px 10px"),
-                        ("border", "1px solid #222"),
-                        ("font-size", "13px")
-                    ]
-                },
-                {
-                    "selector": "td",
-                    "props": [
-                        ("text-align", "center"),
-                        ("padding", "5px 10px"),
-                        ("border", "1px solid #ddd")
-                    ]
-                },
-            ])
-        )
-
-        st.markdown("##### Top Likely Champions (Styled Table)")
-        st.markdown(champion_styler.to_html(), unsafe_allow_html=True)
-
-        # Optionally, show raw text summary
-        st.write("**Raw Summary**:")
-        for row in data_rows[:15]:
-            st.write(f"{row['Team']}: {row['Champ Probability (%)']:.1f}%")
-
-        # B) 2×2 subplot for region winners (if aggregator has something like aggregator["Region"])
-        region_probs = aggregated.get("Region", None)
-        if region_probs is None:
-            st.info("No region-level winner data found in aggregator. Skipping 2×2 subplot.")
-        else:
-            st.markdown("##### Regional Championship Probabilities")
-            from plotly.subplots import make_subplots
-            fig_region = make_subplots(rows=2, cols=2, subplot_titles=["West", "East", "South", "Midwest"])
-
-            row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
-            for region_name in ["West","East","South","Midwest"]:
-                if region_name not in region_probs:
-                    continue
-                items = sorted(region_probs[region_name].items(), key=lambda x: x[1], reverse=True)[:8]
-                x_vals = [itm[0] for itm in items]
-                y_vals = [itm[1] for itm in items]
-                (r, c) = row_col_map[region_name]
-                fig_region.add_trace(
-                    go.Bar(x=x_vals, y=y_vals, name=region_name,
-                           text=[f"{v:.1f}%" for v in y_vals],
-                           textposition="outside", marker_color="steelblue"),
-                    row=r, col=c
+                # Convert to a Styler for advanced CSS
+                detail_styler = (
+                    detail_df.style
+                    .set_properties(**{"text-align": "center"})
+                    .set_table_styles([
+                        {
+                            "selector": "th",
+                            "props": [
+                                ("background-color", "#0360CE"),
+                                ("color", "white"),
+                                ("font-weight", "bold"),
+                                ("text-align", "center"),
+                                ("padding", "6px 12px"),
+                                ("border", "1px solid #222")
+                            ]
+                        },
+                        {
+                            "selector": "td",
+                            "props": [
+                                ("text-align", "center"),
+                                ("border", "1px solid #ddd"),
+                                ("padding", "5px 10px")
+                            ]
+                        },
+                        {
+                            "selector": "table",
+                            "props": [
+                                ("border-collapse", "collapse"),
+                                ("border", "2px solid #222"),
+                                ("border-radius", "8px"),
+                                ("overflow", "hidden"),
+                                ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
+                            ]
+                        },
+                    ])
                 )
-                fig_region.update_xaxes(tickangle=-45, row=r, col=c)
-                if y_vals:
-                    fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
 
-            fig_region.update_layout(
-                template="plotly_dark",
-                height=600,
-                title="Regional Championship Odds",
-                showlegend=False,
-                margin=dict(l=50, r=50, t=60, b=60)
-            )
-            st.plotly_chart(fig_region, use_container_width=True)
+                st.markdown(detail_styler.to_html(), unsafe_allow_html=True)
 
-        # C) 1×1 bar chart for championship probabilities
-        st.markdown("##### Championship Probabilities (Bar Chart)")
-        top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
-        fig_champ = go.Figure()
-        fig_champ.add_trace(
-            go.Bar(
-                x=[tc[0] for tc in top_champs],
-                y=[tc[1] for tc in top_champs],
-                text=[f"{tc[1]:.1f}%" for tc in top_champs],
-                textposition="outside",
-                marker_color="tomato"
-            )
-        )
-        fig_champ.update_layout(
-            template="plotly_dark",
-            title="Championship Probabilities (Top 12)",
-            xaxis=dict(tickangle=-45),
-            yaxis=dict(range=[0, max([tc[1] for tc in top_champs])*1.15]),
-            showlegend=False,
-            margin=dict(l=20, r=20, t=80, b=60),
-            height=450
-        )
-        st.plotly_chart(fig_champ, use_container_width=True)
-    else:
-        st.info("Run the simulation to see results.")
-    
     
     # Style for the index (RANK)
     index_style = {
@@ -3415,7 +3305,6 @@ with tab_pred:
         st.plotly_chart(fig_champ, use_container_width=True)
     else:
         st.info("Run the simulation to see results.")
-
 
 
 # with tab_pred:
