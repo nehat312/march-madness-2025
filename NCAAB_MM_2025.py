@@ -975,26 +975,37 @@ round_colors = {
 # New function to simulate Final Four and Championship games.
 def simulate_final_four_and_championship(region_champions, use_analytics=True):
     """
-    Given a dictionary of 4 regional champions, simulate the Final Four and Championship.
-    Returns the champion team (a dict with team details) or None if 4 champions are not available.
+    region_champions: dict of the form:
+        {"East": {...}, "West": {...}, "South": {...}, "Midwest": {...}}
+      Each value is a dict with team data for that region's champion.
+    
+    We simulate:
+      Semifinal1: East vs West
+      Semifinal2: South vs Midwest
+      Championship: winners of the semifinals
     """
-    # Convert the region champions dict into a list; order is arbitrary.
-    champs = list(region_champions.values())
-    if len(champs) != 4:
-        return None
+    required_regions = ["East", "West", "South", "Midwest"]
+    if not all(rr in region_champions for rr in required_regions):
+        return None  # Must have exactly these four region champions
 
-    # Semifinal round: Pair champions arbitrarily (first two and last two).
-    semi1_prob = calculate_win_probability(champs[0], champs[1])
-    semi1_winner = champs[0] if random.random() < semi1_prob else champs[1]
+    east_champ = region_champions["East"]
+    west_champ = region_champions["West"]
+    south_champ = region_champions["South"]
+    midwest_champ = region_champions["Midwest"]
 
-    semi2_prob = calculate_win_probability(champs[2], champs[3])
-    semi2_winner = champs[2] if random.random() < semi2_prob else champs[3]
+    # Semifinal 1: East vs West
+    sf1_prob = calculate_win_probability(east_champ, west_champ) if use_analytics else 0.5
+    sf1_winner = east_champ if random.random() < sf1_prob else west_champ
 
-    # Championship game:
-    final_prob = calculate_win_probability(semi1_winner, semi2_winner)
-    champion = semi1_winner if random.random() < final_prob else semi2_winner
+    # Semifinal 2: South vs Midwest
+    sf2_prob = calculate_win_probability(south_champ, midwest_champ) if use_analytics else 0.5
+    sf2_winner = south_champ if random.random() < sf2_prob else midwest_champ
 
-    return champion
+    # Championship
+    final_prob = calculate_win_probability(sf1_winner, sf2_winner) if use_analytics else 0.5
+    champion = sf1_winner if random.random() < final_prob else sf2_winner
+
+    return champion  # dict with champion team’s data
 
 def prepare_tournament_data():
     """
@@ -1099,126 +1110,142 @@ def calculate_win_probability(team1, team2):
 
 def generate_bracket_round(teams, round_num, region, use_analytics=True):
     """
-    Given a list of teams for a round, simulate games and return the winners.
+    Given a list of teams for this round in a standard bracket order,
+    simulate each matchup and produce a list of winners in that same order.
     """
     winners = []
-    if round_num == 1:
-        pairings = [(0, 15), (7, 8), (4, 11), (3, 12), (5, 10), (2, 13), (6, 9), (1, 14)]
-    else:
-        pairings = [(i, i+1) for i in range(0, len(teams), 2)]
     
-    for i, j in pairings:
+    # Hard-coded pairings only for Round of 64 (1 vs 16, 8 vs 9, 5 vs 12, 4 vs 13, 6 vs 11, 3 vs 14, 7 vs 10, 2 vs 15).
+    # This ensures correct bracket structure for the first round.
+    if round_num == 1:
+        pairings = [(0, 15), (7, 8), (4, 11), (3, 12),
+                    (5, 10), (2, 13), (6, 9), (1, 14)]
+    else:
+        # For subsequent rounds, just pair winners in consecutive order (0 vs 1, 2 vs 3, etc.).
+        pairings = [(i, i+1) for i in range(0, len(teams), 2)]
+
+    for (i, j) in pairings:
         if i < len(teams) and j < len(teams):
             teamA = teams[i]
             teamB = teams[j]
             if use_analytics:
                 pA = calculate_win_probability(teamA, teamB)
             else:
+                # If 'use_analytics' is False, use a simpler logistic approach
                 diff = teamA['KP_AdjEM'] - teamB['KP_AdjEM']
-                pA = 1 / (1 + np.exp(-diff/10))
+                pA = 1 / (1 + np.exp(-diff / 10))
             winner = teamA if random.random() < pA else teamB
             winner = winner.copy()
-            winner['win_prob'] = pA if winner == teamA else (1 - pA)
+            winner['win_prob'] = pA if (winner is teamA) else (1 - pA)
             winners.append(winner)
+
     return winners
 
 def simulate_region_bracket(teams, region_name, use_analytics=True):
     """
-    Simulate a single region’s bracket given a list of teams.
-    Returns a tuple (rounds, all_games) where:
-      - rounds: a dict mapping round number to list of teams remaining,
-      - all_games: a list of dicts, each representing a game.
+    Simulate a single region’s bracket with a standard bracket layout:
+      Round of 64  -> Round of 32  -> Sweet 16  -> Elite 8 -> Region Champion
+    Each round is stored in 'rounds[r]'; 'all_games' has details of each game.
     """
     rounds = {}
-    current_round_teams = teams
-    num_rounds = int(math.log(len(teams), 2)) if teams else 0
+    current_round_teams = teams  # 16 teams in standard seed order: 1..16
+    num_rounds = 4  # For 16 teams: Round of 64, 32, 16, 8
     all_games = []
-    
-    for r in range(1, num_rounds + 1):
+
+    for r in range(1, num_rounds+1):
         rounds[r] = current_round_teams
         winners = generate_bracket_round(current_round_teams, r, region_name, use_analytics)
-        for i, winner in enumerate(winners):
-            # For round 1, use the predefined pairing order.
-            if r == 1:
-                pairing = [(0, 15), (7, 8), (4, 11), (3, 12), (5, 10), (2, 13), (6, 9), (1, 14)]
-                matchup_idx = pairing[i]
-                if matchup_idx[0] < len(current_round_teams) and matchup_idx[1] < len(current_round_teams):
-                    team1 = current_round_teams[matchup_idx[0]]
-                    team2 = current_round_teams[matchup_idx[1]]
-                else:
-                    continue
-            else:
-                if i*2 < len(current_round_teams) and i*2+1 < len(current_round_teams):
-                    team1 = current_round_teams[i*2]
-                    team2 = current_round_teams[i*2+1]
-                else:
-                    continue
-            
-            game_info = {
-                'round': r,
-                'round_name': {1: "Round of 64", 2: "Round of 32", 3: "Sweet 16", 4: "Elite 8"}.get(r, f"Round {r}"),
-                'region': region_name,
-                'team1': team1['Team'],
-                'seed1': team1['Seed'],
-                'team2': team2['Team'],
-                'seed2': team2['Seed'],
-                'winner': winner['Team'],
-                'winner_seed': winner['Seed'],
-                'win_prob': winner.get('win_prob', 0.5)
-            }
-            all_games.append(game_info)
+        # Build a 'game_info' record for each pairing
+        # The pairings in generate_bracket_round() determine which seeds faced off.
+        # We'll parse them in the same order so we can store each game.
+        pairings = []
+        if r == 1:
+            # same seed pairing approach
+            pairings = [(0,15),(7,8),(4,11),(3,12),(5,10),(2,13),(6,9),(1,14)]
+        else:
+            pairings = [(i, i+1) for i in range(0, len(current_round_teams), 2)]
+
+        game_counter = 0
+        for (i, j) in pairings:
+            if i < len(current_round_teams) and j < len(current_round_teams):
+                tA = current_round_teams[i]
+                tB = current_round_teams[j]
+                w = winners[game_counter]  # winner in same order
+                game_counter += 1
+
+                all_games.append({
+                    'round': r,
+                    'round_name': {1: "Round of 64", 2: "Round of 32",
+                                   3: "Sweet 16", 4: "Elite 8"}.get(r, f"Round {r}"),
+                    'region': region_name,
+                    'team1': tA['Team'],
+                    'seed1': tA['Seed'],
+                    'team2': tB['Team'],
+                    'seed2': tB['Seed'],
+                    'winner': w['Team'],
+                    'winner_seed': w['Seed'],
+                    'win_prob': w.get('win_prob', 0.5)
+                })
+
         current_round_teams = winners
-    if num_rounds > 0:
-        rounds[num_rounds + 1] = current_round_teams
+
+    # The region champion is the lone remaining team after 4 rounds
+    if current_round_teams:
+        rounds[num_rounds+1] = current_round_teams  # region champion
     return rounds, all_games
+
+
+
 
 def run_simulation(use_analytics=True, simulations=1):
     """
-    Run a specified number of complete tournament simulations.
-    For each simulation, simulate each region’s bracket (only if 16 teams are available per region),
-    then simulate Final Four and Championship if 4 regional champions are available.
-    
-    Returns a list of simulation result dictionaries.
-    Each simulation result contains:
-      - 'region_results': the bracket results for each region,
-      - 'region_champions': the champion from each region,
-      - 'champion': the overall tournament champion,
-      - 'all_games': list of all game details,
-      - 'simulation_number': simulation run number.
+    Runs `simulations` bracket simulations. For each:
+      1. Simulate each region bracket, awarding one champion per region.
+      2. If East, West, South, & Midwest champions are present, run Final Four & Championship.
+    Returns a list of simulation-result dicts.
     """
     tournament_data = prepare_tournament_data()
     if not tournament_data:
         sim_logger.error("Failed to prepare tournament data")
         return []
 
-    region_names = tournament_data['region_names']
-    region_teams = tournament_data['region_teams']
+    region_names = tournament_data['region_names']    # e.g. ["East", "West", "South", "Midwest"]
+    region_teams = tournament_data['region_teams']    # each region => list of 16 team dicts
     all_results = []
 
     for sim in range(simulations):
         region_results = {}
         region_champions = {}
         all_games = []
-        valid_regions = [reg for reg in region_names if reg in region_teams and len(region_teams[reg]) >= 16]
+        
+        # Only proceed for the "four main" regions that have 16 teams
+        valid_regions = [r for r in region_names if (r in region_teams and len(region_teams[r]) >= 16)]
         if len(valid_regions) < 4:
-            sim_logger.warning(f"Not enough valid regions for simulation. Found {len(valid_regions)} regions.")
+            sim_logger.warning(f"Not enough valid regions. Found {len(valid_regions)} with 16+ teams.")
             continue
-
-        for reg in valid_regions:
-            teams = region_teams[reg][:16]  # use exactly 16 teams per region
-            rounds, games = simulate_region_bracket(teams, reg, use_analytics)
+        
+        # 1) Simulate each region bracket
+        for reg in ["East", "West", "South", "Midwest"]:
+            if reg not in region_teams or len(region_teams[reg]) < 16:
+                continue
+            # Sort by seed just to be safe
+            region_teams[reg].sort(key=lambda x: x['Seed'])
+            rounds, games = simulate_region_bracket(region_teams[reg], reg, use_analytics)
             region_results[reg] = rounds
-            final_round = max(rounds.keys(), default=0)
-            if final_round and rounds[final_round]:
-                region_champions[reg] = rounds[final_round][0]
+            # The champion is last entry in rounds[5], i.e. rounds round #5 (index 4 + 1)
+            # or simply the final "winners" list in 'rounds[5]' if it exists
+            final_round_key = 5
+            if final_round_key in rounds and len(rounds[final_round_key]) > 0:
+                region_champions[reg] = rounds[final_round_key][0]
+            # Add the region's games to all_games
             all_games.extend(games)
         
-        # Only simulate Final Four if exactly 4 regional champions are available.
+        # 2) Simulate the Final Four & Championship if we have all 4 champions
+        champion = None
         if len(region_champions) == 4:
             champion = simulate_final_four_and_championship(region_champions, use_analytics)
-        else:
-            champion = None
-
+        
+        # Store result
         sim_result = {
             'region_results': region_results,
             'region_champions': region_champions,
@@ -1229,6 +1256,7 @@ def run_simulation(use_analytics=True, simulations=1):
         all_results.append(sim_result)
 
     return all_results
+
 
 def display_simulation_results(sim_results, st_container):
     """
