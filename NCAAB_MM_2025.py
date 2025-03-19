@@ -305,10 +305,13 @@ def get_default_metrics():
     return [
         'AVG MARGIN',
         'KP_AdjEM',
+        'KP_AdjO',
+        'KP_AdjD',
         'OFF EFF',
         'DEF EFF',
         'AST/TO%',
-        'STOCKS-TOV/GM'
+        'STOCKS-TOV/GM',
+
     ]
 
 def compute_tournament_stats(df):
