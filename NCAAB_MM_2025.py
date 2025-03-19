@@ -1025,88 +1025,135 @@ def simulate_tournament(bracket, num_simulations=1000):
     Full bracket simulation from Round of 64 to Championship, repeated num_simulations times.
     Return a dict of { 'Round of 64': {team->pct}, ..., 'Champion': {team->pct} }.
     """
-    round_64, round_32, sweet_16, elite_8, final_four, championship = get_bracket_matchups()
-    rounds_list = ["Round of 64","Round of 32","Sweet 16","Elite 8","Final Four","Championship","Champion"]
-    results = {r:{} for r in rounds_list}
+    round_64, round_32, sweet_16, elite_8, final_four, championship = get_matchups_by_round()
+    
+    # We'll maintain these round names to populate the results dictionary:
+    rounds_list = [
+        "Round of 64",
+        "Round of 32",
+        "Sweet 16",
+        "Elite 8",
+        "Final Four",
+        "Championship",
+        "Champion"
+    ]
+    
+    # region_order is used later to map index -> region
+    region_order = ["West", "East", "South", "Midwest"]
+    
+    # Prepare a structure to count how often each team advances to each round
+    results = {r: {} for r in rounds_list}
 
     for _ in range(num_simulations):
-        # Copy bracket so we don't overwrite
-        current = {reg: [copy.deepcopy(t) for t in bracket[reg]] for reg in bracket}
+        # Copy the bracket so we don't mutate the original
+        # bracket is a dict: { "West":[{team:'A',seed:1...}...], "East":[...], ... }
+        current = {}
+        for reg in bracket:
+            # Only copy if the region is present
+            current[reg] = [copy.deepcopy(t) for t in bracket[reg]]
 
         # --- Round of 64 ---
         r64_winners = {}
         for region, matchups in round_64.items():
-            region_winners = []
-            for (s1,s2) in matchups:
-                t1 = next(x for x in current[region] if x['seed']==s1)
-                t2 = next(x for x in current[region] if x['seed']==s2)
-                w  = simulate_game(t1,t2)
-                region_winners.append(w)
-                results["Round of 64"][w['team']] = results["Round of 64"].get(w['team'],0)+1
-            r64_winners[region] = region_winners
+            # If region not in bracket, skip
+            if region not in current:
+                continue
+            
+            winners_for_region = []
+            for (s1, s2) in matchups:
+                # Find teams with these seeds (skip if missing)
+                t1 = next((x for x in current[region] if x['seed'] == s1), None)
+                t2 = next((x for x in current[region] if x['seed'] == s2), None)
+                if not t1 or not t2:
+                    # If either is missing, skip this matchup
+                    continue
+
+                w = simulate_game(t1, t2)
+                winners_for_region.append(w)
+                # Mark that w advanced in "Round of 64"
+                results["Round of 64"][w['team']] = results["Round of 64"].get(w['team'], 0) + 1
+            
+            r64_winners[region] = winners_for_region
 
         # --- Round of 32 ---
         r32_winners = {}
         for region, pairs in round_32.items():
-            winners = []
+            if region not in current or region not in r64_winners:
+                continue
+            
+            winners_for_region = []
             region_list = r64_winners[region]
-            for (i,j) in pairs:
-                w = simulate_game(region_list[i], region_list[j])
-                winners.append(w)
-                results["Round of 32"][w['team']] = results["Round of 32"].get(w['team'],0)+1
-            r32_winners[region] = winners
+            # Make sure region_list has enough teams for these pair indices
+            for (i, j) in pairs:
+                if i < len(region_list) and j < len(region_list):
+                    w = simulate_game(region_list[i], region_list[j])
+                    winners_for_region.append(w)
+                    results["Round of 32"][w['team']] = results["Round of 32"].get(w['team'], 0) + 1
+            
+            r32_winners[region] = winners_for_region
 
         # --- Sweet 16 ---
         s16_winners = {}
         for region, pairs in sweet_16.items():
-            winners = []
+            if region not in current or region not in r32_winners:
+                continue
+            
+            winners_for_region = []
             region_list = r32_winners[region]
-            for (i,j) in pairs:
-                w = simulate_game(region_list[i], region_list[j])
-                winners.append(w)
-                results["Sweet 16"][w['team']] = results["Sweet 16"].get(w['team'],0)+1
-            s16_winners[region] = winners
+            for (i, j) in pairs:
+                if i < len(region_list) and j < len(region_list):
+                    w = simulate_game(region_list[i], region_list[j])
+                    winners_for_region.append(w)
+                    results["Sweet 16"][w['team']] = results["Sweet 16"].get(w['team'], 0) + 1
+            
+            s16_winners[region] = winners_for_region
 
         # --- Elite 8 ---
         e8_finalists = []
-        region_order = ['West','East','South','Midwest']
         for region, pairs in elite_8.items():
+            if region not in current or region not in s16_winners:
+                continue
+            
             region_list = s16_winners[region]
-            for (i,j) in pairs:
-                w = simulate_game(region_list[i], region_list[j])
-                e8_finalists.append( (region, w) )
-                results["Elite 8"][w['team']] = results["Elite 8"].get(w['team'],0)+1
+            for (i, j) in pairs:
+                if i < len(region_list) and j < len(region_list):
+                    w = simulate_game(region_list[i], region_list[j])
+                    e8_finalists.append((region, w))
+                    results["Elite 8"][w['team']] = results["Elite 8"].get(w['team'], 0) + 1
 
-        # Build dict {region -> champion}, in order West(0), East(1), South(2), Midwest(3)
+        # We now have a list of tuples (region, champion_of_that_region).
+        # We'll put them into region_champs = { 'West':{...}, 'East':{...}, etc. }
         region_champs = {}
         for (reg, champ_dict) in e8_finalists:
             region_champs[reg] = champ_dict
 
         # --- Final Four ---
-        # final_four = [ (0,1),(2,3) ] means West/East, South/Midwest
         ff_winners = []
+        # final_four = [(0,1), (2,3)] means West/East => game1, South/Midwest => game2
         for (idxA, idxB) in final_four:
             regA = region_order[idxA]
             regB = region_order[idxB]
+            if (regA not in region_champs) or (regB not in region_champs):
+                continue
+
             w = simulate_game(region_champs[regA], region_champs[regB])
             ff_winners.append(w)
-            results["Final Four"][w['team']] = results["Final Four"].get(w['team'],0)+1
+            results["Final Four"][w['team']] = results["Final Four"].get(w['team'], 0) + 1
 
         # --- Championship ---
-        # championship = [(0,1)]
         champion = None
-        for (i,j) in championship:
-            champion = simulate_game(ff_winners[i], ff_winners[j])
-            results["Championship"][champion['team']] = results["Championship"].get(champion['team'],0)+1
-            results["Champion"][champion['team']]     = results["Champion"].get(champion['team'],0)+1
+        for (i, j) in championship:
+            if i < len(ff_winners) and j < len(ff_winners):
+                champion = simulate_game(ff_winners[i], ff_winners[j])
+                results["Championship"][champion['team']] = results["Championship"].get(champion['team'], 0) + 1
+                results["Champion"][champion['team']] = results["Champion"].get(champion['team'], 0) + 1
 
-    # Convert counts -> percentages
-    for r in rounds_list:
-        for tm in results[r]:
-            results[r][tm] = 100.0 * (results[r][tm] / num_simulations)
+    # Convert raw counts → percentages
+    for round_name in rounds_list:
+        for tm in results[round_name]:
+            results[round_name][tm] = 100.0 * (results[round_name][tm] / num_simulations)
 
     return results
-
 
 # def prepare_tournament_data():
 #     """
@@ -1194,8 +1241,14 @@ def simulate_tournament(bracket, num_simulations=1000):
 
 def prepare_tournament_data(df):
     """
-    From the global df_main, keep 1..16 seeds in each region (West/East/South/Midwest).
-    Return bracket dict: { 'West': [ {team,seed,KP_AdjEM,...} x16 ], 'East':..., ... }
+    From df, keep seeds 1..16 in each region. If a region lacks any seed
+    from 1..16, we skip that region entirely. Return bracket dict: 
+      {
+        'West': [ { 'team':..., 'seed':1, 'KP_AdjEM':...}, ...16 teams ],
+        'East': [...16 teams],
+        'South': [...16 teams],
+        'Midwest': [...16 teams]
+      }
     """
     required = ['SEED_25','REGION_25','KP_AdjEM','OFF EFF','DEF EFF']
     missing = [c for c in required if c not in df.columns]
@@ -1205,27 +1258,45 @@ def prepare_tournament_data(df):
 
     bracket_teams = df.dropna(subset=required).copy()
     bracket_teams['SEED_25'] = bracket_teams['SEED_25'].astype(int)
-    bracket_teams = bracket_teams[(bracket_teams['SEED_25']>=1) & (bracket_teams['SEED_25']<=16)]
+    bracket_teams = bracket_teams[
+        (bracket_teams['SEED_25']>=1) & (bracket_teams['SEED_25']<=16)
+    ]
 
+    # Decide on the name column
     if 'TM_KP' in bracket_teams.columns:
         name_col = 'TM_KP'
     else:
+        # fallback
         name_col = 'TEAM' if 'TEAM' in bracket_teams.columns else bracket_teams.index.name
 
-    # Add optional columns if missing
+    # Ensure optional columns exist
     for bonus_col in ['TOURNEY_SUCCESS','TOURNEY_EXPERIENCE']:
         if bonus_col not in bracket_teams.columns:
             bracket_teams[bonus_col] = 0.0
 
-    # Example: give certain perennial teams a +2 bonus
+    # Example: give certain perennial teams a bonus
     for perennial in ["Duke","Kentucky","Kansas","North Carolina","Gonzaga","Michigan St."]:
         if perennial in bracket_teams[name_col].values:
             bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 2.0
 
+    # Build the bracket
     bracket = {}
+    # We'll only keep a region if it has exactly one team for *each* seed in [1..16].
+    # Alternatively, you could accept partial sets, but then you must handle them in simulate_tournament.
     for region in ['West','East','South','Midwest']:
-        region_df = bracket_teams[bracket_teams['REGION_25'].str.lower()==region.lower()]
-        region_df = region_df.sort_values('SEED_25').head(16)
+        region_df = bracket_teams[
+            bracket_teams['REGION_25'].str.lower() == region.lower()
+        ].copy()
+
+        # Check each seed from 1..16 is present
+        region_seeds = region_df['SEED_25'].unique().tolist()
+        if len(region_seeds) < 16:
+            # You can log or skip
+            sim_logger.warning(f"{region} region missing some seeds, found seeds: {region_seeds}. Skipping.")
+            continue
+
+        # Sort by seed (1..16)
+        region_df = region_df.sort_values('SEED_25')
         region_list = []
         for _, row in region_df.iterrows():
             region_list.append({
@@ -1238,7 +1309,9 @@ def prepare_tournament_data(df):
                 'TOURNEY_EXPERIENCE': float(row['TOURNEY_EXPERIENCE'])
             })
         bracket[region] = region_list
+
     return bracket
+
 
 def calculate_win_probability(t1, t2):
     """
