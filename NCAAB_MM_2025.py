@@ -900,7 +900,7 @@ def create_treemap(df_notnull):
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.sequential.turbo,
+            color_continuous_scale=RdYlGn,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
@@ -1487,7 +1487,7 @@ def visualize_aggregated_results(aggregated_analysis):
             x='Championship_Probability_PCT',
             orientation='h',
             color='Championship_Probability_PCT',
-            color_continuous_scale=px.colors.sequential.turbo,
+            color_continuous_scale=RdYlGn,
             title="Championship Win Probability (Top 10 Teams)",
             labels={'Championship_Probability_PCT': 'Win Probability (%)', 'Team': ''},
             template='plotly_dark',
@@ -1525,7 +1525,7 @@ def visualize_aggregated_results(aggregated_analysis):
             y='Upset_PCT',
             text='Upset_PCT',
             color='Upset_PCT',
-            color_continuous_scale='turbo',
+            color_continuous_scale=RdYlGn,
             title="Upset Percentage by Tournament Round",
             labels={'Upset_PCT': 'Upset Percentage (%)'},
             template='plotly_dark',
