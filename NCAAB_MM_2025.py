@@ -900,7 +900,7 @@ def create_treemap(df_notnull):
             path=["CONFERENCE", "TM_KP"],
             values="KP_AdjEM",
             color="KP_AdjEM",
-            color_continuous_scale=px.colors.diverging.turbo,
+            color_continuous_scale=px.colors.sequential.turbo,
             hover_data=["hover_text"],
             title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
         )
