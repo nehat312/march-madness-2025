@@ -1215,8 +1215,8 @@ def calculate_win_probability(t1, t2):
     factor = 0
     
     # Base efficiency metrics (40%)
-    factor += 0.25 * kp_diff  # KenPom is the most reliable predictor
-    factor += 0.15 * net_diff  # NET ranking differential
+    factor += 0.5 * kp_diff  # KenPom is the most reliable predictor
+    factor += 0.01 * net_diff  # NET ranking differential
     
     # Matchup analysis (25%)
     factor += 0.1 * off_advantage  # Team 1's offense vs Team 2's defense
@@ -1227,11 +1227,11 @@ def calculate_win_probability(t1, t2):
     # Game context (15%)
     factor += 0.05 * win_pct_diff  # Overall win percentage
     factor += 0.05 * close_pct_diff  # Close game win percentage
-    factor += 0.025 * margin_diff  # Average margin
+    factor += 0.5 * margin_diff  # Average margin
     factor += 0.025 * sos_diff  # Strength of schedule
     
     # Tournament and momentum (20%)
-    factor += 0.05 * exp_diff  # Tournament experience
+    factor += 0.01 * exp_diff  # Tournament experience
     factor += 0.05 * success_diff  # Tournament success history
     #factor += 0.05 * recent_form_diff  # Recent form
     #factor += 0.05 * conf_strength_diff  # Conference strength
