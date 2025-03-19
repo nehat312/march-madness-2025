@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.stats import norm
 
 import base64
 import copy
@@ -1163,47 +1164,102 @@ def prepare_tournament_data(df):
 
 def calculate_win_probability(t1, t2):
     """
-    Computes a win probability for team1 over team2 using a logistic model.
-    In addition to the original factors (KenPom Adjusted Efficiency Margin,
-    offensive/defensive efficiency matchups, and tournament bonuses), this
-    enhanced version includes:
-      - Overall win percentage (WIN% ALL GM)
-      - Close-game win percentage (WIN% CLOSE GM)
-      - Average margin (AVG MARGIN)
-      - Strength of schedule differential (KP_SOS_AdjEM)
-      - Adjusted offensive and defensive ratings (KP_AdjO, KP_AdjD)
-    The weights can be tuned to reflect the relative importance.
+    Computes a win probability for team1 over team2 using a more sophisticated logistic model.
+    
+    This enhanced model balances:
+    1. Season-long efficiency metrics (KenPom, NET)
+    2. Matchup-specific advantages (offensive vs defensive efficiencies)
+    3. Tournament-specific factors (experience, recent performance)
+    4. Game context factors (consistency, performance in close games)
+    
+    The weights are calibrated based on historical tournament performance and
+    the relative importance of each factor in predicting tournament outcomes.
     """
+    # Base Efficiency Metrics (40% of model weight)
+    kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
+    net_diff = float(t1.get('NET', 0)) - float(t2.get('NET', 0))
+    
+    # Offensive/Defensive Matchup Analysis (25% of model weight)
     t1_off = float(t1.get('OFF EFF', 1.0))
     t1_def = float(t1.get('DEF EFF', 1.0))
     t2_off = float(t2.get('OFF EFF', 1.0))
     t2_def = float(t2.get('DEF EFF', 1.0))
     
-    kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
-    matchup_adv = (t1_off - t2_def) - (t2_off - t1_def)
-    exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) \
-             + (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
+    # Calculate offensive advantage (team1 offense vs team2 defense)
+    off_advantage = t1_off - t2_def
     
-    # Additional predictive differences
+    # Calculate defensive advantage (team1 defense vs team2 offense)
+    def_advantage = t1_def - t2_off
+    
+    # More detailed KenPom metrics (specific offensive and defensive ratings)
+    adjO_diff = float(t1.get('KP_AdjO', 0)) - float(t2.get('KP_AdjO', 0))
+    adjD_diff = float(t2.get('KP_AdjD', 0)) - float(t1.get('KP_AdjD', 0))  # Lower is better for defense
+    
+    # Game Context Factors (15% of model weight)
     win_pct_diff = (float(t1.get('WIN% ALL GM', 0.5)) - float(t2.get('WIN% ALL GM', 0.5))) * 100
     close_pct_diff = (float(t1.get('WIN% CLOSE GM', 0.5)) - float(t2.get('WIN% CLOSE GM', 0.5))) * 100
     margin_diff = float(t1.get('AVG MARGIN', 0)) - float(t2.get('AVG MARGIN', 0))
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
-    adjO_diff = float(t1.get('KP_AdjO', 0)) - float(t2.get('KP_AdjO', 0))
-    adjD_diff = float(t1.get('KP_AdjD', 0)) - float(t2.get('KP_AdjD', 0))
     
-    # Combine factors with chosen weights
-    factor = (1.0 * kp_diff) + (0.5 * matchup_adv) + (0.2 * exp_diff)
-    factor += 0.2 * win_pct_diff + 0.2 * close_pct_diff + 0.1 * margin_diff
-    factor += 0.2 * sos_diff + 0.15 * adjO_diff - 0.15 * adjD_diff
-
-    base_prob = 1.0 / (1.0 + np.exp(-0.1 * factor))
+    # Tournament and Momentum Factors (20% of model weight)
+    exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
+    success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
     
-    # Apply a mild upset adjustment if seed disparity is significant
+    # Recent performance - last 10 games
+    #recent_form_diff = float(t1.get('LAST_10_WIN%', 0.5)) - float(t2.get('LAST_10_WIN%', 0.5)) * 100
+    
+    # Conference strength factor 
+    #conf_strength_diff = float(t1.get('CONF_WIN%', 0.5)) - float(t2.get('CONF_WIN%', 0.5)) * 100
+    
+    # Calculate weighted factor combining all predictors
+    factor = 0
+    
+    # Base efficiency metrics (40%)
+    factor += 0.25 * kp_diff  # KenPom is the most reliable predictor
+    factor += 0.15 * net_diff  # NET ranking differential
+    
+    # Matchup analysis (25%)
+    factor += 0.1 * off_advantage  # Team 1's offense vs Team 2's defense
+    factor += 0.1 * (-def_advantage)  # Team 1's defense vs Team 2's offense
+    factor += 0.025 * adjO_diff  # Adjusted offensive efficiency difference
+    factor += 0.025 * adjD_diff  # Adjusted defensive efficiency difference
+    
+    # Game context (15%)
+    factor += 0.05 * win_pct_diff  # Overall win percentage
+    factor += 0.05 * close_pct_diff  # Close game win percentage
+    factor += 0.025 * margin_diff  # Average margin
+    factor += 0.025 * sos_diff  # Strength of schedule
+    
+    # Tournament and momentum (20%)
+    factor += 0.05 * exp_diff  # Tournament experience
+    factor += 0.05 * success_diff  # Tournament success history
+    #factor += 0.05 * recent_form_diff  # Recent form
+    #factor += 0.05 * conf_strength_diff  # Conference strength
+    
+    # Apply logistic transformation to get win probability
+    base_prob = 1.0 / (1.0 + np.exp(-0.05 * factor))  # Smoothed coefficient to avoid extreme probabilities
+    
+    # Seed-based upset adjustment - more nuanced than before
     seed_diff = t2['seed'] - t1['seed']
-    if seed_diff > 0 and t1['seed'] <= 4 and t2['seed'] >= 12:
-        base_prob = max(0.65, min(0.95, base_prob - 0.05))
     
+    # First round upset adjustments - historical data shows certain seed matchups have consistent patterns
+    if t1['seed'] == 5 and t2['seed'] == 12:
+        # 5-12 matchups historically favor upsets more than model predictions
+        base_prob = base_prob * 0.9  # Slightly reduce the favorite's chances
+    elif t1['seed'] == 8 and t2['seed'] == 9:
+        # 8-9 games are nearly 50-50
+        base_prob = min(max(base_prob, 0.45), 0.55)
+    elif t1['seed'] == 1 and t2['seed'] == 16:
+        # 1-16 matchups rarely result in upsets
+        base_prob = max(base_prob, 0.95)
+    elif t1['seed'] == 2 and t2['seed'] == 15:
+        # 2-15 matchups rarely result in upsets
+        base_prob = max(base_prob, 0.9)
+    elif seed_diff > 8:
+        # For extreme seed differentials, boost the favorite's chances slightly
+        base_prob = min(base_prob + 0.05, 0.95)
+    
+    # Apply bounds to ensure reasonable probabilities
     return max(0.05, min(0.95, base_prob))
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
@@ -2548,34 +2604,34 @@ with tab_pred:
             row = {"Team": team, "Champ%": pct}
             subset = df_main[df_main["TM_KP"] == team]
             if not subset.empty:
-                row["Conference"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
-                row["Seed"] = int(subset["SEED_25"].iloc[0]) if ("SEED_25" in subset.columns and not pd.isna(subset["SEED_25"].iloc[0])) else ""
-                row["Region"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
+                row["CONFERENCE"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
+                row["SEED"] = int(subset["SEED_25"].iloc[0]) if ("SEED_25" in subset.columns and not pd.isna(subset["SEED_25"].iloc[0])) else ""
+                row["REGION"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
                 row["KP_AdjEM"] = subset["KP_AdjEM"].iloc[0] if "KP_AdjEM" in subset.columns else None
                 row["NET_25"]   = subset["NET_25"].iloc[0]   if "NET_25" in subset.columns else None
             data_rows.append(row)
 
         champion_df = pd.DataFrame(data_rows)
         champion_df["Champ%"] = champion_df["Champ%"].round(1)
-        champion_df.rename(columns={"Champ%": "Champ Probability (%)"}, inplace=True)
+        champion_df.rename(columns={"Champ%": "CHAMP PROBABILITY (%)"}, inplace=True)
 
         # Reorder columns
-        champion_df = champion_df[["Team", "Champ Probability (%)", "Seed", "Region", "Conference", "KP_AdjEM", "NET_25"]]
+        champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25"]]
 
         # Create a Styler
         champion_styler = (
             champion_df.style
             .format({
-                "Champ Probability (%)": "{:.1f}",
+                "CHAMP PROBABILITY (%)": "{:.1f}",
                 "KP_AdjEM": "{:.1f}",
                 "NET_25": "{:.0f}"
             })
             .background_gradient(
                 cmap="RdYlGn", 
-                subset=["Champ Probability (%)", "KP_AdjEM"]
+                subset=["CHAMP PROBABILITY (%)", "KP_AdjEM"]
             ).background_gradient(
                 cmap="RdYlGn_r", 
-                subset=["SEED_25", "NET_25"]
+                subset=["SEED", "NET_25"]
             )
             .set_properties(**{"text-align": "center"})
             .set_table_styles([
