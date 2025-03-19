@@ -1487,7 +1487,7 @@ def visualize_aggregated_results(aggregated_analysis):
             x='Championship_Probability_PCT',
             orientation='h',
             color='Championship_Probability_PCT',
-            color_continuous_scale='turbo',
+            color_continuous_scale=px.colors.sequential.turbo,
             title="Championship Win Probability (Top 10 Teams)",
             labels={'Championship_Probability_PCT': 'Win Probability (%)', 'Team': ''},
             template='plotly_dark',
@@ -1598,12 +1598,13 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     
-    st.subheader("🔍 :primary[TEAM SPOTLIGHT]", divider='grey') # 📊 🔢 🚩🏁🎌🏟️ 📢📣🎊🎉🕒🗣️📺📱
     selected_team = st.selectbox(
         ":green[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=0
+        index=0,
+        key="select_team_home"
     )
+
 
     if selected_team:
         team_data = df_main[df_main["TM_KP"] == selected_team].copy()
@@ -1828,17 +1829,18 @@ with tab_team_reports:
     st.header("TEAM REPORTS")
     st.caption(":green[_DATA AS OF: 3/18/2025_]")
     # Allow team selection – similar to the Home tab approach
-    selected_team = st.selectbox(
+    selected_team_reports = st.selectbox(
         ":green[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=0
+        index=0,
+        key="select_team_reports"  # unique key for this selectbox
     )
-    if selected_team:
-        team_data = df_main[df_main["TM_KP"] == selected_team].copy()
+    if selected_team_reports:
+        team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
         if not team_data.empty:
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"### {selected_team}")
+                st.markdown(f"### {selected_team_reports}")
                 conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
                 record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
                 seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}" if "SEED_25" in team_data.columns and not pd.isna(team_data['SEED_25'].iloc[0]) else ""
@@ -1883,7 +1885,7 @@ with tab_team_reports:
                     for line in insights:
                         st.write(f"- {line}")
             with col2:
-                radar_fig = create_radar_chart([selected_team], df_main)
+                radar_fig = create_radar_chart([selected_team_reports], df_main)
                 if radar_fig:
                     st.plotly_chart(radar_fig, use_container_width=True)
             with st.expander("View All Team Metrics"):
