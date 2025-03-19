@@ -252,10 +252,10 @@ WAC_logo = Image.open(WAC_logo_path) if os.path.exists(WAC_logo_path) else None
 WCC_logo = Image.open(WCC_logo_path) if os.path.exists(WCC_logo_path) else None
 
 conference_logo_map = {"A10": A10_logo, "ACC": ACC_logo, "Amer": AAC_logo, "AE": AEC_logo, "ASun": ASUN_logo, "B10": B10_logo, "B12": B12_logo,
-                       "BE": BE_logo, "Big South": BSouth_logo, "BSky": BSky_logo, "BW": BWest_logo, "CAA": CAA_logo, "CUSA": CUSA_logo,
+                       "BE": BE_logo, "BSth": BSouth_logo, "BSky": BSky_logo, "BW": BWest_logo, "CAA": CAA_logo, "CUSA": CUSA_logo,
                        "Horz": Horizon_logo, "Ivy": Ivy_logo, "MAAC": MAAC_logo, "MAC": MAC_logo, "MEAC": MEAC_logo, "MVC": MVC_logo, "MWC": MWC_logo,
-                       "NEC": NEC_logo, "OVC": OVC_logo, "Patriot": Patriot_logo, "SB": SBC_logo, "SEC": SEC_logo, "SoCon": SoCon_logo, "Southland": Southland_logo,
-                       "Summit": Summit_logo, "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
+                       "NEC": NEC_logo, "OVC": OVC_logo, "PL": Patriot_logo, "SB": SBC_logo, "SEC": SEC_logo, "SoCon": SoCon_logo, "Southland": Southland_logo,
+                       "Sum": Summit_logo, "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
                        }
 
 #####################################
@@ -1601,6 +1601,7 @@ def create_regional_prob_chart(region_df):
 # --- App Header & Tabs ---
 st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
 st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
+st.subheader(":blue[🎱WELCOME RICH MANEEE🎱]")
 st.caption(":primary[_Cure your bracket brain and propel yourself up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
@@ -2454,7 +2455,7 @@ with tab_pred:
                 "KenPom Adj DEff": f"{team_data['KP_AdjD']:.2f}",
                 "TeamRankings OEff": f"{team_data['OFF EFF']:.2f}",
                 "TeamRankings DEff.": f"{team_data['DEF EFF']:.2f}",
-            }
+            } 
             stat_col1, stat_col2 = st.columns(2)
             for i, (stat, value) in enumerate(key_stats.items()):
                 if i % 2 == 0:
