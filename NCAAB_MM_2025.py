@@ -2575,7 +2575,7 @@ with tab_pred:
                 subset=["Champ Probability (%)", "KP_AdjEM"]
             ).background_gradient(
                 cmap="RdYlGn_r", 
-                subset=["SEED", "NET_25"]
+                subset=["SEED_25", "NET_25"]
             )
             .set_properties(**{"text-align": "center"})
             .set_table_styles([
