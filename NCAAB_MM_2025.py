@@ -305,8 +305,8 @@ def get_default_metrics():
     return [
         'AVG MARGIN',
         'KP_AdjEM',
-        'KP_AdjO',
-        'KP_AdjD',
+        #'KP_AdjO',
+        #'KP_AdjD',
         'OFF EFF',
         'DEF EFF',
         'AST/TO%',
@@ -1997,7 +1997,14 @@ with tab_regions:
         "OPP TS%": "RdBu_r",
         "AST/TO%": "RdBu",
         "STOCKS/GM": "RdBu",
-
+        "WIN% ALL GM": "RdBu",
+        "WIN% CLOSE GM": "RdBu",
+        "NET_25": "RdBu_r",
+        "SEED_25": "RdBu_r",
+        "KP_AdjO": "RdBu",
+        "KP_AdjD": "RdBu_r",
+        "PTS/GM": "RdBu",
+        "OPP PTS/GM": "RdBu",
     }
 
     # Advanced table styling to match TEAM METRICS tab
