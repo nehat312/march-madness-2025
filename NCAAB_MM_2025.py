@@ -3242,7 +3242,8 @@ with tab_pred:
         # Optionally, show raw text summary
         st.write("**Raw Summary**:")
         for row in data_rows[:15]:
-            st.write(f"{row['Team']}: {row['Champ Probability (%)']:.1f}%")
+            st.write(f"{row['Team']}: {row['Champ%']:.1f}%")
+
 
         # B) 2×2 subplot for region winners (if aggregator has something like aggregator["Region"])
         region_probs = aggregated.get("Region", None)
@@ -3306,6 +3307,17 @@ with tab_pred:
     else:
         st.info("Run the simulation to see results.")
 
+
+if FinalFour25_logo:
+    st.image(FinalFour25_logo, width=750)
+
+st.markdown("---")
+st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
+st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
+st.stop()
+
+
+## ----- EXTRA ----- ##
 
 # with tab_pred:
 #     st.header("Bracket Simulation")
@@ -3422,21 +3434,6 @@ with tab_pred:
 #                     st.warning("No single simulation results to display.")
 #             except Exception as e:
 #                 st.error(f"Error displaying detailed simulation logs: {e}")
-    
-
-
-
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, width=750)
-
-st.markdown("---")
-st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
-st.caption("DATA SOURCED FROM: [TeamRankings](https://www.teamrankings.com/ncaa-basketball/ranking/predictive-by-other/), [KenPom](https://kenpom.com/)")
-st.stop()
-
-## ----- EXTRA ----- ##
-
-
 
 # with tab_pred:
 #     st.header("Bracket Simulation")
