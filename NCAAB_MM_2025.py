@@ -2597,11 +2597,11 @@ with tab_pred:
             st.warning("No champion probabilities found in aggregator.")
             st.stop()
 
-        # Build a table with columns: [Team,Champ%,Seed,Region,Conference,KP_AdjEM,NET_25]
+        # Build a table with columns: [Team,CHAMP%,Seed,Region,Conference,KP_AdjEM,NET_25]
         champion_items = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)
         data_rows = []
         for team, pct in champion_items:
-            row = {"Team": team, "Champ%": pct}
+            row = {"TEAM": team, "CHAMP%": pct}
             subset = df_main[df_main["TM_KP"] == team]
             if not subset.empty:
                 row["CONFERENCE"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
@@ -2612,8 +2612,8 @@ with tab_pred:
             data_rows.append(row)
 
         champion_df = pd.DataFrame(data_rows)
-        champion_df["Champ%"] = champion_df["Champ%"].round(1)
-        champion_df.rename(columns={"Champ%": "CHAMP PROBABILITY (%)"}, inplace=True)
+        champion_df["CHAMP%"] = champion_df["CHAMP%"].round(1)
+        champion_df.rename(columns={"CHAMP%": "CHAMP PROBABILITY (%)"}, inplace=True)
 
         # Reorder columns
         champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25"]]
@@ -2668,13 +2668,13 @@ with tab_pred:
             ])
         )
 
-        st.markdown("##### Top Likely Champions (Styled Table)")
+        st.markdown(":primary[##### HIGHEST CHAMPIONSHIP PROBABILTIES]")
         st.markdown(champion_styler.to_html(), unsafe_allow_html=True)
 
         # Optionally, show raw text summary
         st.write("**Raw Summary**:")
         for row in data_rows[:15]:
-            st.write(f"{row['Team']}: {row['Champ%']:.1f}%")
+            st.write(f"{row['TEAM']}: {row['CHAMP%']:.1f}%")
 
 
         # B) 2×2 subplot for region winners (if aggregator has something like aggregator["Region"])
