@@ -951,35 +951,9 @@ sim_handler.setLevel(logging.WARNING)
 sim_handler.setFormatter(logging.Formatter("%(message)s"))
 sim_logger.addHandler(sim_handler)
 
-# ANSI color codes for simulation rounds (used only for logging)
-BLUE     = '\033[94m'
-CYAN     = '\033[96m'
-GREEN    = '\033[92m'
-YELLOW   = '\033[93m'
-MAGENTA  = '\033[95m'
-RED      = '\033[91m'
-RESET    = '\033[0m'
-
-round_colors = {
-    "Round of 64": BLUE,
-    "Round of 32": CYAN,
-    "Sweet 16": GREEN,
-    "Elite 8": YELLOW,
-    "Final Four": MAGENTA,
-    "Championship": RED
-}
-
-# Define the correct bracket matchup structure based on NCAA tournament seeding
 def get_matchups_by_round():
     """
-    Returns the bracket structure for each round (seeds 1–16 in each region).
-    Each dict entry is region -> list of (seed1, seed2) pairs or indices:
-      round_64  : seeds in actual pairs (1–16, 8–9, etc.)
-      round_32  : winners feed in (0 vs 1, 2 vs 3, etc.)
-      sweet_16  : ...
-      elite_8   : ...
-      final_four: [ (0,1), (2,3) ] means West/East, South/Midwest
-      championship: [ (0,1) ] from the two winners of final_four
+    Returns the standard NCAA bracket matchups per region.
     """
     round_64 = {
         'West':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
@@ -1005,29 +979,27 @@ def get_matchups_by_round():
         'South':   [(0,1)],
         'Midwest': [(0,1)]
     }
-    final_four   = [(0,1), (2,3)]  # 0=West,1=East,2=South,3=Midwest
+    final_four   = [(0,1), (2,3)]  # (West vs East, South vs Midwest)
     championship = [(0,1)]
     return round_64, round_32, sweet_16, elite_8, final_four, championship
 
-
 def simulate_game(team1, team2):
     """
-    Simulate one game: return a *copy* of the winner's dictionary.
+    Simulate one game between team1 and team2.
+    Returns a *copy* of the winner's dictionary.
     """
     pA = calculate_win_probability(team1, team2)
     winner = team1 if (random.random() < pA) else team2
     return copy.deepcopy(winner)
 
-
-
 def simulate_tournament(bracket, num_simulations=1000):
     """
-    Full bracket simulation from Round of 64 to Championship, repeated num_simulations times.
-    Return a dict of { 'Round of 64': {team->pct}, ..., 'Champion': {team->pct} }.
+    Runs a full-bracket simulation from Round of 64 to Championship for a given
+    bracket (dictionary by region) and returns a dictionary of round–by–round
+    aggregated win percentages.
     """
     round_64, round_32, sweet_16, elite_8, final_four, championship = get_matchups_by_round()
     
-    # We'll maintain these round names to populate the results dictionary:
     rounds_list = [
         "Round of 64",
         "Round of 32",
@@ -1038,66 +1010,49 @@ def simulate_tournament(bracket, num_simulations=1000):
         "Champion"
     ]
     
-    # region_order is used later to map index -> region
     region_order = ["West", "East", "South", "Midwest"]
-    
-    # Prepare a structure to count how often each team advances to each round
     results = {r: {} for r in rounds_list}
 
     for _ in range(num_simulations):
-        # Copy the bracket so we don't mutate the original
-        # bracket is a dict: { "West":[{team:'A',seed:1...}...], "East":[...], ... }
         current = {}
         for reg in bracket:
-            # Only copy if the region is present
             current[reg] = [copy.deepcopy(t) for t in bracket[reg]]
-
+            
         # --- Round of 64 ---
         r64_winners = {}
         for region, matchups in round_64.items():
-            # If region not in bracket, skip
             if region not in current:
                 continue
-            
             winners_for_region = []
             for (s1, s2) in matchups:
-                # Find teams with these seeds (skip if missing)
                 t1 = next((x for x in current[region] if x['seed'] == s1), None)
                 t2 = next((x for x in current[region] if x['seed'] == s2), None)
                 if not t1 or not t2:
-                    # If either is missing, skip this matchup
                     continue
-
                 w = simulate_game(t1, t2)
                 winners_for_region.append(w)
-                # Mark that w advanced in "Round of 64"
                 results["Round of 64"][w['team']] = results["Round of 64"].get(w['team'], 0) + 1
-            
             r64_winners[region] = winners_for_region
 
         # --- Round of 32 ---
         r32_winners = {}
         for region, pairs in round_32.items():
-            if region not in current or region not in r64_winners:
+            if region not in r64_winners:
                 continue
-            
             winners_for_region = []
             region_list = r64_winners[region]
-            # Make sure region_list has enough teams for these pair indices
             for (i, j) in pairs:
                 if i < len(region_list) and j < len(region_list):
                     w = simulate_game(region_list[i], region_list[j])
                     winners_for_region.append(w)
                     results["Round of 32"][w['team']] = results["Round of 32"].get(w['team'], 0) + 1
-            
             r32_winners[region] = winners_for_region
 
         # --- Sweet 16 ---
         s16_winners = {}
         for region, pairs in sweet_16.items():
-            if region not in current or region not in r32_winners:
+            if region not in r32_winners:
                 continue
-            
             winners_for_region = []
             region_list = r32_winners[region]
             for (i, j) in pairs:
@@ -1105,38 +1060,31 @@ def simulate_tournament(bracket, num_simulations=1000):
                     w = simulate_game(region_list[i], region_list[j])
                     winners_for_region.append(w)
                     results["Sweet 16"][w['team']] = results["Sweet 16"].get(w['team'], 0) + 1
-            
             s16_winners[region] = winners_for_region
 
         # --- Elite 8 ---
         e8_finalists = []
         for region, pairs in elite_8.items():
-            if region not in current or region not in s16_winners:
+            if region not in s16_winners:
                 continue
-            
             region_list = s16_winners[region]
             for (i, j) in pairs:
                 if i < len(region_list) and j < len(region_list):
                     w = simulate_game(region_list[i], region_list[j])
                     e8_finalists.append((region, w))
                     results["Elite 8"][w['team']] = results["Elite 8"].get(w['team'], 0) + 1
-
-        # We now have a list of tuples (region, champion_of_that_region).
-        # We'll put them into region_champs = { 'West':{...}, 'East':{...}, etc. }
         region_champs = {}
         for (reg, champ_dict) in e8_finalists:
             region_champs[reg] = champ_dict
 
         # --- Final Four ---
         ff_winners = []
-        # final_four = [(0,1), (2,3)] means West/East => game1, South/Midwest => game2
         for (idxA, idxB) in final_four:
-            regA = region_order[idxA]
-            regB = region_order[idxB]
-            if (regA not in region_champs) or (regB not in region_champs):
+            rA = region_order[idxA]
+            rB = region_order[idxB]
+            if rA not in region_champs or rB not in region_champs:
                 continue
-
-            w = simulate_game(region_champs[regA], region_champs[regB])
+            w = simulate_game(region_champs[rA], region_champs[rB])
             ff_winners.append(w)
             results["Final Four"][w['team']] = results["Final Four"].get(w['team'], 0) + 1
 
@@ -1148,107 +1096,18 @@ def simulate_tournament(bracket, num_simulations=1000):
                 results["Championship"][champion['team']] = results["Championship"].get(champion['team'], 0) + 1
                 results["Champion"][champion['team']] = results["Champion"].get(champion['team'], 0) + 1
 
-    # Convert raw counts → percentages
+    # Convert counts to percentages
     for round_name in rounds_list:
         for tm in results[round_name]:
             results[round_name][tm] = 100.0 * (results[round_name][tm] / num_simulations)
-
     return results
-
-# def prepare_tournament_data():
-#     """
-#     Prepares the 64-team bracket data from your df_main,
-#     ensuring we have seeds 1..16 in each region and returning
-#     { 'region_names': [...], 'region_teams': {...}, 'tournament_teams': DataFrame }.
-#     """
-#     global TR_df  # used for bracket radar grids
-#     TR_df = df_main.copy()
-
-#     required_cols = ['SEED_25', 'REGION_25', 'KP_Rank', 'KP_AdjEM', 'OFF EFF', 'DEF EFF']
-#     for col in required_cols:
-#         if col not in TR_df.columns:
-#             sim_logger.warning(f"Missing required column: {col}")
-#             return None
-
-#     tournament_teams = TR_df.dropna(subset=required_cols).copy()
-#     tournament_teams['SEED_25'] = tournament_teams['SEED_25'].astype(int)
-
-#     # Only keep 1..16 seeds
-#     tournament_teams = tournament_teams[(tournament_teams['SEED_25'] >= 1) &
-#                                         (tournament_teams['SEED_25'] <= 16)]
-
-#     # If missing "TM_KP", fall back to "TEAM" or "TM_TR"
-#     if 'TM_KP' not in tournament_teams.columns:
-#         if 'TEAM' in tournament_teams.columns:
-#             tournament_teams['TM_KP'] = tournament_teams['TEAM']
-#         elif 'TM_TR' in tournament_teams.columns:
-#             tournament_teams['TM_KP'] = tournament_teams['TM_TR']
-#         else:
-#             sim_logger.warning("No team name column found (TM_KP or TEAM or TM_TR).")
-#             return None
-
-#     # Example bonuses for certain teams – optional
-#     tournament_teams['TOURNEY_SUCCESS'] = 0.0
-#     for perennial in ["Duke", "Kentucky", "Kansas", "North Carolina", "Gonzaga", "Michigan St."]:
-#         if perennial in tournament_teams['TM_KP'].values:
-#             tournament_teams.loc[tournament_teams['TM_KP'] == perennial, 'TOURNEY_SUCCESS'] = 2.0
-
-#     # Add an example "experience" bonus from prior seeds
-#     tournament_teams['TOURNEY_EXPERIENCE'] = 0.0
-#     if 'SEED_23' in tournament_teams.columns:
-#         # Just a naive example: if a team made the 2023 dance
-#         tournament_teams.loc[tournament_teams['SEED_23'].notna() &
-#                              (tournament_teams['SEED_23'] <= 16),
-#                              'TOURNEY_EXPERIENCE'] = 1.0
-#         tournament_teams.loc[tournament_teams['SEED_23'].notna() &
-#                              (tournament_teams['SEED_23'] <= 4),
-#                              'TOURNEY_EXPERIENCE'] = 2.0
-
-#     # Identify unique regions
-#     region_names = tournament_teams['REGION_25'].unique().tolist()
-
-#     region_teams = {}
-#     for reg in region_names:
-#         df_reg = tournament_teams[tournament_teams['REGION_25'] == reg].sort_values('SEED_25')
-#         # convert each row → dict with relevant info
-#         teams_list = df_reg.apply(lambda row: {
-#             'Team': row['TM_KP'],
-#             'Seed': int(row['SEED_25']),
-#             'KP_Rank': row['KP_Rank'],
-#             'KP_AdjEM': row['KP_AdjEM'],
-#             'OFF EFF': row['OFF EFF'],
-#             'DEF EFF': row['DEF EFF'],
-#             'KP_AdjO': row.get('KP_AdjO', 0),
-#             'KP_AdjD': row.get('KP_AdjD', 0),
-#             'TOURNEY_SUCCESS': row.get('TOURNEY_SUCCESS', 0),
-#             'TOURNEY_EXPERIENCE': row.get('TOURNEY_EXPERIENCE', 0),
-#             'WIN_PCT': row.get('WIN% ALL GM', 0.5),
-#             'CLOSE_GAME_PCT': row.get('WIN% CLOSE GM', 0.5),
-#             'SOS': row.get('KP_SOS_AdjEM', 0),
-#             'Region': row['REGION_25']
-#         }, axis=1).tolist()
-
-#         # Keep only up to 16 teams to avoid extras
-#         if len(teams_list) > 16:
-#             teams_list = teams_list[:16]
-#         region_teams[reg] = teams_list
-
-#     return {
-#         'tournament_teams': tournament_teams,
-#         'region_names': region_names,
-#         'region_teams': region_teams
-#     }
 
 def prepare_tournament_data(df):
     """
-    From df, keep seeds 1..16 in each region. If a region lacks any seed
-    from 1..16, we skip that region entirely. Return bracket dict: 
-      {
-        'West': [ { 'team':..., 'seed':1, 'KP_AdjEM':...}, ...16 teams ],
-        'East': [...16 teams],
-        'South': [...16 teams],
-        'Midwest': [...16 teams]
-      }
+    From a DataFrame df, keep teams with seeds 1..16 per region.
+    Returns a bracket dictionary:
+      { 'West': [ { 'team':..., 'seed':..., ... }, ... (16 teams) ],
+        'East': [...], 'South': [...], 'Midwest': [...] }
     """
     required = ['SEED_25','REGION_25','KP_AdjEM','OFF EFF','DEF EFF']
     missing = [c for c in required if c not in df.columns]
@@ -1258,44 +1117,28 @@ def prepare_tournament_data(df):
 
     bracket_teams = df.dropna(subset=required).copy()
     bracket_teams['SEED_25'] = bracket_teams['SEED_25'].astype(int)
-    bracket_teams = bracket_teams[
-        (bracket_teams['SEED_25']>=1) & (bracket_teams['SEED_25']<=16)
-    ]
+    bracket_teams = bracket_teams[(bracket_teams['SEED_25']>=1) & (bracket_teams['SEED_25']<=16)]
 
-    # Decide on the name column
-    if 'TM_KP' in bracket_teams.columns:
-        name_col = 'TM_KP'
-    else:
-        # fallback
-        name_col = 'TEAM' if 'TEAM' in bracket_teams.columns else bracket_teams.index.name
-
-    # Ensure optional columns exist
+    # Decide on team name column
+    name_col = 'TM_KP' if 'TM_KP' in bracket_teams.columns else ('TEAM' if 'TEAM' in bracket_teams.columns else bracket_teams.index.name)
+    
+    # Ensure bonus columns exist
     for bonus_col in ['TOURNEY_SUCCESS','TOURNEY_EXPERIENCE']:
         if bonus_col not in bracket_teams.columns:
             bracket_teams[bonus_col] = 0.0
 
-    # Example: give certain perennial teams a bonus
+    # Example: award bonus to perennial teams
     for perennial in ["Duke","Kentucky","Kansas","North Carolina","Gonzaga","Michigan St."]:
         if perennial in bracket_teams[name_col].values:
             bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 2.0
 
-    # Build the bracket
     bracket = {}
-    # We'll only keep a region if it has exactly one team for *each* seed in [1..16].
-    # Alternatively, you could accept partial sets, but then you must handle them in simulate_tournament.
     for region in ['West','East','South','Midwest']:
-        region_df = bracket_teams[
-            bracket_teams['REGION_25'].str.lower() == region.lower()
-        ].copy()
-
-        # Check each seed from 1..16 is present
+        region_df = bracket_teams[bracket_teams['REGION_25'].str.lower() == region.lower()].copy()
         region_seeds = region_df['SEED_25'].unique().tolist()
         if len(region_seeds) < 16:
-            # You can log or skip
-            sim_logger.warning(f"{region} region missing some seeds, found seeds: {region_seeds}. Skipping.")
+            sim_logger.warning(f"{region} region missing some seeds: {region_seeds}. Skipping.")
             continue
-
-        # Sort by seed (1..16)
         region_df = region_df.sort_values('SEED_25')
         region_list = []
         for _, row in region_df.iterrows():
@@ -1306,524 +1149,456 @@ def prepare_tournament_data(df):
                 'OFF EFF':   float(row['OFF EFF']),
                 'DEF EFF':   float(row['DEF EFF']),
                 'TOURNEY_SUCCESS':    float(row['TOURNEY_SUCCESS']),
-                'TOURNEY_EXPERIENCE': float(row['TOURNEY_EXPERIENCE'])
+                'TOURNEY_EXPERIENCE': float(row['TOURNEY_EXPERIENCE']),
+                # Additional predictive metrics:
+                'WIN% ALL GM': float(row.get('WIN% ALL GM', 0.5)),
+                'WIN% CLOSE GM': float(row.get('WIN% CLOSE GM', 0.5)),
+                'AVG MARGIN': float(row.get('AVG MARGIN', 0)),
+                'KP_SOS_AdjEM': float(row.get('KP_SOS_AdjEM', 0)),
+                'KP_AdjO': float(row.get('KP_AdjO', 0)),
+                'KP_AdjD': float(row.get('KP_AdjD', 0))
             })
         bracket[region] = region_list
-
     return bracket
-
 
 def calculate_win_probability(t1, t2):
     """
-    Simple logistic model combining:
-      - KenPom margin (KP_AdjEM)
-      - OFF vs DEF EFF matchup
-      - Optional 'experience' & 'success' bonus
-      - Mild 'upset factor' if seeds differ significantly
-    Returns probability that Team1 (t1) wins.
+    Computes a win probability for team1 over team2 using a logistic model.
+    In addition to the original factors (KenPom Adjusted Efficiency Margin,
+    offensive/defensive efficiency matchups, and tournament bonuses), this
+    enhanced version includes:
+      - Overall win percentage (WIN% ALL GM)
+      - Close-game win percentage (WIN% CLOSE GM)
+      - Average margin (AVG MARGIN)
+      - Strength of schedule differential (KP_SOS_AdjEM)
+      - Adjusted offensive and defensive ratings (KP_AdjO, KP_AdjD)
+    The weights can be tuned to reflect the relative importance.
     """
     t1_off = float(t1.get('OFF EFF', 1.0))
     t1_def = float(t1.get('DEF EFF', 1.0))
     t2_off = float(t2.get('OFF EFF', 1.0))
     t2_def = float(t2.get('DEF EFF', 1.0))
-
-    kp_diff     = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
+    
+    kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
     matchup_adv = (t1_off - t2_def) - (t2_off - t1_def)
-
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) \
              + (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
-
-    # Weighted sum → logistic
+    
+    # Additional predictive differences
+    win_pct_diff = (float(t1.get('WIN% ALL GM', 0.5)) - float(t2.get('WIN% ALL GM', 0.5))) * 100
+    close_pct_diff = (float(t1.get('WIN% CLOSE GM', 0.5)) - float(t2.get('WIN% CLOSE GM', 0.5))) * 100
+    margin_diff = float(t1.get('AVG MARGIN', 0)) - float(t2.get('AVG MARGIN', 0))
+    sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
+    adjO_diff = float(t1.get('KP_AdjO', 0)) - float(t2.get('KP_AdjO', 0))
+    adjD_diff = float(t1.get('KP_AdjD', 0)) - float(t2.get('KP_AdjD', 0))
+    
+    # Combine factors with chosen weights
     factor = (1.0 * kp_diff) + (0.5 * matchup_adv) + (0.2 * exp_diff)
-    base_prob = 1.0 / (1.0 + np.exp(-0.1 * factor))
+    factor += 0.2 * win_pct_diff + 0.2 * close_pct_diff + 0.1 * margin_diff
+    factor += 0.2 * sos_diff + 0.15 * adjO_diff - 0.15 * adjD_diff
 
-    # Mild upset factor
+    base_prob = 1.0 / (1.0 + np.exp(-0.1 * factor))
+    
+    # Apply a mild upset adjustment if seed disparity is significant
     seed_diff = t2['seed'] - t1['seed']
     if seed_diff > 0 and t1['seed'] <= 4 and t2['seed'] >= 12:
         base_prob = max(0.65, min(0.95, base_prob - 0.05))
-
+    
     return max(0.05, min(0.95, base_prob))
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
     """
-    Executes a list of matchups for the specified round (e.g. Round of 64)
-    given the `pairing_list` of index tuples (i,j).
-    Returns (winners[], round_games[]).
+    Simulate a series of matchups for the specified round.
+    Returns a tuple (winners, round_games) where round_games contains detailed logs.
     """
     winners = []
     round_games = []
-
     for (i, j) in pairing_list:
         if i < len(team_list) and j < len(team_list):
             tA = team_list[i]
             tB = team_list[j]
-
             pA = calculate_win_probability(tA, tB) if use_analytics else 0.5
             winner = tA if random.random() < pA else tB
             loser  = tB if (winner is tA) else tA
-
             round_games.append({
                 'round_name': round_name,
                 'region':     region_name,
-                'team1':      tA['Team'],
-                'seed1':      tA['Seed'],
-                'team2':      tB['Team'],
-                'seed2':      tB['Seed'],
-                'winner':     winner['Team'],
-                'winner_seed': winner['Seed'],
+                'team1':      tA['team'],
+                'seed1':      tA['seed'],
+                'team2':      tB['team'],
+                'seed2':      tB['seed'],
+                'winner':     winner['team'],
+                'winner_seed': winner['seed'],
                 'win_prob':  pA if (winner is tA) else (1 - pA),
             })
             winners.append(winner)
-
     return winners, round_games
 
 def generate_bracket_round(teams, round_num, region, use_analytics=True):
     """
-    Given a list of teams for this round in a standard bracket order,
-    simulate each matchup and produce a list of winners in that same order.
+    Given a list of teams in bracket order for a round, simulate each matchup.
+    For round 1, use hard-coded pairings; for subsequent rounds, pair consecutively.
     """
     winners = []
-    
-    # Hard-coded pairings only for Round of 64 (1 vs 16, 8 vs 9, 5 vs 12, 4 vs 13, 6 vs 11, 3 vs 14, 7 vs 10, 2 vs 15).
-    # This ensures correct bracket structure for the first round.
     if round_num == 1:
-        pairings = [(0, 15), (7, 8), (4, 11), (3, 12),
-                    (5, 10), (2, 13), (6, 9), (1, 14)]
+        pairings = [(0,15), (7,8), (4,11), (3,12),
+                    (5,10), (2,13), (6,9), (1,14)]
     else:
-        # For subsequent rounds, just pair winners in consecutive order (0 vs 1, 2 vs 3, etc.).
         pairings = [(i, i+1) for i in range(0, len(teams), 2)]
-
     for (i, j) in pairings:
         if i < len(teams) and j < len(teams):
             teamA = teams[i]
             teamB = teams[j]
-            if use_analytics:
-                pA = calculate_win_probability(teamA, teamB)
-            else:
-                # If 'use_analytics' is False, use a simpler logistic approach
-                diff = teamA['KP_AdjEM'] - teamB['KP_AdjEM']
-                pA = 1 / (1 + np.exp(-diff / 10))
+            pA = calculate_win_probability(teamA, teamB) if use_analytics else 1/(1+np.exp(-(teamA['KP_AdjEM']-teamB['KP_AdjEM'])/10))
             winner = teamA if random.random() < pA else teamB
-            winner = winner.copy()
-            winner['win_prob'] = pA if (winner is teamA) else (1 - pA)
-            winners.append(winner)
-
+            w = winner.copy()
+            w['win_prob'] = pA if (winner is teamA) else (1 - pA)
+            winners.append(w)
     return winners
 
 def simulate_region_bracket(teams, region_name, use_analytics=True):
     """
-    Simulate a single region (16 seeds), returning:
-      - rounds_dict: {1:[r64 winners], 2:[r32 winners], 3:[S16], 4:[E8], 5:[champ]}
-      - all_games:   combined list of game dicts with 'round_name', 'winner', etc.
+    Simulate a single region’s bracket (16 seeds) and return:
+      - rounds_dict: {1:[r64 winners], 2:[r32 winners], 3:[Sweet 16 winners], 4:[Elite 8 winners], 5:[region champion] }
+      - all_games: a list of game log dictionaries.
     """
-
-    # (1) Round of 64 pairings (index-based)
-    # for seeds sorted 1..16, we store them in a 0-based list
-    #  0 vs 15 => seeds 1 vs 16
-    #  7 vs 8  => seeds 8 vs 9
-    #  4 vs 11 => seeds 5 vs 12
-    # etc.
     pairings_r64 = [(0,15),(7,8),(4,11),(3,12),(5,10),(2,13),(6,9),(1,14)]
-
-    # (2) Round of 32
-    # winners(0,1) => match1, winners(2,3) => match2, ...
     pairings_r32 = [(0,1),(2,3),(4,5),(6,7)]
-
-    # (3) Sweet 16
     pairings_s16 = [(0,1),(2,3)]
-
-    # (4) Elite 8
     pairings_e8  = [(0,1)]
 
-    # Round 1: Round of 64
     r64_winners, g64 = run_games(teams, pairings_r64, "Round of 64", region_name, use_analytics)
-    # Round 2: Round of 32
     r32_winners, g32 = run_games(r64_winners, pairings_r32, "Round of 32", region_name, use_analytics)
-    # Round 3: Sweet 16
     s16_winners, g16 = run_games(r32_winners, pairings_s16, "Sweet 16", region_name, use_analytics)
-    # Round 4: Elite 8
     e8_winners,  g8  = run_games(s16_winners, pairings_e8,  "Elite 8", region_name, use_analytics)
-
     region_champion = e8_winners[0] if e8_winners else None
 
-    # Put them into a dictionary for reference
-    rounds_dict = {
-        1: r64_winners,
-        2: r32_winners,
-        3: s16_winners,
-        4: e8_winners,
-        5: [region_champion] if region_champion else [],
-    }
+    rounds_dict = {1: r64_winners, 2: r32_winners, 3: s16_winners, 4: e8_winners, 5: [region_champion] if region_champion else []}
     all_games = g64 + g32 + g16 + g8
-
     return rounds_dict, all_games
-
-
 
 def simulate_final_four_and_championship(region_champions, use_analytics=True):
     """
-    region_champions: dict => { "East":{...}, "West":{...}, "South":{...}, "Midwest":{...} }
-    Simulate the Final Four (West vs East, South vs Midwest) and Championship.
-    Returns: (champion_dict, final_games_list)
+    Given a dict of region champions, simulate the Final Four and Championship.
+    Returns a tuple (champion_dict, final_games_list).
     """
-    # Typical bracket: West vs East, South vs Midwest
-    # You can reorder if your bracket dictates differently.
     required = ["West", "East", "South", "Midwest"]
     for r in required:
         if r not in region_champions:
             return None, []
-
     west_champ    = region_champions["West"]
     east_champ    = region_champions["East"]
     south_champ   = region_champions["South"]
     midwest_champ = region_champions["Midwest"]
 
-    # Semifinal 1: West vs East
     sf1_prob   = calculate_win_probability(west_champ, east_champ) if use_analytics else 0.5
     sf1_winner = west_champ if random.random() < sf1_prob else east_champ
-
     sf1_game = {
         "round_name":  "Final Four",
         "region":      "Final Four",
-        "team1":       west_champ["Team"],
-        "seed1":       west_champ["Seed"],
-        "team2":       east_champ["Team"],
-        "seed2":       east_champ["Seed"],
-        "winner":      sf1_winner["Team"],
-        "winner_seed": sf1_winner["Seed"],
+        "team1":       west_champ["team"],
+        "seed1":       west_champ["seed"],
+        "team2":       east_champ["team"],
+        "seed2":       east_champ["seed"],
+        "winner":      sf1_winner["team"],
+        "winner_seed": sf1_winner["seed"],
         "win_prob":    sf1_prob if sf1_winner is west_champ else (1 - sf1_prob),
     }
 
-    # Semifinal 2: South vs Midwest
     sf2_prob   = calculate_win_probability(south_champ, midwest_champ) if use_analytics else 0.5
     sf2_winner = south_champ if random.random() < sf2_prob else midwest_champ
-
     sf2_game = {
         "round_name":  "Final Four",
         "region":      "Final Four",
-        "team1":       south_champ["Team"],
-        "seed1":       south_champ["Seed"],
-        "team2":       midwest_champ["Team"],
-        "seed2":       midwest_champ["Seed"],
-        "winner":      sf2_winner["Team"],
-        "winner_seed": sf2_winner["Seed"],
+        "team1":       south_champ["team"],
+        "seed1":       south_champ["seed"],
+        "team2":       midwest_champ["team"],
+        "seed2":       midwest_champ["seed"],
+        "winner":      sf2_winner["team"],
+        "winner_seed": sf2_winner["seed"],
         "win_prob":    sf2_prob if sf2_winner is south_champ else (1 - sf2_prob),
     }
 
-    # Championship
     final_prob = calculate_win_probability(sf1_winner, sf2_winner) if use_analytics else 0.5
     champion   = sf1_winner if random.random() < final_prob else sf2_winner
-
     champ_game = {
         "round_name":  "Championship",
         "region":      "Championship",
-        "team1":       sf1_winner["Team"],
-        "seed1":       sf1_winner["Seed"],
-        "team2":       sf2_winner["Team"],
-        "seed2":       sf2_winner["Seed"],
-        "winner":      champion["Team"],
-        "winner_seed": champion["Seed"],
+        "team1":       sf1_winner["team"],
+        "seed1":       sf1_winner["seed"],
+        "team2":       sf2_winner["team"],
+        "seed2":       sf2_winner["seed"],
+        "winner":      champion["team"],
+        "winner_seed": champion["seed"],
         "win_prob":    final_prob if champion is sf1_winner else (1 - final_prob),
     }
-
     final_games = [sf1_game, sf2_game, champ_game]
     return champion, final_games
 
-
 def run_simulation(use_analytics=True, simulations=1):
     """
-    For each simulation:
-      1) Prepare region bracket (16 seeds each).
-      2) Sim each region's Round of 64 -> 32 -> Sweet 16 -> Elite 8 to find region champions.
-      3) Sim Final Four & Championship with those 4 region champions.
-      Returns a list of simulation results (one entry per sim).
+    Runs a single simulation of the full tournament.
+    Returns a list (one per simulation) with:
+      { 'simulation_number': int,
+        'region_results': dict,
+        'region_champions': dict,
+        'champion': dict,
+        'all_games': list of game logs }
     """
-    data = prepare_tournament_data()
+    data = prepare_tournament_data(df_main)
     if not data:
         sim_logger.error("Failed to prepare bracket data.")
         return []
-
-    region_names = data['region_names']
-    region_teams = data['region_teams']
-
+    # Here data is expected to provide region teams and names.
+    # (Assuming elsewhere in your app you create data['region_teams'] and data['region_names'] as needed.)
+    region_teams = {}  # using our bracket data directly
+    region_names = []
+    # Build bracket from available regions (only use main four)
+    main_regions = ["East", "West", "South", "Midwest"]
+    for reg in main_regions:
+        if reg in data and len(data[reg]) == 16:
+            region_teams[reg] = data[reg]
     all_sim_results = []
-
     for sim_num in range(simulations):
         region_results   = {}
         region_champions = {}
         all_games        = []
-
-        # We specifically want to run for the main four: "West","East","South","Midwest"
-        # but only if that region is present and has 16 teams
-        # (You can also just loop over each region in region_names if you prefer.)
-        main_regions = ["East", "West", "South", "Midwest"]
         for reg in main_regions:
-            if reg in region_teams and len(region_teams[reg]) == 16:
-                # simulate that region bracket
-                bracket_rounds, bracket_games = simulate_region_bracket(region_teams[reg],
-                                                                        reg,
-                                                                        use_analytics)
+            if reg in region_teams:
+                bracket_rounds, bracket_games = simulate_region_bracket(region_teams[reg], reg, use_analytics)
                 region_results[reg] = bracket_rounds
-
-                # final round => bracket_rounds[5] is the region champion
                 if 5 in bracket_rounds and len(bracket_rounds[5]) > 0:
                     region_champions[reg] = bracket_rounds[5][0]
-
                 all_games.extend(bracket_games)
-
-        # If we do have all four region champs, do Final 4 => champion
         champion = None
         final_games = []
         if len(region_champions) == 4:
-            champion, final_games = simulate_final_four_and_championship(region_champions,
-                                                                         use_analytics=use_analytics)
+            champion, final_games = simulate_final_four_and_championship(region_champions, use_analytics=use_analytics)
             all_games.extend(final_games)
-
-        # Build our final result dictionary
         sim_result = {
-            'simulation_number':  sim_num + 1,
-            'region_results':     region_results,
-            'region_champions':   region_champions,
-            'champion':           champion,  # dict with 'Team','Seed'
-            'all_games':          all_games
+            'simulation_number': sim_num + 1,
+            'region_results': region_results,
+            'region_champions': region_champions,
+            'champion': champion,
+            'all_games': all_games
         }
         all_sim_results.append(sim_result)
-
     return all_sim_results
 
 def run_tournament_simulation(num_sims=100):
     """
     Wrapper that:
-      1) Prepares bracket from df_main
-      2) Runs N simulations
-      3) Returns a dictionary of aggregated results:
-         { 'Champion': {team->pct}, 'Round of 64':..., etc. }
+      1) Prepares the bracket from df_main
+      2) Runs num_sims simulations
+      3) Returns aggregated results by round (as percentages)
     """
     bracket = prepare_tournament_data(df_main)
     if not bracket:
         return {}
     return simulate_tournament(bracket, num_simulations=num_sims)
 
-# def display_tournament_simulation_results(simulation_results, num_teams=10):
-#     st.markdown("### 🏀 Tournament Simulation Results 🏀")
-    
-#     # Display each round's results in a clean, visually appealing way
-#     rounds = [
-#         ('Round of 64', '⭐'),
-#         ('Round of 32', '⭐⭐'),
-#         ('Sweet 16', '⭐⭐⭐'),
-#         ('Elite 8', '⭐⭐⭐⭐'),
-#         ('Final Four', '⭐⭐⭐⭐⭐'),
-#         ('Championship', '🏆'),
-#         ('Champion', '👑')
-#     ]
-    
-#     # Custom CSS to arrange rounds in a more visually appealing way
-#     st.markdown("""
-#     <style>
-#     .tournament-rounds {
-#         display: flex;
-#         flex-wrap: wrap;
-#         justify-content: space-between;
-#         gap: 20px;
-#     }
-#     .round-card {
-#         background-color: #f8f9fa;
-#         border-radius: 10px;
-#         padding: 15px;
-#         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-#         flex: 1;
-#         min-width: 250px;
-#         margin-bottom: 20px;
-#     }
-#     .round-title {
-#         text-align: center;
-#         font-weight: bold;
-#         margin-bottom: 10px;
-#         border-bottom: 2px solid #1E90FF;
-#         padding-bottom: 5px;
-#     }
-#     .team-probability {
-#         display: flex;
-#         justify-content: space-between;
-#         margin: 5px 0;
-#         padding: 3px 0;
-#         border-bottom: 1px solid #e0e0e0;
-#     }
-#     .team-name {
-#         font-weight: 500;
-#     }
-#     .probability {
-#         font-weight: bold;
-#         color: #1E90FF;
-#     }
-#     .champion-card {
-#         background: linear-gradient(135deg, #1E90FF 0%, #4169E1 100%);
-#         color: white;
-#     }
-#     .champion-title {
-#         border-bottom: 2px solid white;
-#     }
-#     .champion-probability {
-#         border-bottom: 1px solid rgba(255,255,255,0.3);
-#     }
-#     .champion-name {
-#         font-weight: bold;
-#     }
-#     .champion-percent {
-#         font-weight: bold;
-#         color: #FFD700;
-#     }
-#     </style>
-#     """, unsafe_allow_html=True)
-    
-#     # Start the tournament rounds container
-#     st.markdown('<div class="tournament-rounds">', unsafe_allow_html=True)
-    
-#     # Display each round
-#     for round_name, icon in rounds:
-#         if round_name == 'Champion':
-#             card_class = 'round-card champion-card'
-#             title_class = 'round-title champion-title'
-#             team_class = 'team-probability champion-probability'
-#             name_class = 'team-name champion-name'
-#             prob_class = 'probability champion-percent'
-#         else:
-#             card_class = 'round-card'
-#             title_class = 'round-title'
-#             team_class = 'team-probability'
-#             name_class = 'team-name'
-#             prob_class = 'probability'
-        
-#         st.markdown(f'<div class="{card_class}">', unsafe_allow_html=True)
-#         st.markdown(f'<div class="{title_class}">{icon} {round_name} {icon}</div>', unsafe_allow_html=True)
-        
-#         # Get the top teams for this round
-#         round_results = simulation_results.get(round_name, {})
-#         top_teams = sorted(round_results.items(), key=lambda x: x[1], reverse=True)[:num_teams]
-        
-#         for team, probability in top_teams:
-#             st.markdown(
-#                 f'<div class="{team_class}"><span class="{name_class}">{team}</span>'
-#                 f'<span class="{prob_class}">{probability:.1f}%</span></div>',
-#                 unsafe_allow_html=True
-#             )
-        
-#         st.markdown('</div>', unsafe_allow_html=True)
-    
-#     # Close the tournament rounds container
-#     st.markdown('</div>', unsafe_allow_html=True)
-    
-#     # Add a summary visualization using Plotly
-#     st.markdown("### 📊 Championship Odds Visualization")
-    
-#     champion_results = simulation_results.get('Champion', {})
-#     top_champions = sorted(champion_results.items(), key=lambda x: x[1], reverse=True)[:15]
-    
-#     champion_teams = [team for team, _ in top_champions]
-#     champion_probs = [prob for _, prob in top_champions]
-    
-#     # Create a visually appealing bar chart with team colors
-#     fig = px.bar(
-#         x=champion_probs,
-#         y=champion_teams,
-#         orientation='h',
-#         labels={'x': 'Championship Probability (%)', 'y': 'Team'},
-#         title='Top 15 Teams Most Likely to Win the 2025 NCAA Tournament',
-#         color=champion_probs,
-#         color_continuous_scale='Blues'
-#     )
-    
-#     fig.update_layout(
-#         height=600,
-#         xaxis_title='Championship Probability (%)',
-#         yaxis_title='',
-#         yaxis={'categoryorder': 'total ascending'},
-#         plot_bgcolor='white',
-#         font={'family': 'Arial', 'size': 14},
-#         margin={'l': 0, 'r': 10, 't': 50, 'b': 0},
-#         coloraxis_showscale=False
-#     )
-    
-#     fig.update_traces(
-#         marker_line_color='rgb(8,48,107)',
-#         marker_line_width=1.5,
-#         opacity=0.8
-#     )
-    
-#     st.plotly_chart(fig, use_container_width=True)
-    
-#     # Add region-specific breakdowns
-#     st.markdown("### 🏆 Regional Champions Analysis")
-    
-#     # Create a 2x2 grid for the four regions
-#     col1, col2 = st.columns(2)
-#     col3, col4 = st.columns(2)
-    
-#     champion_results = champ_df.set_index("Team")["Championship_Probability"].to_dict()
+def get_bracket_matchups():
+    """
+    Returns the bracket structure for each round by region,
+    plus final four and championship pairings.
+    """
+    round_64 = {
+        'West':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
+        'East':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
+        'South':   [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
+        'Midwest': [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)]
+    }
+    round_32 = {
+        'West':    [(0,1),(2,3),(4,5),(6,7)],
+        'East':    [(0,1),(2,3),(4,5),(6,7)],
+        'South':   [(0,1),(2,3),(4,5),(6,7)],
+        'Midwest': [(0,1),(2,3),(4,5),(6,7)]
+    }
+    sweet_16 = {
+        'West':    [(0,1),(2,3)],
+        'East':    [(0,1),(2,3)],
+        'South':   [(0,1),(2,3)],
+        'Midwest': [(0,1),(2,3)]
+    }
+    elite_8 = {
+        'West':    [(0,1)],
+        'East':    [(0,1)],
+        'South':   [(0,1)],
+        'Midwest': [(0,1)]
+    }
+    final_four   = [(0,1), (2,3)]
+    championship = [(0,1)]
+    return round_64, round_32, sweet_16, elite_8, final_four, championship
 
-#     data = prepare_tournament_data()
-#     if not data:
-#         st.error("No bracket data found.")
-#         st.stop()
+def run_simulation_once(df):
+    """
+    Run a single tournament simulation (one complete bracket) and return a list
+    of detailed game logs.
+    """
+    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
+    bracket = prepare_tournament_data(df)
+    if not bracket:
+        return []
+    game_logs = []
+    current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
+    
+    def record_game(rnd_name, region, tA, tB, w):
+        upset = "UPSET" if w['seed'] > min(tA['seed'], tB['seed']) else ""
+        return {
+            "round":   rnd_name,
+            "region":  region,
+            "matchup": f"{tA['team']} ({tA['seed']}) vs {tB['team']} ({tB['seed']})",
+            "winner":  f"{w['team']} ({w['seed']})",
+            "is_upset": upset
+        }
+    
+    # Round of 64
+    r64_winners = {}
+    for region, matchups in r64.items():
+        winners = []
+        for (s1, s2) in matchups:
+            tA = next(x for x in current[region] if x['seed'] == s1)
+            tB = next(x for x in current[region] if x['seed'] == s2)
+            w = simulate_game(tA, tB)
+            winners.append(w)
+            game_logs.append(record_game("Round of 64", region, tA, tB, w))
+        r64_winners[region] = winners
+    # Round of 32
+    r32_winners = {}
+    for region, pairs in r32.items():
+        winners = []
+        region_list = r64_winners[region]
+        for (i, j) in pairs:
+            w = simulate_game(region_list[i], region_list[j])
+            winners.append(w)
+            game_logs.append(record_game("Round of 32", region, region_list[i], region_list[j], w))
+        r32_winners[region] = winners
+    # Sweet 16
+    s16_winners = {}
+    for region, pairs in s16.items():
+        winners = []
+        region_list = r32_winners[region]
+        for (i, j) in pairs:
+            w = simulate_game(region_list[i], region_list[j])
+            winners.append(w)
+            game_logs.append(record_game("Sweet 16", region, region_list[i], region_list[j], w))
+        s16_winners[region] = winners
+    # Elite 8
+    e8_finalists = []
+    for region, pairs in e8.items():
+        region_list = s16_winners[region]
+        for (i, j) in pairs:
+            w = simulate_game(region_list[i], region_list[j])
+            e8_finalists.append((region, w))
+            game_logs.append(record_game("Elite 8", region, region_list[i], region_list[j], w))
+    # Region champions
+    region_champs = {}
+    region_order = ['West', 'East', 'South', 'Midwest']
+    for (reg, champ_dict) in e8_finalists:
+        region_champs[reg] = champ_dict
+    # Final Four
+    ff_winners = []
+    for (idxA, idxB) in f4:
+        rA = region_order[idxA]
+        rB = region_order[idxB]
+        w = simulate_game(region_champs[rA], region_champs[rB])
+        ff_winners.append(w)
+        game_logs.append(record_game("Final Four", "National Semifinal", region_champs[rA], region_champs[rB], w))
+    # Championship
+    champion = None
+    for (i, j) in champ:
+        champion = simulate_game(ff_winners[i], ff_winners[j])
+        game_logs.append(record_game("Championship", "National Final", ff_winners[i], ff_winners[j], champion))
+    return game_logs
 
-#     actual_bracket = data["region_teams"]  # e.g. { "West":[...], "East":[...], ... }
+def visualize_aggregated_results(aggregated_analysis):
+    """
+    Create Plotly charts summarizing:
+      1) Championship win probabilities (horizontal bar chart).
+      2) Upset percentages by round (vertical bar chart).
+    Returns a tuple (fig_champ, fig_upsets).
+    """
+    # Championship Win Probabilities
+    champ_df = aggregated_analysis.get('Champion')
+    fig_champ = None
+    if champ_df is not None and champ_df:
+        champ_data = sorted(champ_df.items(), key=lambda x: x[1], reverse=True)[:10]
+        teams = [x[0] for x in champ_data]
+        probs = [x[1] for x in champ_data]
+        fig_champ = px.bar(
+            x=probs,
+            y=teams,
+            orientation='h',
+            labels={'x': 'Win Probability (%)', 'y': 'Team'},
+            title="Championship Win Probability (Top 10 Teams)",
+            color=probs,
+            color_continuous_scale='RdYlGn',
+            template='plotly_dark'
+        )
+        fig_champ.update_yaxes(autorange="reversed")
+        fig_champ.update_traces(text=[f"{p:.1f}%" for p in probs], textposition='outside')
+    # Upset Percentage by Round
+    upset_pct = aggregated_analysis.get('upset_pct_aggregated')
+    fig_upsets = None
+    if upset_pct is not None and not upset_pct.empty:
+        df_upsets = pd.DataFrame({
+            'Round': upset_pct.index,
+            'Upset_PCT': upset_pct.values
+        })
+        round_order = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]
+        df_upsets['Round'] = pd.Categorical(df_upsets['Round'], categories=round_order, ordered=True)
+        df_upsets = df_upsets.sort_values('Round')
+        fig_upsets = px.bar(
+            df_upsets,
+            x='Round',
+            y='Upset_PCT',
+            text='Upset_PCT',
+            color='Upset_PCT',
+            color_continuous_scale='RdYlGn',
+            title="Upset Percentage by Tournament Round",
+            labels={'Upset_PCT': 'Upset Percentage (%)'},
+            template='plotly_dark'
+        )
+        fig_upsets.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+        fig_upsets.update_layout(yaxis_range=[0, df_upsets['Upset_PCT'].max()*1.2])
+    return fig_champ, fig_upsets
 
-#     regions = ["West","East","South","Midwest"]
-#     for region in regions:
-#         st.subheader(f"{region} Region")
-#         region_teams = {}
-#         for team_name, prob in champion_results.items():
-#             for team_dict in actual_bracket.get(region, []):
-#                 if team_dict["Team"] == team_name:
-#                     region_teams[team_name] = prob
-#                     break
-
-#         st.write("Teams & Champ Probability:", region_teams)
-            
-            # top_region_teams = sorted(region_teams.items(), key=lambda x: x[1], reverse=True)[:5]
-            
-            # if top_region_teams:
-            #     region_fig = px.pie(
-            #         values=[prob for _, prob in top_region_teams],
-            #         names=[team for team, _ in top_region_teams],
-            #         title=f"Top 5 {region} Region Champions",
-            #         color_discrete_sequence=px.colors.sequential.Blues
-            #     )
-                
-            #     region_fig.update_traces(
-            #         textposition='inside',
-            #         textinfo='percent+label',
-            #         marker=dict(line=dict(color='#FFFFFF', width=2))
-            #     )
-                
-            #     region_fig.update_layout(
-            #         height=300,
-            #         margin={'l': 10, 'r': 10, 't': 30, 'b': 10}
-            #     )
-                
-            #     st.plotly_chart(region_fig, use_container_width=True)
-            # else:
-            #     st.markdown("*No teams from this region in the top championship contenders.*")
+def create_regional_prob_chart(region_df):
+    """
+    Create a Plotly bar chart visualizing regional champion probabilities.
+    """
+    if region_df is None or region_df.empty:
+        return None
+    top_teams_by_region = []
+    for region in region_df['Region'].unique():
+        region_data = region_df[region_df['Region'] == region].sort_values('Probability', ascending=False).head(5)
+        top_teams_by_region.append(region_data)
+    filtered_df = pd.concat(top_teams_by_region)
+    fig = px.bar(filtered_df, x='Team', y='Probability', color='Region',
+                 barmode='group', facet_col='Region', facet_col_wrap=2,
+                 labels={'Probability': 'Win Probability', 'Team': 'Team'},
+                 title='Regional Championship Probabilities (Top 5 Teams per Region)',
+                 color_discrete_sequence=px.colors.qualitative.G10,
+                 template='plotly_dark')
+    fig.update_layout(legend_title_text='Region', height=600,
+                      margin=dict(t=80, l=50, r=50, b=100),
+                      title_font=dict(size=18), xaxis_tickangle=-45)
+    fig.update_yaxes(tickformat='.0%')
+    for data in fig.data:
+        fig.add_trace(go.Scatter(x=data.x, y=data.y,
+                                 text=[f"{y:.1%}" for y in data.y],
+                                 mode="text"))
+    return fig
 
 def display_simulation_results(single_run_logs):
     """
-    Renders a single-run game log in an advanced, visually appealing layout.
-    Expects single_run_logs to be a list of dictionaries, each with:
-      {
-        'round': e.g. "Round of 64",
-        'region': e.g. "East",
-        'matchup': e.g. "TeamA (3) vs TeamB (14)",
-        'winner': e.g. "TeamB (14)",
-        'is_upset': e.g. "UPSET" or ""
-      }
+    Render a single-run game log with advanced styling.
+    Expects a list of dictionaries with keys: round, region, matchup, winner, is_upset.
     """
-
+    import streamlit as st
     if not single_run_logs:
         st.warning("No single-run logs to display.")
         return
-
-    # Define the round order and icon to display
     rounds = [
         ("Round of 64", "⭐"),
         ("Round of 32", "⭐⭐"),
@@ -1833,14 +1608,10 @@ def display_simulation_results(single_run_logs):
         ("Championship", "🏆"),
     ]
     round_order = [r[0] for r in rounds]
-
-    # Convert logs to a DataFrame for sorting
     df = pd.DataFrame(single_run_logs)
     df["Round_idx"] = df["round"].apply(lambda r: round_order.index(r) if r in round_order else 999)
     df.sort_values(["Round_idx", "region"], inplace=True)
     df.drop(columns=["Round_idx"], inplace=True)
-
-    # Advanced CSS styling
     st.markdown(
         """
         <style>
@@ -1873,7 +1644,7 @@ def display_simulation_results(single_run_logs):
             padding-bottom: 4px;
         }
         .upset {
-            color: #FF4500; /* OrangeRed for upsets */
+            color: #FF4500;
             font-weight: bold;
             margin-left: 8px;
         }
@@ -1892,26 +1663,17 @@ def display_simulation_results(single_run_logs):
             font-weight: 600;
         }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
-
+        """, unsafe_allow_html=True)
     st.markdown('<div class="single-sim-container">', unsafe_allow_html=True)
-
-    # Render each round as a card
     for round_name, round_icon in rounds:
-        # Subset the DataFrame for this round
         subset = df[df["round"] == round_name]
         if subset.empty:
             continue
-
         st.markdown(f'<div class="round-card">', unsafe_allow_html=True)
         st.markdown(
             f'<div class="round-title">{round_icon} {round_name} {round_icon}</div>',
             unsafe_allow_html=True
         )
-
-        # Display each game in this round
         for _, row in subset.iterrows():
             upset_html = f'<span class="upset">{row["is_upset"]}</span>' if row["is_upset"] else ""
             st.markdown(
@@ -1922,399 +1684,10 @@ def display_simulation_results(single_run_logs):
                     <span class="match-winner">→ {row["winner"]}</span>
                     {upset_html}
                 </div>
-                """,
-                unsafe_allow_html=True
+                """, unsafe_allow_html=True
             )
-
         st.markdown('</div>', unsafe_allow_html=True)
-
     st.markdown('</div>', unsafe_allow_html=True)
-
-
-# def display_simulation_results(sim_results, st_container):
-#     """
-#     Displays the round-by-round game logs for a single simulation’s outcome
-#     so you see each Round of 64, Round of 32, etc. in order.
-#     """
-#     if not sim_results:
-#         st_container.warning("No simulation results available.")
-#         return
-
-#     # Grab the first simulation for demonstration
-#     sim_result = sim_results[0]
-#     champion   = sim_result.get('champion')
-#     if champion:
-#         st_container.success(f"🏆 Tournament Champion: {champion['Team']} (Seed {champion['Seed']})")
-
-#     all_games = sim_result.get('all_games', [])
-#     if not all_games:
-#         st_container.warning("No game data found for this simulation.")
-#         return
-
-#     round_order_map = {
-#         "Round of 64":    1,
-#         "Round of 32":    2,
-#         "Sweet 16":       3,
-#         "Elite 8":        4,
-#         "Final Four":     5,
-#         "Championship":   6
-#     }
-
-#     df_all = pd.DataFrame([{
-#         "Round Sort": round_order_map.get(g["round_name"], 99),
-#         "Round":      g["round_name"],
-#         "Matchup":    f"{g['team1']} ({g['seed1']}) vs {g['team2']} ({g['seed2']})",
-#         "Winner":     f"{g['winner']} ({g['winner_seed']})",
-#         "WinProb":    g["win_prob"],
-#         "Upset":      "⚠️ UPSET" if (g['winner_seed'] > min(g['seed1'], g['seed2'])) else "",
-#         "Region":     g["region"]
-#     } for g in all_games])
-
-#     df_all.sort_values(by="Round Sort", inplace=True)
-#     df_all.drop(columns="Round Sort", inplace=True)
-
-#     unique_rounds = df_all["Round"].unique()
-
-#     for r_name in unique_rounds:
-#         subset = df_all[df_all["Round"] == r_name].copy()
-#         # Convert probability to 0–100 for readability
-#         subset["WinProb"] = subset["WinProb"].apply(lambda x: f"{x*100:.1f}%")
-
-#         st_container.subheader(r_name)
-#         # You already have advanced stylers set up; you can do minimal:
-#         subset_renamed = subset.rename(columns={
-#             "Matchup":"Matchup",
-#             "Winner":"Winner",
-#             "WinProb":"Win Probability",
-#             "Upset":"Upset",
-#             "Region":"Region"
-#         })
-#         # Just show with .to_html
-#         st_container.table(subset_renamed)
-
-# def run_tournament_simulation(num_simulations=100, use_analytics=True):
-#     """
-#     Runs multiple bracket simulations & aggregates:
-#       - champion probabilities
-#       - region champion frequencies
-#       - upset percentages by round
-#     Then returns a dict with those data frames/series for final display.
-#     """
-#     all_sims = run_simulation(use_analytics=use_analytics, simulations=num_simulations)
-#     valid    = [r for r in all_sims if r.get('champion') is not None]
-#     if not valid:
-#         return {
-#             'champion_probabilities': pd.DataFrame(),
-#             'region_probabilities':   pd.DataFrame(),
-#             'upset_pct_aggregated':   pd.Series(dtype=float),
-#             'total_simulations':      0
-#         }
-
-#     # (1) Championship counts
-#     champions = {}
-#     for simres in valid:
-#         c = simres['champion']
-#         if not c: 
-#             continue
-#         cname = c['Team']
-#         seed  = c['Seed']
-#         if cname not in champions:
-#             champions[cname] = {'team': cname, 'seed': seed, 'count': 0}
-#         champions[cname]['count'] += 1
-
-#     champ_data = []
-#     total_valid = len(valid)
-#     for tm, data in champions.items():
-#         champ_data.append({
-#             'Team':                   data['team'],
-#             'Seed':                   data['seed'],
-#             'Championship_Count':     data['count'],
-#             'Championship_Probability': data['count']/total_valid
-#         })
-#     champ_df = pd.DataFrame(champ_data).sort_values('Championship_Count', ascending=False)
-
-#     # (2) Region champion frequencies
-#     region_champs = {}
-#     for simres in valid:
-#         for reg, champ_dict in simres.get('region_champions', {}).items():
-#             if reg not in region_champs:
-#                 region_champs[reg] = {}
-#             tname = champ_dict['Team']
-#             region_champs[reg][tname] = region_champs[reg].get(tname, 0) + 1
-
-#     region_data = []
-#     for reg, tdict in region_champs.items():
-#         for tname, ccount in tdict.items():
-#             region_data.append({
-#                 'Region':      reg,
-#                 'Team':        tname,
-#                 'Count':       ccount,
-#                 'Probability': ccount / num_simulations
-#             })
-#     region_df = pd.DataFrame(region_data).sort_values(['Region','Count'], ascending=[True,False])
-
-#     # (3) Upset analysis (how many upsets per round)
-#     all_games = []
-#     for simres in all_sims:
-#         all_games.extend(simres.get('all_games', []))
-#     upsets_by_round = {}
-#     games_by_round  = {}
-#     for g in all_games:
-#         rnd = g.get('round_name','Unknown')
-#         games_by_round[rnd] = games_by_round.get(rnd, 0) + 1
-#         s1, s2 = g['seed1'], g['seed2']
-#         wseed  = g['winner_seed']
-#         # if wseed > min(s1, s2), that's an upset
-#         if wseed > min(s1, s2):
-#             upsets_by_round[rnd] = upsets_by_round.get(rnd, 0) + 1
-#     upset_pct = {}
-#     for rkey in games_by_round:
-#         if games_by_round[rkey] > 0:
-#             ucount = upsets_by_round.get(rkey, 0)
-#             upset_pct[rkey] = 100.0 * ucount / games_by_round[rkey]
-
-#     upset_series = pd.Series(upset_pct).sort_index()
-
-#     return {
-#         'champion_probabilities': champ_df.reset_index(drop=True),
-#         'region_probabilities':   region_df,
-#         'upset_pct_aggregated':   upset_series,
-#         'total_simulations':      num_simulations
-#     }
-
-def get_bracket_matchups():
-    """Return the bracket structure for each round, by region, plus final four/champ."""
-    round_64 = {
-        'West':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
-        'East':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
-        'South':   [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
-        'Midwest': [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)]
-    }
-    round_32 = {
-        'West':    [(0,1),(2,3),(4,5),(6,7)],
-        'East':    [(0,1),(2,3),(4,5),(6,7)],
-        'South':   [(0,1),(2,3),(4,5),(6,7)],
-        'Midwest': [(0,1),(2,3),(4,5),(6,7)]
-    }
-    sweet_16 = {
-        'West':    [(0,1),(2,3)],
-        'East':    [(0,1),(2,3)],
-        'South':   [(0,1),(2,3)],
-        'Midwest': [(0,1),(2,3)]
-    }
-    elite_8 = {
-        'West':    [(0,1)],
-        'East':    [(0,1)],
-        'South':   [(0,1)],
-        'Midwest': [(0,1)]
-    }
-    final_four   = [(0,1), (2,3)]  # West/East, South/Midwest
-    championship = [(0,1)]
-    return round_64, round_32, sweet_16, elite_8, final_four, championship
-
-def run_simulation_once(df):
-    """
-    Run exactly one bracket simulation, returning a list of game logs with
-    (round, region, matchup, winner, upset, etc.) so we can see details.
-    """
-    from collections import OrderedDict
-
-    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
-    bracket = prepare_tournament_data(df)
-    if not bracket:
-        return []
-
-    game_logs = []
-    current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
-
-    # Helper to record a single result line
-    def record_game(rnd_name, region, tA, tB, w):
-        upset = "UPSET" if w['seed']>min(tA['seed'],tB['seed']) else ""
-        return {
-            "round":   rnd_name,
-            "region":  region,
-            "matchup": f"{tA['team']} ({tA['seed']}) vs {tB['team']} ({tB['seed']})",
-            "winner":  f"{w['team']} ({w['seed']})",
-            "is_upset": upset
-        }
-
-    # Round of 64
-    r64_winners = {}
-    for region, matchups in r64.items():
-        winners = []
-        for (s1,s2) in matchups:
-            tA = next(x for x in current[region] if x['seed']==s1)
-            tB = next(x for x in current[region] if x['seed']==s2)
-            w  = simulate_game(tA,tB)
-            winners.append(w)
-            game_logs.append(record_game("Round of 64", region, tA,tB, w))
-        r64_winners[region] = winners
-
-    # Round of 32
-    r32_winners = {}
-    for region, pairs in r32.items():
-        winners = []
-        region_list = r64_winners[region]
-        for (i,j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            winners.append(w)
-            game_logs.append(record_game("Round of 32", region, region_list[i],region_list[j], w))
-        r32_winners[region] = winners
-
-    # Sweet 16
-    s16_winners = {}
-    for region, pairs in s16.items():
-        winners = []
-        region_list = r32_winners[region]
-        for (i,j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            winners.append(w)
-            game_logs.append(record_game("Sweet 16", region, region_list[i],region_list[j], w))
-        s16_winners[region] = winners
-
-    # Elite 8
-    e8_finalists = []
-    for region, pairs in e8.items():
-        region_list = s16_winners[region]
-        for (i,j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            e8_finalists.append( (region, w) )
-            game_logs.append(record_game("Elite 8", region, region_list[i],region_list[j], w))
-
-    # Region champions
-    region_champs = {}
-    region_order = ['West','East','South','Midwest']
-    for (reg, champ_dict) in e8_finalists:
-        region_champs[reg] = champ_dict
-
-    # Final Four
-    ff_winners = []
-    for (idxA, idxB) in f4:
-        rA = region_order[idxA]
-        rB = region_order[idxB]
-        w = simulate_game(region_champs[rA], region_champs[rB])
-        ff_winners.append(w)
-        game_logs.append(record_game("Final Four", "National Semifinal", region_champs[rA], region_champs[rB], w))
-
-    # Championship
-    champion = None
-    for (i,j) in champ:
-        champion = simulate_game(ff_winners[i], ff_winners[j])
-        game_logs.append(record_game("Championship", "National Final", ff_winners[i], ff_winners[j], champion))
-
-    return game_logs
-
-def visualize_aggregated_results(aggregated_analysis):
-    """
-    Create two distinct Plotly charts that summarize the bracket simulations:
-      1) A horizontal bar chart for championship win probabilities (top 10 teams).
-      2) A bar chart for upset percentages by round.
-    Returns (fig_champ, fig_upsets) as plotly Figure objects.
-    """
-
-    # --- 1) Championship Win Probabilities ---
-    champ_df = aggregated_analysis.get('champion_probabilities')
-    fig_champ = None
-    if champ_df is not None and not champ_df.empty:
-        # Keep only top 10
-        top_teams = champ_df.head(10).copy()
-        top_teams['Championship_Probability_PCT'] = top_teams['Championship_Probability'] * 100
-
-        # Build a Plotly horizontal bar chart
-        fig_champ = px.bar(
-            top_teams,
-            y='Team',
-            x='Championship_Probability_PCT',
-            orientation='h',
-            color='Championship_Probability_PCT',
-            color_continuous_scale=RdYlGn,
-            title="Championship Win Probability (Top 10 Teams)",
-            labels={'Championship_Probability_PCT': 'Win Probability (%)', 'Team': ''},
-            template='plotly_dark',
-            hover_data=['Seed', 'Championship_Count']  # Optional extras
-        )
-        # Invert y-axis for typical bar chart look (highest on top)
-        fig_champ.update_yaxes(autorange="reversed")
-        # Add text labels on each bar
-        fig_champ.update_traces(
-            texttemplate='%{x:.1f}%',
-            textposition='outside'
-        )
-        fig_champ.update_layout(
-            margin=dict(l=50, r=50, t=70, b=50),
-            coloraxis_showscale=False,  # hide color bar
-        )
-
-    # --- 2) Upset Percentage by Round ---
-    upset_pct = aggregated_analysis.get('upset_pct_aggregated')
-    fig_upsets = None
-    if upset_pct is not None and not upset_pct.empty:
-        # Convert to DataFrame for easier plotting
-        df_upsets = pd.DataFrame({
-            'Round': upset_pct.index,
-            'Upset_PCT': upset_pct.values
-        })
-        # Optionally impose a custom round order
-        round_order = ["Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship"]
-        df_upsets['Round'] = pd.Categorical(df_upsets['Round'], categories=round_order, ordered=True)
-        df_upsets = df_upsets.sort_values('Round')
-
-        fig_upsets = px.bar(
-            df_upsets,
-            x='Round',
-            y='Upset_PCT',
-            text='Upset_PCT',
-            color='Upset_PCT',
-            color_continuous_scale=RdYlGn,
-            title="Upset Percentage by Tournament Round",
-            labels={'Upset_PCT': 'Upset Percentage (%)'},
-            template='plotly_dark',
-        )
-        # Format text on bars
-        fig_upsets.update_traces(
-            texttemplate='%{text:.1f}%',
-            textposition='outside'
-        )
-        fig_upsets.update_layout(
-            margin=dict(l=50, r=50, t=70, b=50),
-            yaxis_range=[0, df_upsets['Upset_PCT'].max() * 1.2],
-            coloraxis_showscale=False,
-        )
-
-    return fig_champ, fig_upsets
-
-
-def create_regional_prob_chart(region_df):
-    """
-    Create a Plotly bar chart to visualize regional champion probabilities.
-    """
-    if region_df is None or region_df.empty:
-        return None
-    
-    top_teams_by_region = []
-    for region in region_df['Region'].unique():
-        region_data = region_df[region_df['Region'] == region].sort_values('Probability', ascending=False).head(5)
-        top_teams_by_region.append(region_data)
-    filtered_df = pd.concat(top_teams_by_region)
-    fig = px.bar(filtered_df, x='Team', y='Probability', color='Region',
-                 barmode='group', facet_col='Region', facet_col_wrap=2,
-                 labels={'Probability': 'Win Probability', 'Team': 'Team'},
-                 title='Regional Championship Probabilities (Top 5 Teams per Region)',
-                 color_discrete_sequence=px.colors.qualitative.G10)
-    fig.update_layout(legend_title_text='Region', showlegend=True,
-                      template='plotly_dark', height=600,
-                      margin=dict(t=80, l=50, r=50, b=100),
-                      title_font=dict(size=18), xaxis_tickangle=-45)
-    fig.update_yaxes(tickformat='.0%')
-    if fig.layout.annotations:
-        for annotation in fig.layout.annotations:
-            if "=" in annotation.text:
-                annotation.text = annotation.text.split("=")[1]
-    for data in fig.data:
-        fig.add_trace(go.Scatter(x=data.x, y=data.y,
-                                 text=[f"{y:.1%}" for y in data.y],
-                                 mode="text"))
-    return fig
 
 
 # --- App Header & Tabs ---
@@ -3200,6 +2573,9 @@ with tab_pred:
             .background_gradient(
                 cmap="RdYlGn", 
                 subset=["Champ Probability (%)", "KP_AdjEM"]
+            ).background_gradient(
+                cmap="RdYlGn_r", 
+                subset=["SEED", "NET_25"]
             )
             .set_properties(**{"text-align": "center"})
             .set_table_styles([
@@ -3282,7 +2658,7 @@ with tab_pred:
             st.plotly_chart(fig_region, use_container_width=True)
 
         # C) 1×1 bar chart for championship probabilities
-        st.markdown("##### Championship Probabilities (Bar Chart)")
+        st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
         top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
         fig_champ = go.Figure()
         fig_champ.add_trace(
