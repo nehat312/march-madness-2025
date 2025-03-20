@@ -2266,7 +2266,7 @@ with tab_team_reports:
                         std = df_main[metric].std() if df_main[metric].std() != 0 else 1
                         # For the "Team" and "Opponent" columns, adjust sign based on metric direction
                         direction = metric_direction.get(metric, "higher")
-                        if col in ["Team", "Opponent"]:
+                        if col in ["TEAM", "OPP"]:
                             diff = (val_float - ncaa) / std if direction == "higher" else (ncaa - val_float) / std
                         else:
                             diff = 0  # NCAA Avg column remains neutral
