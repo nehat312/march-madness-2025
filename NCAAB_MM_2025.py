@@ -1169,13 +1169,13 @@ import numpy as np
 def calculate_win_probability(t1, t2):
     """
     Enhanced win probability calculation preserving all existing functionality.
-    Adds nuanced logic to improve predictive accuracy based on AVG MARGIN correlations
-    and integrates guiding threshold metrics historically linked to bracket success.
+    Integrates historical seed-based expectations with current efficiency metrics.
+    Combines threshold evaluations and advanced analytics via logistic transformations.
     Compatible with existing March Madness 2025 Streamlit deployment framework.
     """
     import numpy as np
-    
-    # --- EXISTING LOGIC: Preserve fully --- #
+
+    # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
     net_diff = float(t1.get('NET', 0)) - float(t2.get('NET', 0))
     t1_off = float(t1.get('OFF EFF', 1.0))
@@ -1192,7 +1192,7 @@ def calculate_win_probability(t1, t2):
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
-    
+
     # --- Historical threshold constants --- #
     KP_AdjEM_Rk_THRESHOLD = 10     # actual=5.7; no outliers=3.3
     KP_AdjO_Rk_THRESHOLD = 39      # actual=39
@@ -1203,9 +1203,8 @@ def calculate_win_probability(t1, t2):
     KP_AdjEM_champ_max = 35.7      # Highest champion
     KP_AdjO_THRESHOLD = 115
     KP_AdjD_THRESHOLD = 100
-    
+
     # --- FACTOR WEIGHTS REBALANCING --- #
-    # Reduce the base weights to accommodate threshold logic
     factor = 0
     factor += 0.35 * kp_diff         # Reduced from 0.5 to make room for thresholds
     factor += 0.01 * net_diff
@@ -1219,118 +1218,122 @@ def calculate_win_probability(t1, t2):
     factor += 0.02 * sos_diff        # Slightly reduced
     factor += 0.01 * exp_diff
     factor += 0.04 * success_diff    # Slightly reduced
-    
-    # --- THRESHOLD LOGIC: Integrate guiding thresholds --- #
-    # Function to evaluate a team against historical thresholds
+
+    # --- THRESHOLD EVALUATION FUNCTION --- #
     def threshold_evaluation(team):
         score = 0
-        # KenPom metrics - these are strongly predictive
         kp_adjEM = float(team.get('KP_AdjEM', 0))
         kp_adjO = float(team.get('KP_AdjO', 0))
         kp_adjD = float(team.get('KP_AdjD', 0))
         
-        # KenPom adjusted efficiency threshold evaluations
+        # Bonus for championship-caliber efficiency
         if kp_adjEM >= KP_AdjEM_champ_min:
-            score += 3  # Strong bonus for championship-caliber efficiency
+            score += 3
         if kp_adjEM >= KP_AdjEM_champ_live:
-            score += 2  # Additional bonus for exceeding live threshold
+            score += 2
             
-        # Offensive efficiency evaluation - critical for tournament success
+        # Offensive efficiency evaluation
         if kp_adjO >= KP_AdjO_THRESHOLD:
             score += 2
         elif kp_adjO >= (KP_AdjO_THRESHOLD - 5):
-            score += 1  # Partial credit for being close
+            score += 1
             
-        # Defensive efficiency evaluation - critical for tournament success
+        # Defensive efficiency evaluation (lower is better)
         if kp_adjD <= KP_AdjD_THRESHOLD:
             score += 2
         elif kp_adjD <= (KP_AdjD_THRESHOLD + 5):
-            score += 1  # Partial credit for being close
+            score += 1
             
-        # Rankings-based evaluations (if available)
+        # Rankings-based evaluations
         kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999))
         kp_adjO_rk = float(team.get('KP_AdjO_Rk', 999))
         kp_adjD_rk = float(team.get('KP_AdjD_Rk', 999))
         
         if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
             score += 2
-        elif kp_adjEM_rk <= 20:  # Partial credit for top 20
+        elif kp_adjEM_rk <= 20:
             score += 1
             
         if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
             score += 1
             
         if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
-            score += 1.5  # Defense slightly more important
+            score += 1.5
             
         return score
-    
-    # Calculate relative threshold strength
+
     t1_threshold_score = threshold_evaluation(t1)
     t2_threshold_score = threshold_evaluation(t2)
     threshold_diff = t1_threshold_score - t2_threshold_score
-    
-    # Add threshold impact to factor with appropriate weight
     threshold_weight = 0.15  # Significant but not overwhelming
     factor += threshold_weight * threshold_diff
-    
+
     # --- ENHANCED ANALYTICS --- #
-    # Further leverage predictive metrics
     efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
     ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
     factor += 0.03 * efg_diff * 100  # Scale percentage appropriately
     factor += 0.02 * ast_to_diff * 100
-    
-    # Additional defensive emphasis (historically crucial)
-    def_eff_diff = float(t2_def) - float(t1_def)  # Lower is better
+    def_eff_diff = t2_def - t1_def  # Lower defensive efficiency is better
     factor += 0.05 * def_eff_diff
-    
-    # --- SEED-BASED ADJUSTMENTS --- #
-    # Calculate base probability
-    base_prob = 1.0 / (1.0 + np.exp(-0.05 * factor))
-    seed_diff = t2['seed'] - t1['seed']
-    
-    # Apply historical upset patterns with stronger guardrails
+
+    # --- HISTORICAL SEED-BASED BASE PROBABILITY --- #
+    # Establish baseline win probability using seed information:
+    # Lower seed number indicates a historically favored team.
+    seed1 = int(t1.get('seed', 0))
+    seed2 = int(t2.get('seed', 0))
+    if seed1 < seed2:
+        base_seed_prob = 0.65  # t1 is favored
+    else:
+        base_seed_prob = 0.35  # t1 is the underdog
+
+    # --- APPLYING EFFICIENCY METRIC ADJUSTMENTS VIA LOGISTIC TRANSFORMATION --- #
+    # Calculate adjustment factors (range 0 to 1) based on the combined performance factor.
+    adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
+    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))  # Complementary adjustment for t2
+
+    # Combine the historical seed baseline with efficiency adjustments.
+    adjusted_t1 = base_seed_prob * adjustment_t1
+    adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
+
+    # Normalize so the final win probabilities sum to 1.
+    total = adjusted_t1 + adjusted_t2
+    final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
+
+    # --- SEED-BASED HISTORICAL UPSET PATTERNS --- #
+    # Further adjust based on known historical matchup outcomes.
+    seed_diff = seed2 - seed1
     if t1['seed'] == 1 and t2['seed'] == 16:
-        # Historical data: 1 vs 16 matchups (only 1 upset in history before 2018, then UMBC)
-        base_prob = max(base_prob, 0.97)  # Virtually guarantee 1 seed wins
+        final_prob = max(final_prob, 0.97)
     elif t1['seed'] == 2 and t2['seed'] == 15:
-        # Historical data: 2 vs 15 matchups (very rare upsets)
-        base_prob = max(base_prob, 0.93)
+        final_prob = max(final_prob, 0.93)
     elif t1['seed'] == 3 and t2['seed'] == 14:
-        # Historical data: 3 vs 14 matchups (occasional upsets)
-        base_prob = max(base_prob, 0.85)
+        final_prob = max(final_prob, 0.85)
     elif t1['seed'] == 4 and t2['seed'] == 13:
-        # Historical data: 4 vs 13 matchups (more frequent upsets)
-        base_prob = max(base_prob, 0.80)
+        final_prob = max(final_prob, 0.80)
     elif t1['seed'] == 5 and t2['seed'] == 12:
-        # The famous 5-12 upset trend
-        base_prob = min(max(base_prob, 0.65), 0.75)
+        final_prob = min(max(final_prob, 0.65), 0.75)
     elif t1['seed'] == 6 and t2['seed'] == 11:
-        # 6-11 matchups often competitive
-        base_prob = min(max(base_prob, 0.55), 0.75)
+        final_prob = min(max(final_prob, 0.55), 0.75)
     elif t1['seed'] == 7 and t2['seed'] == 10:
-        # 7-10 matchups often competitive
-        base_prob = min(max(base_prob, 0.52), 0.70)
+        final_prob = min(max(final_prob, 0.52), 0.70)
     elif t1['seed'] == 8 and t2['seed'] == 9:
-        # 8-9 matchups essentially coin flips
-        base_prob = min(max(base_prob, 0.45), 0.55)
+        final_prob = min(max(final_prob, 0.45), 0.55)
     elif seed_diff > 8:
-        # Large seed differentials rarely result in upsets
         seed_factor = min(0.05 * seed_diff, 0.25)  # Cap the adjustment
-        base_prob = min(base_prob + seed_factor, 0.95)
-    
+        final_prob = min(final_prob + seed_factor, 0.95)
+
     # --- SANITY CHECKS AND FINAL ADJUSTMENTS --- #
-    # Ensure probabilities stay within reasonable bounds based on seed differences
-    if seed_diff >= 10 and base_prob < 0.80:
-        base_prob = min(base_prob + 0.15, 0.95)  # Strong boost for heavy favorites
-    elif seed_diff >= 5 and base_prob < 0.65:
-        base_prob = min(base_prob + 0.10, 0.85)  # Moderate boost for clear favorites
-    elif seed_diff <= -5 and base_prob > 0.35:
-        base_prob = max(base_prob - 0.10, 0.15)  # Reduce excessive upset probabilities
-    
-    # Final cap to ensure probabilities stay within reasonable bounds
-    return max(0.03, min(0.97, base_prob))
+    # Enforce additional adjustments to keep probabilities within historical bounds.
+    if seed_diff >= 10 and final_prob < 0.80:
+        final_prob = min(final_prob + 0.15, 0.95)
+    elif seed_diff >= 5 and final_prob < 0.65:
+        final_prob = min(final_prob + 0.10, 0.85)
+    elif seed_diff <= -5 and final_prob > 0.35:
+        final_prob = max(final_prob - 0.10, 0.15)
+
+    # Final cap: ensure the win probability remains within a reasonable range.
+    return max(0.03, min(0.97, final_prob))
+
 
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
