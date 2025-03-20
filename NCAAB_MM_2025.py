@@ -1208,19 +1208,19 @@ def calculate_win_probability(t1, t2):
 
     # --- FACTOR WEIGHTING --- #
     factor = 0
-    factor += 0.35 * kp_diff            # KP_AdjEM difference (primary)
-    factor += 0.20 * bpi_diff           # ESPN BPI_25 difference (secondary, less weight)
+    factor += 0.35 * kp_diff            # KP_AdjEM difference
+    factor += 0.20 * bpi_diff           # ESPN BPI_25 difference
     factor += 0.01 * net_diff
-    factor += 0.08 * off_advantage    
-    factor += 0.08 * (-def_advantage) 
+    factor += 0.1 * off_advantage    
+    factor += 0.1 * (-def_advantage) 
     factor += 0.02 * adjO_diff       
     factor += 0.02 * adjD_diff       
-    factor += 0.04 * win_pct_diff    
-    factor += 0.04 * close_pct_diff  
-    factor += 0.40 * margin_diff      
-    factor += 0.02 * sos_diff        
+    factor += 0.01 * win_pct_diff    
+    factor += 0.01 * close_pct_diff  
+    factor += 0.35 * margin_diff      # AVG MARGIN difference
+    factor += 0.01 * sos_diff        
     factor += 0.01 * exp_diff
-    factor += 0.04 * success_diff    
+    factor += 0.01 * success_diff    
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
     def threshold_evaluation(team):
@@ -1263,8 +1263,8 @@ def calculate_win_probability(t1, t2):
     ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
     factor += 0.03 * efg_diff * 100  
     factor += 0.02 * ast_to_diff * 100
-    def_eff_diff = t2_def - t1_def  
-    factor += 0.05 * def_eff_diff
+    # def_eff_diff = t2_def - t1_def  
+    # factor += 0.05 * def_eff_diff
 
     # --- HISTORICAL SEED-BASED BASE PROBABILITY (reduced bias) --- #
     seed1_raw = t1.get('seed', 0)
@@ -1274,9 +1274,9 @@ def calculate_win_probability(t1, t2):
     seed1 = int(seed1_raw)
     seed2 = int(seed2_raw)
     if seed1 < seed2:
-        base_seed_prob = 0.60
+        base_seed_prob = 0.51
     else:
-        base_seed_prob = 0.40
+        base_seed_prob = 0.49
 
     # --- APPLYING LOGISTIC TRANSFORMATION --- #
     adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
@@ -1317,8 +1317,6 @@ def calculate_win_probability(t1, t2):
         final_prob = max(final_prob - 0.03, 0.30)
 
     return max(0.03, min(0.97, final_prob))
-
-
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
     """
@@ -2173,15 +2171,23 @@ with tab_team_reports:
                     record = f"{w}-{l}"
                 seed_info = ""
                 if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
-                    seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}"
+                    seed_info = f"**Seed**: {int(team_data['SEED_25'].iloc[0])}"
                 kp_rank = ""
                 if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
-                    kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}"
+                    kp_rank = f"**KenPom Rank**: {int(team_data['KP_Rank'].iloc[0])}"
+                BPI_rank = ""
+                if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
+                    kp_rank = f"**BPI Rank**: {int(team_data['BPI_Rk_25'].iloc[0])}"
+                NET_rank = ""
+                if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
+                    kp_rank = f"**NET Rank**: {int(team_data['NET_25'].iloc[0])}"                                          
                 st.markdown(f"""
                 **Conference:** {conf}  
                 **Record:** {record}  
                 {seed_info}  
                 {kp_rank}
+                {BPI_rank}
+                {NET_rank}
                 """)
 
                 # Performance Badge using existing logic
@@ -2256,11 +2262,19 @@ with tab_team_reports:
                         opp_kp_rank = ""
                         if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
                             opp_kp_rank = f"**KenPom Rank**: {int(opp_data['KP_Rank'].iloc[0])}"
+                        opp_BPI_rank = ""
+                        if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
+                            kp_rank = f"**BPI Rank**: {int(opp_data['BPI_Rk_25'].iloc[0])}"
+                        opp_NET_rank = ""
+                        if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
+                            kp_rank = f"**NET Rank**: {int(opp_data['NET_25'].iloc[0])}"
                         st.markdown(f"""
                         **Conference:** {opp_conf}  
                         **Record:** {opp_record}  
                         {opp_seed}  
                         {opp_kp_rank}
+                        {opp_BPI_rank}
+                        {opp_NET_rank}
                         """)
 
                     with colH2H2:
@@ -2282,11 +2296,16 @@ with tab_team_reports:
                         h2h_metrics = [
                             "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM",
                             "BPI_25",
-                            "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
-                            "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
-                            "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
-                            "AST/GM", "TO/GM", "AST/TO%",
-                            "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
+                            "OFF EFF", "DEF EFF",
+                            "WIN% ALL GM", #"WIN% CLOSE GM",
+                            "AVG MARGIN", #"PTS/GM", "OPP PTS/GM",
+                            "eFG%", "OPP eFG%",
+                            "TS%", "OPP TS%", 
+                            "OFF REB/GM", "DEF REB/GM",
+                            "AST/GM", "TO/GM",
+                            "AST/TO%",
+                            
+                            #"BLKS/GM", "STL/GM", 
                             "STOCKS/GM", "STOCKS-TOV/GM"
                         ]
 
