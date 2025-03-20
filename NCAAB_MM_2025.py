@@ -856,7 +856,7 @@ def create_team_radar(team, dark_mode=True, key=None):
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=key)
 
 # ----------------------------------------------------------------------------
-# Treemap Function
+# TREEMAP
 def create_treemap(df_notnull):
     try:
         if "KP_Rank" in df_notnull.columns:
@@ -2089,15 +2089,15 @@ with tab_team_reports:
 
     # -- TEAM & OPPONENT SELECTION --
     selected_team_reports = st.selectbox(
-        ":green[_SELECT A TEAM:_]",
+        ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
         index=0,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
-        ":orange[_COMPARE vs. OPPONENT:_]",
+        ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=0,
+        index=1,
         key="select_opponent_reports"
     )
 
@@ -2130,7 +2130,7 @@ with tab_team_reports:
                 {seed_info}  
                 {kp_rank}
                 """)
-                # Performance Badge using your existing function
+                # Performance Badge using existing logic
                 if all(m in team_data.columns for m in get_default_metrics()):
                     t_avgs, t_stdevs = compute_tournament_stats(df_main)
                     perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
@@ -2141,6 +2141,7 @@ with tab_team_reports:
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
+
                 # Interpretive Insights
                 with st.expander("📊 Interpretive Insights"):
                     insights = []
@@ -2166,6 +2167,7 @@ with tab_team_reports:
                     st.markdown("**Team Metric Highlights:**")
                     for line in insights:
                         st.write(f"- {line}")
+
             with colB:
                 # Single-team Radar Chart
                 single_radar_fig = create_radar_chart([selected_team_reports], df_main)
@@ -2173,113 +2175,7 @@ with tab_team_reports:
                     st.plotly_chart(single_radar_fig, use_container_width=True)
 
             # ---------------------
-            # DETAILED TEAM METRICS WITH NCAA AVERAGES (and Opponent values if selected)
-            # ---------------------
-            with st.expander(":blue[View All Team Metrics]"):
-                detailed_metrics = [
-                    "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
-                    "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
-                    "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
-                    "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
-                    "AST/GM", "TO/GM", "AST/TO%", 
-                    "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
-                    "STOCKS/GM", "STOCKS-TOV/GM"
-                ]
-                # Use only metrics that exist in the team data
-                metrics_used = [m for m in detailed_metrics if m in team_data.columns]
-                if metrics_used:
-                    import numpy as np
-                    import matplotlib.cm as cm
-                    import matplotlib.colors as mcolors
-
-                    # Build a DataFrame with Team value and NCAA average; add Opponent column if one is selected
-                    df_metrics = pd.DataFrame(index=metrics_used)
-                    df_metrics["TEAM"] = [team_data[m].iloc[0] for m in metrics_used]
-                    df_metrics["NCAA Avg"] = [df_main[m].mean() for m in metrics_used]
-                    if selected_opponent and selected_opponent != selected_team_reports:
-                        opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
-                        df_metrics["OPP"] = [opp_data[m].iloc[0] if m in opp_data.columns else np.nan for m in metrics_used]
-                    df_metrics.reset_index(inplace=True)
-                    df_metrics.rename(columns={"index": "METRIC"}, inplace=True)
-
-                    # Format numeric values
-                    def fmt(val):
-                        try:
-                            return f"{float(val):.2f}"
-                        except:
-                            return str(val)
-                    for col in df_metrics.columns[1:]:
-                        df_metrics[col] = df_metrics[col].apply(fmt)
-
-                    # Define metric direction – adjust these as needed:
-                    metric_direction = {
-                        "KP_Rank": "lower",
-                        "KP_AdjEM": "higher",
-                        "KP_SOS_AdjEM": "higher",
-                        "OFF EFF": "higher",
-                        "DEF EFF": "lower",
-                        "WIN% ALL GM": "higher",
-                        "WIN% CLOSE GM": "higher",
-                        "PTS/GM": "higher",
-                        "OPP PTS/GM": "lower",
-                        "AVG MARGIN": "higher",
-                        "eFG%": "higher",
-                        "OPP eFG%": "lower",
-                        "TS%": "higher",
-                        "OPP TS%": "lower",
-                        "AST/GM": "higher",
-                        "TO/GM": "lower",
-                        "AST/TO%": "higher",
-                        "OFF REB/GM": "higher",
-                        "DEF REB/GM": "higher",
-                        "BLKS/GM": "higher",
-                        "STL/GM": "higher",
-                        "STOCKS/GM": "higher",
-                        "STOCKS-TOV/GM": "higher"
-                    }
-                    
-                    # Function to compute background color based on z-score versus NCAA Avg
-                    def color_func(val, metric, col):
-                        try:
-                            val_float = float(val)
-                        except:
-                            return ""
-                        ncaa = df_main[metric].mean()
-                        std = df_main[metric].std() if df_main[metric].std() != 0 else 1
-                        # For the "Team" and "Opponent" columns, adjust sign based on metric direction
-                        direction = metric_direction.get(metric, "higher")
-                        if col in ["TEAM", "OPP"]:
-                            diff = (val_float - ncaa) / std if direction == "higher" else (ncaa - val_float) / std
-                        else:
-                            diff = 0  # NCAA Avg column remains neutral
-                        # Normalize z-score from -2 to 2 into 0-1 scale
-                        diff = max(min(diff, 2), -2)
-                        norm_val = (diff + 2) / 4
-                        cmap = cm.get_cmap("RdYlGn")
-                        rgba = cmap(norm_val)
-                        return mcolors.to_hex(rgba)
-                    
-                    def style_cell(val, metric, col):
-                        bg = color_func(val, metric, col)
-                        return f"background-color: {bg}; text-align: center;"
-                    
-                    # Apply styling row-by-row
-                    def row_style(row):
-                        styles = []
-                        for col in df_metrics.columns:
-                            if col == "METRIC":
-                                styles.append("")
-                            else:
-                                styles.append(style_cell(row[col], row["METRIC"], col))
-                        return styles
-                    
-                    styled_table = df_metrics.style.apply(lambda row: row_style(row), axis=1)
-                    st.markdown(styled_table.to_html(), unsafe_allow_html=True)
-                else:
-                    st.info("No detailed metrics available for selected team.")
-
-            # ---------------------
-            # HEAD-TO-HEAD COMPARISON SECTION
+            # HEAD-TO-HEAD COMPARISON
             # ---------------------
             if selected_opponent and selected_opponent != selected_team_reports:
                 opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
@@ -2321,56 +2217,141 @@ with tab_team_reports:
                                 </span>
                             </div>
                             """, unsafe_allow_html=True)
+
                     with colH2H2:
                         # Combined radar chart for head-to-head
                         compare_radar_fig = create_radar_chart([selected_opponent], df_main)
                         if compare_radar_fig:
                             st.plotly_chart(compare_radar_fig, use_container_width=True)
-                    with st.expander(":blue[H2H STATISTICAL COMPARISON]"):
-                        # Build a side-by-side comparison table for key metrics
-                        comparison_metrics = [
-                            "KP_AdjEM", "OFF EFF", "DEF EFF", 
-                            "WIN% ALL GM", "WIN% CLOSE GM", "AVG MARGIN",
-                            "eFG%", "TS%", "AST/TO%", "STOCKS/GM"
-                        ]
-                        home_vals = []
-                        away_vals = []
-                        labels = []
-                        for m in comparison_metrics:
-                            if m in team_data.columns or m in opp_data.columns:
-                                labels.append(m)
-                                hv = team_data[m].iloc[0] if m in team_data.columns else float('nan')
-                                av = opp_data[m].iloc[0] if m in opp_data.columns else float('nan')
-                                home_vals.append(hv)
-                                away_vals.append(av)
-                        comp_df = pd.DataFrame({
-                            "METRIC": labels,
-                            selected_team_reports: home_vals,
-                            selected_opponent: away_vals,
-                            "NCAA AVG": [df_main[m].mean() if m in df_main.columns else np.nan for m in labels],
-                            
-                        })
-                        # Format numeric columns
-                        for col in [selected_team_reports, "NCAA AVG", selected_opponent]:
-                            comp_df[col] = comp_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (float, int)) else str(x))
-                        
-                        # Reuse styling functions defined above for colorscaling
-                        def row_style_h2h(row):
-                            # Use the first column's value (which is the metric name) rather than relying on "METRIC"
-                            metric_val = row.iloc[0]
-                            styles = []
-                            for i, col in enumerate(comp_df.columns):
-                                # For the first column, no style is applied
-                                if i == 0:
-                                    styles.append("")
-                                else:
-                                    styles.append(style_cell(row[col], metric_val, col))
-                            return styles
 
-                        styled_h2h = comp_df.style.apply(lambda row: row_style_h2h(row), axis=1)
-                        st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
+                    with st.expander("Head-to-Head Stats Comparison"):
+                        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                        #  UNIFIED H2H TABLE WITH NCAA AVG, TOURNEY AVG, & ADVANTAGE
+                        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+                        # 1) Define metrics to show
+                        h2h_metrics = [
+                            "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
+                            "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
+                            "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
+                            "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+                            "AST/GM", "TO/GM", "AST/TO%",
+                            "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
+                            "STOCKS/GM", "STOCKS-TOV/GM"
+                        ]
+
+                        # 2) Grab data rows
+                        row_team = team_data.iloc[0]
+                        row_opp = opp_data.iloc[0]
+
+                        # 3) Compute NCAA average & TOURNEY average
+                        #    (filter out rows missing these columns to avoid errors)
+                        valid_df = df_main.dropna(subset=h2h_metrics, how="all")
+                        ncaa_avg = valid_df[h2h_metrics].mean(numeric_only=True)
+
+                        # Only teams with a 2025 seed
+                        tourney_df = valid_df[valid_df["SEED_25"].notna()]
+                        if not tourney_df.empty:
+                            tourney_avg = tourney_df[h2h_metrics].mean(numeric_only=True)
+                        else:
+                            # fallback if no seeds
+                            tourney_avg = pd.Series([np.nan]*len(h2h_metrics), index=h2h_metrics)
+
+                        # 4) Build a DataFrame for final display
+                        final_df = pd.DataFrame({"METRIC": h2h_metrics})
+                        final_df[selected_team_reports] = [row_team[m] if m in row_team else np.nan for m in h2h_metrics]
+                        final_df[selected_opponent] = [row_opp[m] if m in row_opp else np.nan for m in h2h_metrics]
+                        final_df["NCAA AVG"] = [ncaa_avg[m] for m in h2h_metrics]
+                        final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
+
+                        # 5) Mark which metrics are "lower is better"
+                        #    (All others are assumed "higher is better")
+                        lower_is_better = {
+                            "KP_Rank": True,
+                            "DEF EFF": True,
+                            "OPP PTS/GM": True,
+                            "OPP eFG%": True,
+                            "OPP TS%": True,
+                            "TO/GM": True,
+                            # add more if needed
+                        }
+
+                        # 6) Compute ADVANTAGE for each row
+                        advantage_list = []
+                        for idx, row in final_df.iterrows():
+                            metric = row["METRIC"]
+                            valA = row[selected_team_reports]
+                            valB = row[selected_opponent]
+                            if pd.isna(valA) or pd.isna(valB):
+                                advantage_list.append("N/A")
+                                continue
+                            invert = lower_is_better.get(metric, False)
+                            if invert:
+                                # lower is better
+                                if valA < valB:
+                                    advantage_list.append(selected_team_reports)
+                                elif valB < valA:
+                                    advantage_list.append(selected_opponent)
+                                else:
+                                    advantage_list.append("Tie")
+                            else:
+                                # higher is better
+                                if valA > valB:
+                                    advantage_list.append(selected_team_reports)
+                                elif valB > valA:
+                                    advantage_list.append(selected_opponent)
+                                else:
+                                    advantage_list.append("Tie")
+
+                        final_df["ADVANTAGE"] = advantage_list
+
+                        # 7) Tally up advantages for each team
+                        adv_team = sum(1 for x in advantage_list if x == selected_team_reports)
+                        adv_opp = sum(1 for x in advantage_list if x == selected_opponent)
+
+                        # 8) Format numeric columns for display
+                        numeric_cols = [selected_team_reports, selected_opponent, "NCAA AVG", "TOURNEY AVG"]
+                        for col in numeric_cols:
+                            final_df[col] = final_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
+
+                        # 9) Apply color scaling row-wise across the numeric columns
+                        styled_h2h = (
+                            final_df.style
+                            .background_gradient(
+                                cmap="RdYlGn",
+                                subset=numeric_cols,
+                                axis=1  # color-scale each row from min to max
+                            )
+                            .format(precision=2, subset=numeric_cols)
+                            .set_properties(**{"text-align": "center"})
+                            .hide_index()
+                        )
+
+                        # 10) Display the final table
+                        st.dataframe(styled_h2h, use_container_width=True)
+
+                        # 11) Simple summary
+                        if adv_team > adv_opp:
+                            st.write(
+                                f"**Summary**: {selected_team_reports} leads in {adv_team} metrics, "
+                                f"while {selected_opponent} leads in {adv_opp}. "
+                                f"{selected_team_reports} appears favored overall."
+                            )
+                        elif adv_opp > adv_team:
+                            st.write(
+                                f"**Summary**: {selected_opponent} leads in {adv_opp} metrics, "
+                                f"while {selected_team_reports} leads in {adv_team}. "
+                                f"{selected_opponent} appears favored overall."
+                            )
+                        else:
+                            st.write(
+                                f"**Summary**: Both teams match up evenly, each leading in {adv_team} metrics. "
+                                "This could be a close one!"
+                            )
+
     else:
         st.info("Please select a team to view detailed reports.")
+
 
 
 
