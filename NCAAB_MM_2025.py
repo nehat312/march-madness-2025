@@ -1164,16 +1164,13 @@ def prepare_tournament_data(df):
         bracket[region] = region_list
     return bracket
 
-import numpy as np
 
 def calculate_win_probability(t1, t2):
     """
     Enhanced win probability calculation preserving all existing functionality.
     Integrates historical seed-based expectations with current efficiency metrics.
     Combines threshold evaluations and advanced analytics via logistic transformations.
-    Compatible with existing March Madness 2025 Streamlit deployment framework.
     """
-    import numpy as np
 
     # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
@@ -1265,7 +1262,8 @@ def calculate_win_probability(t1, t2):
     t1_threshold_score = threshold_evaluation(t1)
     t2_threshold_score = threshold_evaluation(t2)
     threshold_diff = t1_threshold_score - t2_threshold_score
-    threshold_weight = 0.15  # Significant but not overwhelming
+    # Lower threshold weight to soften its impact
+    threshold_weight = 0.10  
     factor += threshold_weight * threshold_diff
 
     # --- ENHANCED ANALYTICS --- #
@@ -1299,37 +1297,35 @@ def calculate_win_probability(t1, t2):
     total = adjusted_t1 + adjusted_t2
     final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
 
-    # --- SEED-BASED HISTORICAL UPSET PATTERNS --- #
-    # Further adjust based on known historical matchup outcomes.
+    # --- SEED-BASED HISTORICAL UPSET PATTERNS (LIGHTENED) --- #
     seed_diff = seed2 - seed1
     if t1['seed'] == 1 and t2['seed'] == 16:
-        final_prob = max(final_prob, 0.97)
+        final_prob = max(final_prob, 0.95)  # Slightly reduced guarantee
     elif t1['seed'] == 2 and t2['seed'] == 15:
-        final_prob = max(final_prob, 0.93)
+        final_prob = max(final_prob, 0.90)
     elif t1['seed'] == 3 and t2['seed'] == 14:
-        final_prob = max(final_prob, 0.85)
-    elif t1['seed'] == 4 and t2['seed'] == 13:
         final_prob = max(final_prob, 0.80)
+    elif t1['seed'] == 4 and t2['seed'] == 13:
+        final_prob = max(final_prob, 0.75)
     elif t1['seed'] == 5 and t2['seed'] == 12:
-        final_prob = min(max(final_prob, 0.65), 0.75)
+        final_prob = min(max(final_prob, 0.65), 0.73)
     elif t1['seed'] == 6 and t2['seed'] == 11:
-        final_prob = min(max(final_prob, 0.55), 0.75)
+        final_prob = min(max(final_prob, 0.55), 0.73)
     elif t1['seed'] == 7 and t2['seed'] == 10:
-        final_prob = min(max(final_prob, 0.52), 0.70)
+        final_prob = min(max(final_prob, 0.52), 0.68)
     elif t1['seed'] == 8 and t2['seed'] == 9:
         final_prob = min(max(final_prob, 0.45), 0.55)
     elif seed_diff > 8:
-        seed_factor = min(0.05 * seed_diff, 0.25)  # Cap the adjustment
-        final_prob = min(final_prob + seed_factor, 0.95)
+        seed_factor = min(0.04 * seed_diff, 0.20)  # Softer scaling
+        final_prob = min(final_prob + seed_factor, 0.93)
 
-    # --- SANITY CHECKS AND FINAL ADJUSTMENTS --- #
-    # Enforce additional adjustments to keep probabilities within historical bounds.
+    # --- LIGHTENED SANITY CHECKS AND FINAL ADJUSTMENTS --- #
     if seed_diff >= 10 and final_prob < 0.80:
-        final_prob = min(final_prob + 0.15, 0.95)
+        final_prob = min(final_prob + 0.10, 0.90)
     elif seed_diff >= 5 and final_prob < 0.65:
-        final_prob = min(final_prob + 0.10, 0.85)
+        final_prob = min(final_prob + 0.07, 0.80)
     elif seed_diff <= -5 and final_prob > 0.35:
-        final_prob = max(final_prob - 0.10, 0.15)
+        final_prob = max(final_prob - 0.07, 0.20)
 
     # Final cap: ensure the win probability remains within a reasonable range.
     return max(0.03, min(0.97, final_prob))
