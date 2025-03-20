@@ -186,6 +186,7 @@ else:
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
+Banner_logo_path = "images/MM2025_banner1.png" 
 A10_logo_path = "images/A10_logo.png"
 ACC_logo_path = "images/ACC_logo.png"
 AAC_logo_path = "images/AAC_logo.png"
@@ -221,6 +222,7 @@ WCC_logo_path = "images/WCC_logo.png"
 NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
+Banner_logo = Image.open(Banner_logo_path) if os.path.exists(Banner_logo_path) else None
 A10_logo = Image.open(A10_logo_path) if os.path.exists(A10_logo_path) else None
 ACC_logo = Image.open(ACC_logo_path) if os.path.exists(ACC_logo_path) else None
 AAC_logo = Image.open(AAC_logo_path) if os.path.exists(AAC_logo_path) else None
@@ -1996,9 +1998,7 @@ with tab_home:
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
 #######################################
-#############################################
-# -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
-#############################################
+
 with tab_team_reports:
     # Advanced CSS styling for the tab and table elements
     st.markdown("""
@@ -3072,8 +3072,10 @@ with tab_pred:
         st.info("Run the simulation to see results.")
 
 
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, width=750)
+#if FinalFour25_logo:
+    #st.image(FinalFour25_logo, width=750)
+if Banner_logo:
+    st.image(Banner_logo, width=750)
 
 st.markdown("---")
 st.caption("Python code framework available on [GitHub](https://github.com/nehat312/march-madness-2025)")
