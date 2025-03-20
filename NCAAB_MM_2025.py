@@ -1001,7 +1001,7 @@ def simulate_tournament(bracket, num_simulations=1000):
     """
     Runs a full-bracket simulation from Round of 64 to Championship for a given
     bracket (dictionary by region) and returns a dictionary of round–by–round
-    aggregated win percentages.
+    aggregated win percentages *plus* a "Region" key containing region-champion probabilities.
     """
     round_64, round_32, sweet_16, elite_8, final_four, championship = get_matchups_by_round()
     
@@ -1016,9 +1016,19 @@ def simulate_tournament(bracket, num_simulations=1000):
     ]
     
     region_order = ["West", "East", "South", "Midwest"]
+    # Initialize aggregator
     results = {r: {} for r in rounds_list}
+    # Also track region-level champs
+    # Each region will be a dict of {team_name: count_of_times_it_won_that_region}
+    results["Region"] = {
+        "West": {},
+        "East": {},
+        "South": {},
+        "Midwest": {}
+    }
 
     for _ in range(num_simulations):
+        # Make fresh copies of the bracket
         current = {}
         for reg in bracket:
             current[reg] = [copy.deepcopy(t) for t in bracket[reg]]
@@ -1078,6 +1088,7 @@ def simulate_tournament(bracket, num_simulations=1000):
                     w = simulate_game(region_list[i], region_list[j])
                     e8_finalists.append((region, w))
                     results["Elite 8"][w['team']] = results["Elite 8"].get(w['team'], 0) + 1
+        
         region_champs = {}
         for (reg, champ_dict) in e8_finalists:
             region_champs[reg] = champ_dict
@@ -1093,6 +1104,13 @@ def simulate_tournament(bracket, num_simulations=1000):
             ff_winners.append(w)
             results["Final Four"][w['team']] = results["Final Four"].get(w['team'], 0) + 1
 
+        # Record the region champion in aggregator
+        # (whoever advanced from that region's E8)
+        for reg in region_order:
+            if reg in region_champs:
+                rc_team = region_champs[reg]['team']
+                results["Region"][reg][rc_team] = results["Region"][reg].get(rc_team, 0) + 1
+
         # --- Championship ---
         champion = None
         for (i, j) in championship:
@@ -1105,7 +1123,14 @@ def simulate_tournament(bracket, num_simulations=1000):
     for round_name in rounds_list:
         for tm in results[round_name]:
             results[round_name][tm] = 100.0 * (results[round_name][tm] / num_simulations)
+
+    # Also convert region champion counts to percentages
+    for reg in region_order:
+        for tm in results["Region"][reg]:
+            results["Region"][reg][tm] = 100.0 * (results["Region"][reg][tm] / num_simulations)
+
     return results
+
 
 def prepare_tournament_data(df):
     """
@@ -1174,12 +1199,11 @@ def calculate_win_probability(t1, t2):
     Combines threshold evaluations and advanced analytics via logistic transformations.
     Incorporates ESPN BPI_25 (with lower weight than KP_AdjEM) and uses slightly reduced base seeding bias.
     """
-    import numpy as np
 
     # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
     bpi_diff = float(t1.get('BPI_25', 0)) - float(t2.get('BPI_25', 0))
-    net_diff = float(t1.get('NET', 0)) - float(t2.get('NET', 0))
+    net_diff = float(t1.get('NET_25', 0)) - float(t2.get('NET_25', 0))
     t1_off = float(t1.get('OFF EFF', 1.0))
     t1_def = float(t1.get('DEF EFF', 1.0))
     t2_off = float(t2.get('OFF EFF', 1.0))
@@ -1210,17 +1234,17 @@ def calculate_win_probability(t1, t2):
     factor = 0
     factor += 0.35 * kp_diff            # KP_AdjEM difference
     factor += 0.20 * bpi_diff           # ESPN BPI_25 difference
-    factor += 0.01 * net_diff
+    factor += 0.01 * net_diff           # NCAA NET_25 difference
     factor += 0.1 * off_advantage    
     factor += 0.1 * (-def_advantage) 
-    factor += 0.02 * adjO_diff       
-    factor += 0.02 * adjD_diff       
-    factor += 0.01 * win_pct_diff    
-    factor += 0.01 * close_pct_diff  
+    factor += 0.05 * adjO_diff       
+    factor += 0.05 * adjD_diff       
+    factor += 0.00 * win_pct_diff    
+    factor += 0.00 * close_pct_diff  
     factor += 0.35 * margin_diff      # AVG MARGIN difference
-    factor += 0.01 * sos_diff        
-    factor += 0.01 * exp_diff
-    factor += 0.01 * success_diff    
+    factor += 0.00 * sos_diff        
+    factor += 0.00 * exp_diff
+    factor += 0.00 * success_diff    
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
     def threshold_evaluation(team):
@@ -1266,7 +1290,7 @@ def calculate_win_probability(t1, t2):
     # def_eff_diff = t2_def - t1_def  
     # factor += 0.05 * def_eff_diff
 
-    # --- HISTORICAL SEED-BASED BASE PROBABILITY (reduced bias) --- #
+    # --- HISTORICAL SEED-BASED BASE PROBABILITY (reduced bias) ---
     seed1_raw = t1.get('seed', 0)
     seed2_raw = t2.get('seed', 0)
     if pd.isna(seed1_raw): seed1_raw = 99
@@ -1278,7 +1302,7 @@ def calculate_win_probability(t1, t2):
     else:
         base_seed_prob = 0.49
 
-    # --- APPLYING LOGISTIC TRANSFORMATION --- #
+    # --- APPLYING LOGISTIC TRANSFORMATION ---
     adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
     adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
     adjusted_t1 = base_seed_prob * adjustment_t1
@@ -1286,29 +1310,39 @@ def calculate_win_probability(t1, t2):
     total = adjusted_t1 + adjusted_t2
     final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
 
-    # --- SEED-BASED HISTORICAL UPSET PATTERNS (RELAXED) --- #
+    # --- SEED-BASED HISTORICAL UPSET PATTERNS (RELAXED & WEIGHTED) ---
     seed_diff = seed2 - seed1
+
+    # Use a blend (weighted average) instead of a hard floor:
     if t1['seed'] == 1 and t2['seed'] == 16:
-        final_prob = max(final_prob, 0.90)
+        final_prob = 0.7 * final_prob + 0.3 * 0.95
     elif t1['seed'] == 2 and t2['seed'] == 15:
-        final_prob = max(final_prob, 0.85)
+        final_prob = 0.7 * final_prob + 0.3 * 0.85
     elif t1['seed'] == 3 and t2['seed'] == 14:
-        final_prob = max(final_prob, 0.75)
+        final_prob = 0.7 * final_prob + 0.3 * 0.75
     elif t1['seed'] == 4 and t2['seed'] == 13:
-        final_prob = max(final_prob, 0.70)
+        final_prob = 0.7 * final_prob + 0.3 * 0.70
     elif t1['seed'] == 5 and t2['seed'] == 12:
-        final_prob = min(max(final_prob, 0.60), 0.70)
+        final_prob = 0.7 * final_prob + 0.3 * 0.65
     elif t1['seed'] == 6 and t2['seed'] == 11:
-        final_prob = min(max(final_prob, 0.50), 0.70)
+        final_prob = 0.7 * final_prob + 0.3 * 0.60
     elif t1['seed'] == 7 and t2['seed'] == 10:
-        final_prob = min(max(final_prob, 0.48), 0.68)
-    elif t1['seed'] == 8 and t2['seed'] == 9:
-        final_prob = min(max(final_prob, 0.45), 0.55)
+        final_prob = 0.7 * final_prob + 0.3 * 0.58
+    elif (seed1, seed2) in [(8, 9), (9, 8)]:
+        # For 8 vs 9, nudge toward a near coin flip:
+        final_prob = 0.8 * final_prob + 0.2 * 0.50
     elif seed_diff > 8:
+        # For larger gaps beyond 8, apply a single tiered adjustment:
         seed_factor = min(0.03 * seed_diff, 0.15)
         final_prob = min(final_prob + seed_factor, 0.90)
-    
-    # --- LIGHTENED SANITY CHECKS & FINAL ADJUSTMENTS (reduced increments) --- #
+
+    # --- ROUND-BASED ADJUSTMENT ---
+    # For later rounds (e.g. Round of 32 and beyond), slightly reduce the forced floor.
+    # if current_round >= 2:
+    #     final_prob = max(final_prob, 0.85)
+
+    # --- FINAL SANITY CHECKS & LIGHTENED ADJUSTMENTS ---
+    # Apply one final tier of adjustments if needed without double–counting:
     if seed_diff >= 10 and final_prob < 0.80:
         final_prob = min(final_prob + 0.05, 0.85)
     elif seed_diff >= 5 and final_prob < 0.65:
@@ -1316,7 +1350,9 @@ def calculate_win_probability(t1, t2):
     elif seed_diff <= -5 and final_prob > 0.35:
         final_prob = max(final_prob - 0.03, 0.30)
 
-    return max(0.03, min(0.97, final_prob))
+    # Return final probability clamped to a slightly wider range for increased randomness.
+    final_prob = max(0.02, min(0.98, final_prob))
+    return final_prob
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
     """
@@ -1502,12 +1538,15 @@ def run_tournament_simulation(num_sims=100):
     Wrapper that:
       1) Prepares the bracket from df_main
       2) Runs num_sims simulations
-      3) Returns aggregated results by round (as percentages)
+      3) Returns aggregated results by round (as percentages), including "Region" champion data
     """
     bracket = prepare_tournament_data(df_main)
     if not bracket:
         return {}
-    return simulate_tournament(bracket, num_simulations=num_sims)
+    # Now that simulate_tournament includes region-champion logic, we'll get a "Region" key back
+    aggregated_results = simulate_tournament(bracket, num_simulations=num_sims)
+    return aggregated_results
+
 
 def get_bracket_matchups():
     """
@@ -3215,52 +3254,54 @@ with tab_pred:
         st.markdown(":primary[##### HIGHEST CHAMPIONSHIP PROBABILTIES]")
         st.markdown(champion_styler.to_html(), unsafe_allow_html=True)
 
-        # Optionally, show raw text summary
+        # Optional --  raw text summary
         # st.write("**Raw Summary**:")
         # for row in data_rows[:15]:
         #     st.write(f"{row['TEAM']}: {row['CHAMP%']:.1f}%")
 
 
-                # --- REGIONAL SUBPLOT (2×2) --- #
+        # --- REGIONAL SUBPLOT (2×2) --- #
         region_probs = aggregated.get("Region", None)
-        if region_probs is None:
-            # Fallback: compute region-level probabilities from champion_df
-            fallback_region_probs = {}
-            for region in champion_df["REGION"].unique():
-                subset = champion_df[champion_df["REGION"] == region]
-                # Use top 5 teams in each region (if available)
-                region_data = dict(zip(subset["TEAM"], subset["CHAMP PROBABILITY (%)"]))
-                fallback_region_probs[region] = region_data
-            region_probs = fallback_region_probs
-
-        st.markdown("##### Regional Championship Probabilities")
-        fig_region = make_subplots(rows=2, cols=2, subplot_titles=["West", "East", "South", "Midwest"])
-        row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
-        for region_name in ["West", "East", "South", "Midwest"]:
-            if region_name not in region_probs:
-                continue
-            items = sorted(region_probs[region_name].items(), key=lambda x: x[1], reverse=True)[:8]
-            x_vals = [itm[0] for itm in items]
-            y_vals = [itm[1] for itm in items]
-            (r, c) = row_col_map[region_name]
-            fig_region.add_trace(
-                go.Bar(x=x_vals, y=y_vals, name=region_name,
-                       text=[f"{v:.1f}%" for v in y_vals],
-                       textposition="outside", marker_color="steelblue"),
-                row=r, col=c
+        if not region_probs:
+            st.warning("No region champion data found.")
+        else:
+            st.markdown("##### Regional Championship Probabilities")
+            fig_region = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=["West", "East", "South", "Midwest"]
             )
-            fig_region.update_xaxes(tickangle=-45, row=r, col=c)
-            if y_vals:
-                fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
+            row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
+            for region_name in ["West", "East", "South", "Midwest"]:
+                if region_name not in region_probs:
+                    continue
+                # region_probs[region_name] is a dict: { "TEAM": <float prob> }
+                items = sorted(region_probs[region_name].items(),
+                            key=lambda x: x[1], reverse=True)[:8]
+                x_vals = [itm[0] for itm in items]
+                y_vals = [itm[1] for itm in items]
+                (r, c) = row_col_map[region_name]
+                fig_region.add_trace(
+                    go.Bar(
+                        x=x_vals, y=y_vals,
+                        name=region_name,
+                        text=[f"{v:.1f}%" for v in y_vals],
+                        textposition="outside",
+                        marker_color="steelblue"
+                    ),
+                    row=r, col=c
+                )
+                fig_region.update_xaxes(tickangle=-45, row=r, col=c)
+                if y_vals:
+                    fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
 
-        fig_region.update_layout(
-            template="plotly_dark",
-            height=600,
-            title="Regional Championship Odds",
-            showlegend=False,
-            margin=dict(l=50, r=50, t=60, b=60),
-        )
-        st.plotly_chart(fig_region, use_container_width=True)
+            fig_region.update_layout(
+                template="plotly_dark",
+                height=600,
+                title="REGIONAL CHAMPION / FINAL FOUR ODDS",
+                showlegend=False,
+                margin=dict(l=50, r=50, t=60, b=60),
+            )
+            st.plotly_chart(fig_region, use_container_width=True)
 
         # --- 1×1 CHAMPIONSHIP BAR CHART --- #
         st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
