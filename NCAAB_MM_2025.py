@@ -1747,8 +1747,8 @@ def display_simulation_results(single_run_logs):
 
 
 # --- App Header & Tabs ---
-st.title(":primary[2025 NCAAM BASKETBALL --- MARCH MADNESS]")
-st.subheader(":primary[2025 MARCH MADNESS RESEARCH HUB]")
+st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
+st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
 st.caption(":primary[_Cure your bracket brain and propel yourself up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
@@ -1757,12 +1757,13 @@ tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred
                                                                           "🔥 REGIONAL HEATMAPS", #🌡️📍
                                                                           "📊 TEAM METRICS", #📈📋📜📰📅
                                                                           "🏆 CONFERENCE STATS", #🏅
-                                                                          "🔮 PREDICTIONS"]) #🎱❓✅❌ ⚙️
+                                                                          "🔮 PREDICTIONS",
+                                                                          ]) #🎱❓✅❌ ⚙️
 
 # --- Home Tab ---
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
-    st.caption(":green[_DATA AS OF: 3/18/2025_]")
+    st.caption(":green[_DATA AS OF: 3/19/2025_]")
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
@@ -1906,136 +1907,9 @@ with tab_home:
 
                 st.markdown(detail_styler.to_html(), unsafe_allow_html=True)
 
-    
-    # Style for the index (RANK)
-    index_style = {
-        'selector': '.row_heading.level0',  # Target the index cells
-        'props': [
-            ('background-color', '#0360CE'),
-            ('color', 'white'),
-            ('text-align', 'center'),
-            ('font-weight', 'bold'),
-            ('border', '1px solid #000000'),
-        ]
-    }
-    
-    # General cell style
-    cell_style = {
-        'selector': 'tbody td',  # Target data cells
-        'props': [
-            ('text-align', 'center'),
-            ('border', '1px solid #ddd'),  # Lighter border for data cells
-            ('padding', '5px 10px'),
-        ]
-    }
-
-    # Style to group related statistics (AdjEM range)
-    adj_em_group_style = {
-        'selector': 'th.col_heading.level0.col2, th.col_heading.level0.col3, th.col_heading.level0.col4',  # Target AdjEM columns
-        'props': [
-            ('border-right', '3px solid #888'),  # Thicker border to group
-        ]
-    }
-
-    detailed_table_styles = [header, index_style, cell_style, adj_em_group_style]
-
-    if "CONFERENCE" in df_main.columns:
-        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
-        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
-
-        if "KP_AdjEM" in df_main.columns: 
-            conf_stats = df_main.groupby("CONFERENCE").agg( # Aggregate multiple stats at once
-                {
-                    "KP_AdjEM": ["count", "max", "mean", "min"],
-                    "SEED_25": ["count", "mean"],
-                    "NET_25": "mean",
-                    #"BPI_25": "mean", "BPI_Rank": "mean",
-                    #"TR_OEff_25": "mean", #"TR_DEff_25": "mean",
-                    "WIN% ALL GM": "mean", #"WIN% CLOSE GM": "mean",
-                    "AVG MARGIN": "mean",
-                    "eFG%": "mean", #"TS%": "mean",
-                    "AST/TO%": "mean", #"NET AST/TOV RATIO": "mean",
-                    "STOCKS/GM": "mean", "STOCKS-TOV/GM": "mean",
-                }
-            ).reset_index()
-
-            # Flatten the multi-level column index
-            conf_stats.columns = [
-                "CONFERENCE",
-                "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-                "# BIDS", "MEAN SEED_25", "MEAN NET_25",
-                #"AVG TR_OEff_25", "AVG TR_DEff_25",
-                "MEAN WIN %", "MEAN AVG MARGIN",
-                "MEAN eFG%",
-                "MEAN AST/TO%", #"NET AST/TOV RATIO",
-                "MEAN STOCKS/GM", "MEAN STOCKS-TOV/GM", 
-            ]
-
-            conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
-
-            # --- Apply normal index ---
-            conf_stats = conf_stats.reset_index(drop=True)
-            conf_stats.index = conf_stats.index + 1  # Start index at 1
-            conf_stats.index.name = "RANK"
-
-            st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
-            with st.expander("*About Conference Power Rankings:*"):
-                st.markdown("""
-                    Simple-average rollup of each conference:
-                    - **MEAN AdjEM**: Average KenPom Adjusted Efficiency Margin within conference
-                    - **MAX/MIN AdjEM**: Range of AdjEM values among teams within conference
-                    - **AVG SEED_25**: Average tournament seed (lower is better)
-                    - **AVG NET_25**: Average NET ranking (lower is better)
-                    
-                    """)
-
-# - **AVG TR_OEff_25 / AVG TR_DEff_25**:  Average Torvik Offensive/Defensive Efficiency
-
-        # Apply logo and styling *before* converting to HTML
-        conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
-
-        styled_conf_stats = (
-            conf_stats.style
-            .format({
-                "# TEAMS": "{:.0f}",
-                "# BIDS": "{:.0f}",
-                "MEAN AdjEM": "{:.2f}",
-                "MIN AdjEM": "{:.2f}",
-                "MAX AdjEM": "{:.2f}",
-                "MEAN SEED_25": "{:.1f}",
-                "MEAN NET_25": "{:.1f}",
-
-                #"AVG TR_OEff_25": "{:.1f}",
-                #"AVG TR_DEff_25": "{:.1f}",
-                "MEAN WIN %": "{:.1f}",
-                "MEAN AVG MARGIN": "{:.1f}",
-                "MEAN eFG%": "{:.1f}",
-                "MEAN AST/TO%": "{:.1f}",
-                #"NET AST/TOV RATIO": "{:.1f}",
-                "MEAN STOCKS/GM": "{:.1f}",
-                "MEAN STOCKS-TOV/GM": "{:.1f}",
-            })
-            .background_gradient(cmap="RdYlGn", subset=[
-                "# TEAMS", "# BIDS", 
-                "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
-                #"AVG TR_OEff_25",
-                "MEAN WIN %", "MEAN AVG MARGIN",
-                "MEAN eFG%",
-                "MEAN AST/TO%",
-                "MEAN STOCKS/GM", "MEAN STOCKS-TOV/GM",
-                
-            ])
-            .background_gradient(cmap="RdYlGn_r", subset=["MEAN SEED_25", "MEAN NET_25",
-                                                          #"AVG TR_DEff_25",
-                                                          ])
-            .set_table_styles(detailed_table_styles)
-        )
-
-        st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-
 with tab_team_reports:
     st.header(":primary[TEAM REPORTS]")
-    st.caption(":green[_DATA AS OF: 3/18/2025_]")
+    st.caption(":green[_DATA AS OF: 3/19/2025_]")
     # Allow team selection – similar to the Home tab approach
     selected_team_reports = st.selectbox(
         ":green[_SELECT A TEAM:_]",
@@ -2121,7 +1995,7 @@ with tab_team_reports:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header(":primary[REGIONAL RADAR CHARTS]")
-    st.caption(":green[_DATA AS OF: 3/18/2025_]")
+    st.caption(":green[_DATA AS OF: 3/19/2025_]")
     create_region_seeding_radar_grid(df_main) #, region_teams
     with st.expander("*About Radar Grid:*"):
         st.markdown("""
@@ -2176,8 +2050,7 @@ with tab_radar:
 # --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header(":primary[REGIONAL HEATMAPS]")
-    st.caption(":green[_DATA AS OF: 3/18/2025_]")
-    #st.write("REGIONAL HEATFRAMES (W, X, Y, Z)")
+    st.caption(":green[_DATA AS OF: 3/19/2025_]")
     df_heat = df_main.copy()
     numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
     mean_series = df_heat.mean(numeric_only=True)
@@ -2322,38 +2195,167 @@ with tab_regions:
 # --- Conference Comparison Tab ---
 with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
+
+
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
+    ### CONFERENCE POWER RANKINGS ###    
+    # Style for the index (RANK)
+    index_style = {
+        'selector': '.row_heading.level0',  # Target the index cells
+        'props': [
+            ('background-color', '#0360CE'),
+            ('color', 'white'),
+            ('text-align', 'center'),
+            ('font-weight', 'bold'),
+            ('border', '1px solid #000000'),
+        ]
+    }
+    
+    # General cell style
+    cell_style = {
+        'selector': 'tbody td',  # Target data cells
+        'props': [
+            ('text-align', 'center'),
+            ('border', '1px solid #ddd'),  # Lighter border for data cells
+            ('padding', '5px 10px'),
+        ]
+    }
+
+    # Style to group related statistics (AdjEM range)
+    adj_em_group_style = {
+        'selector': 'th.col_heading.level0.col2, th.col_heading.level0.col3, th.col_heading.level0.col4',  # Target AdjEM columns
+        'props': [
+            ('border-right', '3px solid #888'),  # Thicker border to group
+        ]
+    }
+
+    detailed_table_styles = [header, index_style, cell_style, adj_em_group_style]
     if "CONFERENCE" in df_main.columns:
-        conf_metric = st.selectbox(
-            "Select Metric for Conference Comparison", numeric_cols,
-            index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
+        conf_counts = df_main["CONFERENCE"].value_counts().reset_index()
+        conf_counts.columns = ["CONFERENCE", "# TEAMS"]
+
+        if "KP_AdjEM" in df_main.columns: 
+            conf_stats = df_main.groupby("CONFERENCE").agg(
+                {
+                    "KP_AdjEM": ["count", "max", "mean", "min"],
+                    "SEED_25": ["count", "mean"],
+                    "NET_25": "mean",
+                    #"BPI_25": "mean", "BPI_Rank": "mean",
+                    #"TR_OEff_25": "mean", #"TR_DEff_25": "mean",
+                    "WIN% ALL GM": "mean", #"WIN% CLOSE GM": "mean",
+                    "AVG MARGIN": "mean",
+                    "eFG%": "mean", #"TS%": "mean",
+                    "AST/TO%": "mean", #"NET AST/TOV RATIO": "mean",
+                    "STOCKS/GM": "mean", "STOCKS-TOV/GM": "mean",
+                }
+            ).reset_index()
+
+            # Flatten multi-level column index
+            conf_stats.columns = [
+                "CONFERENCE",
+                "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
+                "# BIDS", "MEAN SEED_25", "MEAN NET_25",
+                #"AVG TR_OEff_25", "AVG TR_DEff_25",
+                "MEAN WIN %", "MEAN AVG MARGIN",
+                "MEAN eFG%",
+                "MEAN AST/TO%", #"NET AST/TOV RATIO",
+                "MEAN STOCKS/GM", "MEAN STOCKS-TOV/GM", 
+            ]
+
+            conf_stats = conf_stats.sort_values("MEAN AdjEM", ascending=False)
+
+            # --- Apply normal index ---
+            conf_stats = conf_stats.reset_index(drop=True)
+            conf_stats.index = conf_stats.index + 1  # Start index at 1
+            conf_stats.index.name = "RANK"
+
+            st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
+            with st.expander("*About Conference Power Rankings:*"):
+                st.markdown("""
+                    - **MEAN/MAX/MIN AdjEM**: Average/Range of KenPom Adjusted Efficiency Margin within conference (higher is better)
+                    - **AVG SEED_25**: Average tournament seed (lower is better)
+                    - **AVG NET_25**: Average NET ranking (lower is better)
+                    - **MEAN AST/TO%**: Average assist-to-turnover ratio (lower is better)
+                    - **MEAN WIN %**: Average win percentage (higher is better)
+                    - **MEAN AVG MARGIN**: Average average scoring margin (higher is better)
+                    - **MEAN eFG%**: Average effective field goal percentage (higher is better)
+                    - **MEAN STOCKS/GM**: Average stocks per game (higher is better)
+                    - **MEAN STOCKS-TOV/GM**: Average stocks-to-turnover per game (higher is better)
+                    """)
+
+        # Apply logo and styling *before* converting to HTML
+        conf_stats["CONFERENCE"] = conf_stats["CONFERENCE"].apply(get_conf_logo_html)
+
+        styled_conf_stats = (
+            conf_stats.style
+            .format({
+                "# TEAMS": "{:.0f}",
+                "# BIDS": "{:.0f}",
+                "MEAN AdjEM": "{:.2f}",
+                "MIN AdjEM": "{:.2f}",
+                "MAX AdjEM": "{:.2f}",
+                "MEAN SEED_25": "{:.1f}",
+                "MEAN NET_25": "{:.1f}",
+
+                #"AVG TR_OEff_25": "{:.1f}",
+                #"AVG TR_DEff_25": "{:.1f}",
+                "MEAN WIN %": "{:.1f}",
+                "MEAN AVG MARGIN": "{:.1f}",
+                "MEAN eFG%": "{:.1f}",
+                "MEAN AST/TO%": "{:.1f}",
+                #"NET AST/TOV RATIO": "{:.1f}",
+                "MEAN STOCKS/GM": "{:.1f}",
+                "MEAN STOCKS-TOV/GM": "{:.1f}",
+            })
+            .background_gradient(cmap="RdYlGn", subset=[
+                "# TEAMS", "# BIDS", 
+                "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
+                #"AVG TR_OEff_25",
+                "MEAN WIN %", "MEAN AVG MARGIN",
+                "MEAN eFG%",
+                "MEAN AST/TO%",
+                "MEAN STOCKS/GM", "MEAN STOCKS-TOV/GM",
+                
+            ])
+            .background_gradient(cmap="RdYlGn_r", subset=["MEAN SEED_25", "MEAN NET_25",
+                                                          #"AVG TR_DEff_25",
+                                                          ])
+            .set_table_styles(detailed_table_styles)
         )
-        conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean().dropna().sort_values(ascending=False)
-        fig_conf = px.bar(
-            conf_group, y=conf_group.index, x=conf_group.values, orientation='h',
-            title=f"Average {conf_metric} by Conference",
-            labels={"y": "Conference", "x": conf_metric},
-            color=conf_group.values, color_continuous_scale="Viridis",
-            template="plotly_dark"
-        )
-        for conf_val in conf_group.index:
-            teams = df_main[df_main["CONFERENCE"] == conf_val]
-            fig_conf.add_trace(go.Scatter(
-                x=teams[conf_metric], y=[conf_val] * len(teams),
-                mode="markers", marker=dict(color="white", size=6, opacity=0.7),
-                name=f"{conf_val} Teams"
-            ))
-        fig_conf.update_layout(showlegend=False)
-        st.plotly_chart(fig_conf, use_container_width=True)
-    else:
-        st.error("Conference data is not available.")
-    with st.expander("*About Conference Comparisons:*"):
-        st.markdown("""
-        **Conference Comparison Glossary:**
-        - **Avg AdjEM**: Average Adjusted Efficiency Margin.
-        - **Conference**: Grouping of teams by their athletic conferences.
-        - Metrics intended to afford insight into relative conference strength.
-        """)
+
+        st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
+
+    # if "CONFERENCE" in df_main.columns:
+    #     conf_metric = st.selectbox(
+    #         "Select Metric for Conference Comparison", numeric_cols,
+    #         index=numeric_cols.index("KP_AdjEM") if "KP_AdjEM" in numeric_cols else 0
+    #     )
+    #     conf_group = df_main.groupby("CONFERENCE")[conf_metric].mean().dropna().sort_values(ascending=False)
+    #     fig_conf = px.bar(
+    #         conf_group, y=conf_group.index, x=conf_group.values, orientation='h',
+    #         title=f"Average {conf_metric} by Conference",
+    #         labels={"y": "Conference", "x": conf_metric},
+    #         color=conf_group.values, color_continuous_scale="Viridis",
+    #         template="plotly_dark"
+    #     )
+    #     for conf_val in conf_group.index:
+    #         teams = df_main[df_main["CONFERENCE"] == conf_val]
+    #         fig_conf.add_trace(go.Scatter(
+    #             x=teams[conf_metric], y=[conf_val] * len(teams),
+    #             mode="markers", marker=dict(color="white", size=6, opacity=0.7),
+    #             name=f"{conf_val} Teams"
+    #         ))
+    #     fig_conf.update_layout(showlegend=False)
+    #     st.plotly_chart(fig_conf, use_container_width=True)
+    # else:
+    #     st.error("Conference data is not available.")
+    # with st.expander("*About Conference Comparisons:*"):
+    #     st.markdown("""
+    #     **Conference Comparison Glossary:**
+    #     - **Avg AdjEM**: Average Adjusted Efficiency Margin.
+    #     - **Conference**: Grouping of teams by their athletic conferences.
+    #     - Metrics intended to afford insight into relative conference strength.
+    #     """)
 
 # --- Team Metrics Comparison Tab ---
 with tab_team:
