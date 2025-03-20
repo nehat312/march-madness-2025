@@ -2149,7 +2149,7 @@ with tab_team_reports:
                 if single_radar_fig:
                     st.plotly_chart(single_radar_fig, use_container_width=True)
 
-            # Instead of an expander for interpretive insights, let's store them in a variable
+            # Helper function to generate interpretive insights
             def get_interpretive_insights(row, df_all):
                 """Return bullet-point lines describing how each default metric compares to NCAA average."""
                 lines = []
@@ -2160,6 +2160,7 @@ with tab_team_reports:
                         std_val = max(t_stdevs.get(metric, 1), 1e-6)
                         team_val = row[metric]
                         z = (team_val - mean_val) / std_val
+                        # For these metrics, lower is better, so invert the sign
                         if metric in ["DEF EFF", "TO/GM"]:
                             z = -z
                         if abs(z) < 0.3:
@@ -2210,7 +2211,7 @@ with tab_team_reports:
                         """)
 
                     with colH2H2:
-                        # Combined radar chart for head-to-head (opponent only or both)
+                        # Combined radar chart for the opponent (or both teams if you wish)
                         compare_radar_fig = create_radar_chart([selected_opponent], df_main)
                         if compare_radar_fig:
                             st.plotly_chart(compare_radar_fig, use_container_width=True)
@@ -2221,6 +2222,7 @@ with tab_team_reports:
                     with st.expander("Head-to-Head Stats Comparison"):
                         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                         #  UNIFIED H2H TABLE WITH NCAA AVG, TOURNEY AVG, & ADVANTAGE
+                        #  + CUSTOM ROW-BASED COLOR SCALING ("best" = green)
                         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                         # 1) Define metrics to show
@@ -2274,7 +2276,9 @@ with tab_team_reports:
                                 advantage_list.append("N/A")
                                 continue
                             invert = lower_is_better.get(metric, False)
+                            # Decide advantage
                             if invert:
+                                # lower = better
                                 if valA < valB:
                                     advantage_list.append(selected_team_reports)
                                 elif valB < valA:
@@ -2282,6 +2286,7 @@ with tab_team_reports:
                                 else:
                                     advantage_list.append("Tie")
                             else:
+                                # higher = better
                                 if valA > valB:
                                     advantage_list.append(selected_team_reports)
                                 elif valB > valA:
@@ -2302,20 +2307,112 @@ with tab_team_reports:
                                 lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x)
                             )
 
-                        # 9) Create a styled object with row-wise color scaling
-                        styled_h2h = (
-                            final_df.style
-                            .background_gradient(cmap="RdYlGn", subset=numeric_cols, axis=1)
-                            .format(precision=2, subset=numeric_cols)
-                            .set_properties(**{"text-align": "center"})
-                        )
-                        # We'll output via markdown to ensure the global <style> is applied
-                        h2h_html = styled_h2h.to_html()
+                        # 9) Custom row-based color scaling to ensure "best" is green
+                        import matplotlib
+                        import matplotlib.colors as mcolors
+                        import numpy as np
 
-                        # 10) Display the final table with advanced CSS
+                        def colorize_row(row):
+                            """For each row, color numeric columns so the 'best' value is green."""
+                            metric = row["METRIC"]
+                            invert = lower_is_better.get(metric, False)  # True => lower is better
+                            styles = []
+                            # We'll skip styling for METRIC and ADVANTAGE columns
+                            # We'll style only numeric_cols
+                            for col in final_df.columns:
+                                if col in ["METRIC", "ADVANTAGE"]:
+                                    styles.append("")
+                                    continue
+                                cell_val_str = row[col]
+                                # Attempt to parse float
+                                try:
+                                    cell_val = float(cell_val_str)
+                                except:
+                                    styles.append("")
+                                    continue
+
+                                # We will gather the row's numeric values for these columns,
+                                # invert them if needed, find min->max, and map to color.
+                                # But we must do it per-row, so let's gather them first:
+                                row_vals = []
+                                col_names_for_row = []
+                                for c in numeric_cols:
+                                    v_str = row[c]
+                                    try:
+                                        v = float(v_str)
+                                    except:
+                                        v = np.nan
+                                    # If invert => multiply by -1 so that "best" is largest
+                                    if invert and not np.isnan(v):
+                                        v = -v
+                                    row_vals.append(v)
+                                    col_names_for_row.append(c)
+
+                                # Filter out NaN
+                                valid_vals = [v for v in row_vals if not np.isnan(v)]
+                                if not valid_vals:
+                                    styles.append("")
+                                    continue
+
+                                vmin, vmax = min(valid_vals), max(valid_vals)
+
+                                # Now let's invert the cell_val if needed
+                                if invert:
+                                    cell_val = -cell_val
+
+                                # Map cell_val to 0..1
+                                if vmax == vmin:
+                                    # all same => neutral color
+                                    ratio = 0.5
+                                else:
+                                    ratio = (cell_val - vmin) / (vmax - vmin)
+                                cmap = matplotlib.cm.get_cmap("RdYlGn")
+                                rgba = cmap(ratio)
+                                color_hex = mcolors.to_hex(rgba)
+                                styles.append(f"background-color: {color_hex}; text-align: center;")
+                            return styles
+
+                        styled_h2h = final_df.style.apply(colorize_row, axis=1)
+                        # Keep text alignment
+                        styled_h2h = styled_h2h.set_properties(**{"text-align": "center"})
+
+                        # We'll output via markdown so the global <style> is applied
+                        h2h_html = styled_h2h.to_html()
                         st.markdown(h2h_html, unsafe_allow_html=True)
 
-                        # 11) Summary with interpretive insights from both teams
+                        # 10) Single-game Win Probability (using bracket sim logic)
+                        #     Build minimal dictionaries for each team, call calculate_win_probability
+                        team_dict = {
+                            "team": selected_team_reports,
+                            "seed": row_team.get("SEED_25", 99),
+                            "KP_AdjEM": row_team.get("KP_AdjEM", 0),
+                            "OFF EFF": row_team.get("OFF EFF", 1.0),
+                            "DEF EFF": row_team.get("DEF EFF", 1.0),
+                            "WIN% ALL GM": row_team.get("WIN% ALL GM", 0.5),
+                            "WIN% CLOSE GM": row_team.get("WIN% CLOSE GM", 0.5),
+                            "AVG MARGIN": row_team.get("AVG MARGIN", 0),
+                            "KP_SOS_AdjEM": row_team.get("KP_SOS_AdjEM", 0),
+                            "KP_AdjO": row_team.get("KP_AdjO", 0),
+                            "KP_AdjD": row_team.get("KP_AdjD", 0),
+                        }
+                        opp_dict = {
+                            "team": selected_opponent,
+                            "seed": row_opp.get("SEED_25", 99),
+                            "KP_AdjEM": row_opp.get("KP_AdjEM", 0),
+                            "OFF EFF": row_opp.get("OFF EFF", 1.0),
+                            "DEF EFF": row_opp.get("DEF EFF", 1.0),
+                            "WIN% ALL GM": row_opp.get("WIN% ALL GM", 0.5),
+                            "WIN% CLOSE GM": row_opp.get("WIN% CLOSE GM", 0.5),
+                            "AVG MARGIN": row_opp.get("AVG MARGIN", 0),
+                            "KP_SOS_AdjEM": row_opp.get("KP_SOS_AdjEM", 0),
+                            "KP_AdjO": row_opp.get("KP_AdjO", 0),
+                            "KP_AdjD": row_opp.get("KP_AdjD", 0),
+                        }
+                        from math import floor
+                        pA = calculate_win_probability(team_dict, opp_dict)
+                        pB = 1.0 - pA
+
+                        # 11) Final summary text
                         if adv_team > adv_opp:
                             summary_text = (
                                 f"{selected_team_reports} leads in {adv_team} metrics, "
@@ -2334,27 +2431,28 @@ with tab_team_reports:
                                 "This could be a close one!"
                             )
 
-                        # Combine interpretive insights for each side into a final writeup
-                        # We'll do simple bullet lists for each:
-                        team_insights_str = "\n".join([f"- {ins}" for ins in team_insights])
-                        opp_insights_str = "\n".join([f"- {ins}" for ins in opp_insights])
+                        team_insights_str = "".join(f"<li>{ins}</li>" for ins in team_insights)
+                        opp_insights_str = "".join(f"<li>{ins}</li>" for ins in opp_insights)
 
                         st.markdown(f"""
                         <div style='margin-top:15px;'>
+                            <p><strong>Win Probability</strong>: 
+                               {selected_team_reports} has a {pA*100:.1f}% chance to beat {selected_opponent}.</p>
                             <p><strong>Summary</strong>: {summary_text}</p>
                             <p><strong>{selected_team_reports} Interpretive Insights</strong>:</p>
                             <ul>
-                                {''.join(f"<li>{ins}</li>" for ins in team_insights)}
+                                {team_insights_str}
                             </ul>
                             <p><strong>{selected_opponent} Interpretive Insights</strong>:</p>
                             <ul>
-                                {''.join(f"<li>{ins}</li>" for ins in opp_insights)}
+                                {opp_insights_str}
                             </ul>
                         </div>
                         """, unsafe_allow_html=True)
 
     else:
         st.info("Please select a team to view detailed reports.")
+
 
 # --- Radar Charts Tab ---
 with tab_radar:
