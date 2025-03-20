@@ -145,7 +145,7 @@ mm_database_2025 = load_data()
 # ----------------------------------------------------------------------------
 # Select Relevant Columns (including radar metrics)
 core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-             "KP_Rank", "NET_25", "SEED_25", 'REGION_25',
+             "KP_Rank", "NET_25", "BPI_25", "SEED_25", 'REGION_25',
              "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
              "KP_AdjO", "KP_AdjD",
              #'TR_ORk_25', 'TR_DRk_25',  
@@ -1167,15 +1167,16 @@ def prepare_tournament_data(df):
 
 def calculate_win_probability(t1, t2):
     """
-    Enhanced win probability calculation preserving all existing functionality.
+    H2H matchup win probability calculation.
     Integrates historical seed-based expectations with current efficiency metrics.
     Combines threshold evaluations and advanced analytics via logistic transformations.
-    The seed-based adjustments have been relaxed to allow for more variability in outcomes.
+    Incorporates ESPN BPI_25 (with lower weight than KP_AdjEM) and uses slightly reduced base seeding bias.
     """
     import numpy as np
 
     # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
+    bpi_diff = float(t1.get('BPI_25', 0)) - float(t2.get('BPI_25', 0))
     net_diff = float(t1.get('NET', 0)) - float(t2.get('NET', 0))
     t1_off = float(t1.get('OFF EFF', 1.0))
     t1_def = float(t1.get('DEF EFF', 1.0))
@@ -1191,8 +1192,8 @@ def calculate_win_probability(t1, t2):
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
-
-    # --- Historical threshold constants --- #
+    
+    # --- Historical threshold constants (from KP metrics) --- #
     KP_AdjEM_Rk_THRESHOLD = 10     
     KP_AdjO_Rk_THRESHOLD = 39      
     KP_AdjD_Rk_THRESHOLD = 25      
@@ -1203,9 +1204,10 @@ def calculate_win_probability(t1, t2):
     KP_AdjO_THRESHOLD = 115
     KP_AdjD_THRESHOLD = 100
 
-    # --- FACTOR WEIGHTS REBALANCING --- #
+    # --- FACTOR WEIGHTING --- #
     factor = 0
-    factor += 0.35 * kp_diff         
+    factor += 0.35 * kp_diff            # KP_AdjEM difference (primary)
+    factor += 0.20 * bpi_diff           # ESPN BPI_25 difference (secondary, less weight)
     factor += 0.01 * net_diff
     factor += 0.08 * off_advantage    
     factor += 0.08 * (-def_advantage) 
@@ -1213,18 +1215,17 @@ def calculate_win_probability(t1, t2):
     factor += 0.02 * adjD_diff       
     factor += 0.04 * win_pct_diff    
     factor += 0.04 * close_pct_diff  
-    factor += 0.4 * margin_diff      
+    factor += 0.40 * margin_diff      
     factor += 0.02 * sos_diff        
     factor += 0.01 * exp_diff
     factor += 0.04 * success_diff    
 
-    # --- THRESHOLD EVALUATION FUNCTION --- #
+    # --- THRESHOLD EVALUATION (using KP metrics) --- #
     def threshold_evaluation(team):
         score = 0
         kp_adjEM = float(team.get('KP_AdjEM', 0))
         kp_adjO = float(team.get('KP_AdjO', 0))
         kp_adjD = float(team.get('KP_AdjD', 0))
-        
         if kp_adjEM >= KP_AdjEM_champ_min:
             score += 3
         if kp_adjEM >= KP_AdjEM_champ_live:
@@ -1253,8 +1254,7 @@ def calculate_win_probability(t1, t2):
     t1_threshold_score = threshold_evaluation(t1)
     t2_threshold_score = threshold_evaluation(t2)
     threshold_diff = t1_threshold_score - t2_threshold_score
-    threshold_weight = 0.10  
-    factor += threshold_weight * threshold_diff
+    factor += 0.10 * threshold_diff
 
     # --- ENHANCED ANALYTICS --- #
     efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
@@ -1264,21 +1264,19 @@ def calculate_win_probability(t1, t2):
     def_eff_diff = t2_def - t1_def  
     factor += 0.05 * def_eff_diff
 
-    # --- HISTORICAL SEED-BASED BASE PROBABILITY --- #
+    # --- HISTORICAL SEED-BASED BASE PROBABILITY (reduced bias) --- #
     seed1_raw = t1.get('seed', 0)
     seed2_raw = t2.get('seed', 0)
-    if pd.isna(seed1_raw):
-        seed1_raw = 99
-    if pd.isna(seed2_raw):
-        seed2_raw = 99
+    if pd.isna(seed1_raw): seed1_raw = 99
+    if pd.isna(seed2_raw): seed2_raw = 99
     seed1 = int(seed1_raw)
     seed2 = int(seed2_raw)
     if seed1 < seed2:
-        base_seed_prob = 0.65
+        base_seed_prob = 0.60
     else:
-        base_seed_prob = 0.35
+        base_seed_prob = 0.40
 
-    # --- APPLYING EFFICIENCY METRIC ADJUSTMENTS VIA LOGISTIC TRANSFORMATION --- #
+    # --- APPLYING LOGISTIC TRANSFORMATION --- #
     adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
     adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
     adjusted_t1 = base_seed_prob * adjustment_t1
@@ -1307,14 +1305,14 @@ def calculate_win_probability(t1, t2):
     elif seed_diff > 8:
         seed_factor = min(0.03 * seed_diff, 0.15)
         final_prob = min(final_prob + seed_factor, 0.90)
-
-    # --- LIGHTENED SANITY CHECKS AND FINAL ADJUSTMENTS --- #
+    
+    # --- LIGHTENED SANITY CHECKS & FINAL ADJUSTMENTS (reduced increments) --- #
     if seed_diff >= 10 and final_prob < 0.80:
-        final_prob = min(final_prob + 0.07, 0.88)
+        final_prob = min(final_prob + 0.05, 0.85)
     elif seed_diff >= 5 and final_prob < 0.65:
-        final_prob = min(final_prob + 0.05, 0.78)
+        final_prob = min(final_prob + 0.03, 0.75)
     elif seed_diff <= -5 and final_prob > 0.35:
-        final_prob = max(final_prob - 0.05, 0.25)
+        final_prob = max(final_prob - 0.03, 0.30)
 
     return max(0.03, min(0.97, final_prob))
 
@@ -1825,6 +1823,54 @@ with tab_home:
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+    
+# --- Top Upset Candidates Table in Round of 64 ---
+st.markdown("### :primary[Top Upset Candidates - Round of 64]")
+bracket = prepare_tournament_data(df_main)
+if bracket is not None:
+    # Define the standard Round of 64 pairings (using seeding conventions)
+    round_64_pairings = [(1,16), (8,9), (5,12), (4,13), (6,11), (3,14), (7,10), (2,15)]
+    upset_candidates = []
+    for region, teams in bracket.items():
+        # Create a mapping from seed to team for the region
+        team_by_seed = {team['seed']: team for team in teams}
+        for pairing in round_64_pairings:
+            seed_a, seed_b = pairing
+            if seed_a in team_by_seed and seed_b in team_by_seed:
+                team_a = team_by_seed[seed_a]
+                team_b = team_by_seed[seed_b]
+                # The favorite is the team with the lower seed number
+                if seed_a < seed_b:
+                    favorite = team_a
+                    underdog = team_b
+                else:
+                    favorite = team_b
+                    underdog = team_a
+                # Calculate the upset probability: chance that the underdog beats the favorite
+                upset_prob = calculate_win_probability(underdog, favorite)
+                upset_candidates.append({
+                    "Region": region,
+                    "Matchup": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
+                    "Favorite": favorite['team'],
+                    "Fav Seed": favorite['seed'],
+                    "Underdog": underdog['team'],
+                    "UD Seed": underdog['seed'],
+                    "Upset Prob (%)": round(upset_prob * 100, 1)
+                })
+    if upset_candidates:
+        df_upsets = pd.DataFrame(upset_candidates)
+        df_upsets = df_upsets.sort_values("Upset Prob (%)", ascending=False).reset_index(drop=True)
+        # Apply advanced styling similar to your existing styled tables
+        upset_styler = df_upsets.style.format({"Upset Prob (%)": "{:.1f}"})\
+            .background_gradient(subset=["Upset Prob (%)"], cmap="RdYlGn")\
+            .set_table_styles(detailed_table_styles)\
+            .set_properties(**{"text-align": "center"})
+        st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
+    else:
+        st.info("No upset candidates found for Round of 64.")
+else:
+    st.error("Bracket data not available.")
+
     
 #     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
@@ -2585,6 +2631,7 @@ with tab_regions:
         "WIN% ALL GM": "RdYlGn",
         "WIN% CLOSE GM": "RdYlGn",
         "NET_25": "RdYlGn_r",
+        "BPI_25": "RdYlGn_r",
         "SEED_25": "RdYlGn_r",
         "KP_AdjO": "RdYlGn",
         "KP_AdjD": "RdYlGn_r",
@@ -2708,7 +2755,7 @@ with tab_conf:
                     "KP_AdjEM": ["count", "max", "mean", "min"],
                     "SEED_25": ["count", "mean"],
                     "NET_25": "mean",
-                    #"BPI_25": "mean", "BPI_Rank": "mean",
+                    "BPI_25": "mean", #"BPI_Rank": "mean",
                     #"TR_OEff_25": "mean", #"TR_DEff_25": "mean",
                     "WIN% ALL GM": "mean", #"WIN% CLOSE GM": "mean",
                     "AVG MARGIN": "mean",
@@ -2722,7 +2769,7 @@ with tab_conf:
             conf_stats.columns = [
                 "CONFERENCE",
                 "# TEAMS", "MAX AdjEM", "MEAN AdjEM", "MIN AdjEM",
-                "# BIDS", "MEAN SEED_25", "MEAN NET_25",
+                "# BIDS", "MEAN SEED_25", "MEAN NET_25", "MEAN BPI_25",
                 #"AVG TR_OEff_25", "AVG TR_DEff_25",
                 "MEAN WIN %", "MEAN AVG MARGIN",
                 "MEAN eFG%",
@@ -2740,9 +2787,10 @@ with tab_conf:
             st.subheader(":primary[NCAAM BASKETBALL CONFERENCE POWER RANKINGS]", divider='grey')
             with st.expander("*About Conference Power Rankings:*"):
                 st.markdown("""
-                    - **MEAN/MAX/MIN AdjEM**: Average/Range of KenPom Adjusted Efficiency Margin within conference (higher is better)
-                    - **AVG SEED_25**: Average tournament seed (lower is better)
-                    - **AVG NET_25**: Average NET ranking (lower is better)
+                    - **MEAN/MAX/MIN AdjEM**: Average/Range of KenPom Adjusted Efficiency Margin (higher is better)
+                    - **MEAN SEED_25**: Average tournament seed (lower is better)
+                    - **MEAN NET_25**: Average NCAA NET ranking (lower is better)
+                    - **MEAN BPI_25**: Average ESPN BPI rating (lower is better)
                     - **MEAN AST/TO%**: Average assist-to-turnover ratio (lower is better)
                     - **MEAN WIN %**: Average win percentage (higher is better)
                     - **MEAN AVG MARGIN**: Average average scoring margin (higher is better)
@@ -2764,6 +2812,7 @@ with tab_conf:
                 "MAX AdjEM": "{:.2f}",
                 "MEAN SEED_25": "{:.1f}",
                 "MEAN NET_25": "{:.1f}",
+                "MEAN BPI_25": "{:.1f}",
 
                 #"AVG TR_OEff_25": "{:.1f}",
                 #"AVG TR_DEff_25": "{:.1f}",
@@ -2778,6 +2827,7 @@ with tab_conf:
             .background_gradient(cmap="RdYlGn", subset=[
                 "# TEAMS", "# BIDS", 
                 "MEAN AdjEM", "MIN AdjEM", "MAX AdjEM",
+                 "MEAN BPI_25",
                 #"AVG TR_OEff_25",
                 "MEAN WIN %", "MEAN AVG MARGIN",
                 "MEAN eFG%",
@@ -3079,6 +3129,7 @@ with tab_pred:
                 row["REGION"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
                 row["KP_AdjEM"] = subset["KP_AdjEM"].iloc[0] if "KP_AdjEM" in subset.columns else None
                 row["NET_25"]   = subset["NET_25"].iloc[0]   if "NET_25" in subset.columns else None
+                row["BPI_25"]   = subset["BPI_25"].iloc[0]   if "BPI_25" in subset.columns else None
             data_rows.append(row)
 
         champion_df = pd.DataFrame(data_rows)
@@ -3086,7 +3137,7 @@ with tab_pred:
         champion_df.rename(columns={"CHAMP%": "CHAMP PROBABILITY (%)"}, inplace=True)
 
         # Reorder columns
-        champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25"]]
+        champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25", "BPI_25"]]
 
         # Create a Styler
         champion_styler = (
@@ -3094,11 +3145,12 @@ with tab_pred:
             .format({
                 "CHAMP PROBABILITY (%)": "{:.2f}",
                 "KP_AdjEM": "{:.2f}",
-                "NET_25": "{:.0f}"
+                "NET_25": "{:.0f}",
+                "BPI_25": "{:.1f}",
             })
             .background_gradient(
                 cmap="RdYlGn", 
-                subset=["CHAMP PROBABILITY (%)", "KP_AdjEM"]
+                subset=["CHAMP PROBABILITY (%)", "KP_AdjEM", "BPI_25"]
             ).background_gradient(
                 cmap="RdYlGn_r", 
                 subset=["SEED", "NET_25"]
