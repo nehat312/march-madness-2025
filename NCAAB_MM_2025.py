@@ -308,8 +308,9 @@ def get_default_metrics():
     return [
         'AVG MARGIN',
         'KP_AdjEM',
-        #'KP_AdjO',
-        #'KP_AdjD',
+        'BPI_25',
+        'KP_AdjO',
+        'KP_AdjD',
         'OFF EFF',
         'DEF EFF',
         'AST/TO%',
@@ -332,7 +333,7 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         if m in team_row and m in t_avgs and m in t_stdevs:
             std = t_stdevs[m] if t_stdevs[m] > 0 else 1.0
             z = (team_row[m] - t_avgs[m]) / std
-            if m in ['DEF EFF', 'TO/GM']:
+            if m in ['DEF EFF', 'KP_AdjD', 'TO/GM']:
                 z = -z
             z_vals.append(z)
     if not z_vals:
@@ -860,18 +861,18 @@ def create_team_radar(team, dark_mode=True, key=None):
 def create_treemap(df_notnull):
     try:
         if "KP_Rank" in df_notnull.columns:
-            top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
+            top_150_teams = df_notnull.sort_values(by="KP_Rank").head(150)
         else:
-            top_100_teams = df_notnull.copy()
-        if top_100_teams.empty:
+            top_150_teams = df_notnull.copy()
+        if top_150_teams.empty:
             st.warning("No data to display in treemap.")
             return None
         required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
-        if not all(col in top_100_teams.columns for col in required_columns):
-            missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
+        if not all(col in top_150_teams.columns for col in required_columns):
+            missing_cols = [col for col in required_columns if col not in top_150_teams.columns]
             st.error(f"Missing required columns for treemap: {missing_cols}")
             return None
-        treemap_data = top_100_teams.copy()
+        treemap_data = top_150_teams.copy()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
@@ -881,8 +882,9 @@ def create_treemap(df_notnull):
             base = (
                 f"<b>{x['TM_KP']}</b><br>"
                 f"<b>KP Rank:</b> {int(x['KP_Rank'])}<br>"
-                f"<b>Record:</b> {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
-                f"<b>AdjEM:</b> {x['KP_AdjEM']:.1f}<br>"
+                #f"<b>Record:</b> {int(x['WIN_25'])}-{int(x['LOSS_25'])}<br>"
+                f"<b>KenPom AdjEM:</b> {x['KP_AdjEM']:.1f}<br>"
+                f"<b>ESPN BPI:</b> {x['BPI_25']:.1f}<br>"
             )
             if "OFF EFF" in x and "DEF EFF" in x:
                 base += f"<b>OFF EFF:</b> {x['OFF EFF']:.1f}<br><b>DEF EFF:</b> {x['DEF EFF']:.1f}<br>"
@@ -905,7 +907,7 @@ def create_treemap(df_notnull):
             color="KP_AdjEM",
             color_continuous_scale=RdYlGn,
             hover_data=["hover_text"],
-            title="<b>2025 KenPom AdjEM by Conference (Top 100)</b>"
+            title="<b>2025 KenPom AdjEM by Conference (Top 150)</b>"
         )
         
         treemap.update_traces(
@@ -1824,54 +1826,53 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     
-# --- Top Upset Candidates Table in Round of 64 ---
-st.markdown("### :primary[Top Upset Candidates - Round of 64]")
-bracket = prepare_tournament_data(df_main)
-if bracket is not None:
-    # Define the standard Round of 64 pairings (using seeding conventions)
-    round_64_pairings = [(1,16), (8,9), (5,12), (4,13), (6,11), (3,14), (7,10), (2,15)]
-    upset_candidates = []
-    for region, teams in bracket.items():
-        # Create a mapping from seed to team for the region
-        team_by_seed = {team['seed']: team for team in teams}
-        for pairing in round_64_pairings:
-            seed_a, seed_b = pairing
-            if seed_a in team_by_seed and seed_b in team_by_seed:
-                team_a = team_by_seed[seed_a]
-                team_b = team_by_seed[seed_b]
-                # The favorite is the team with the lower seed number
-                if seed_a < seed_b:
-                    favorite = team_a
-                    underdog = team_b
-                else:
-                    favorite = team_b
-                    underdog = team_a
-                # Calculate the upset probability: chance that the underdog beats the favorite
-                upset_prob = calculate_win_probability(underdog, favorite)
-                upset_candidates.append({
-                    "Region": region,
-                    "Matchup": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
-                    "Favorite": favorite['team'],
-                    "Fav Seed": favorite['seed'],
-                    "Underdog": underdog['team'],
-                    "UD Seed": underdog['seed'],
-                    "Upset Prob (%)": round(upset_prob * 100, 1)
-                })
-    if upset_candidates:
-        df_upsets = pd.DataFrame(upset_candidates)
-        df_upsets = df_upsets.sort_values("Upset Prob (%)", ascending=False).reset_index(drop=True)
-        # Apply advanced styling similar to your existing styled tables
-        upset_styler = df_upsets.style.format({"Upset Prob (%)": "{:.1f}"})\
-            .background_gradient(subset=["Upset Prob (%)"], cmap="RdYlGn")\
-            .set_table_styles(detailed_table_styles)\
-            .set_properties(**{"text-align": "center"})
-        st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
+    # --- Top Upset Candidates Table in Round of 64 ---
+    st.markdown("### :primary[Top Upset Candidates - Round of 64]")
+    bracket = prepare_tournament_data(df_main)
+    if bracket is not None:
+        # Define the standard Round of 64 pairings (using seeding conventions)
+        round_64_pairings = [(1,16), (8,9), (5,12), (4,13), (6,11), (3,14), (7,10), (2,15)]
+        upset_candidates = []
+        for region, teams in bracket.items():
+            # Create a mapping from seed to team for the region
+            team_by_seed = {team['seed']: team for team in teams}
+            for pairing in round_64_pairings:
+                seed_a, seed_b = pairing
+                if seed_a in team_by_seed and seed_b in team_by_seed:
+                    team_a = team_by_seed[seed_a]
+                    team_b = team_by_seed[seed_b]
+                    # The favorite is the team with the lower seed number
+                    if seed_a < seed_b:
+                        favorite = team_a
+                        underdog = team_b
+                    else:
+                        favorite = team_b
+                        underdog = team_a
+                    # Calculate the upset probability: chance that the underdog beats the favorite
+                    upset_prob = calculate_win_probability(underdog, favorite)
+                    upset_candidates.append({
+                        "Region": region,
+                        "Matchup": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
+                        "Favorite": favorite['team'],
+                        "Fav Seed": favorite['seed'],
+                        "Underdog": underdog['team'],
+                        "UD Seed": underdog['seed'],
+                        "Upset Prob (%)": round(upset_prob * 100, 1)
+                    })
+        if upset_candidates:
+            df_upsets = pd.DataFrame(upset_candidates)
+            df_upsets = df_upsets.sort_values("Upset Prob (%)", ascending=False).reset_index(drop=True)
+            # Apply advanced styling similar to your existing styled tables
+            upset_styler = df_upsets.style.format({"Upset Prob (%)": "{:.1f}"})\
+                .background_gradient(subset=["Upset Prob (%)"], cmap="RdYlGn")\
+                .set_table_styles(detailed_table_styles)\
+                .set_properties(**{"text-align": "center"})
+            st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
+        else:
+            st.info("No upset candidates found for Round of 64.")
     else:
-        st.info("No upset candidates found for Round of 64.")
-else:
-    st.error("Bracket data not available.")
+        st.error("Bracket data not available.")
 
-    
 #     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
 #         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
@@ -2279,7 +2280,8 @@ with tab_team_reports:
 
                         # 1) Define metrics to show
                         h2h_metrics = [
-                            "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
+                            "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM",
+                            "BPI_25",
                             "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
                             "PTS/GM", "OPP PTS/GM", "AVG MARGIN",
                             "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
@@ -2362,7 +2364,6 @@ with tab_team_reports:
                         # 9) Custom row-based color scaling to ensure "best" is green
                         import matplotlib
                         import matplotlib.colors as mcolors
-                        import numpy as np
 
                         def colorize_row(row):
                             """For each row, color numeric columns so the 'best' value is green."""
@@ -2438,8 +2439,9 @@ with tab_team_reports:
                             "team": selected_team_reports,
                             "seed": row_team.get("SEED_25", 99),
                             "KP_AdjEM": row_team.get("KP_AdjEM", 0),
-                            "OFF EFF": row_team.get("OFF EFF", 1.0),
-                            "DEF EFF": row_team.get("DEF EFF", 1.0),
+                            "BPI_25": row_team.get("KP_AdjEM", 0),
+                            "OFF EFF": row_team.get("OFF EFF", 1.00),
+                            "DEF EFF": row_team.get("DEF EFF", 1.00),
                             "WIN% ALL GM": row_team.get("WIN% ALL GM", 0.5),
                             "WIN% CLOSE GM": row_team.get("WIN% CLOSE GM", 0.5),
                             "AVG MARGIN": row_team.get("AVG MARGIN", 0),
@@ -2451,8 +2453,9 @@ with tab_team_reports:
                             "team": selected_opponent,
                             "seed": row_opp.get("SEED_25", 99),
                             "KP_AdjEM": row_opp.get("KP_AdjEM", 0),
-                            "OFF EFF": row_opp.get("OFF EFF", 1.0),
-                            "DEF EFF": row_opp.get("DEF EFF", 1.0),
+                            "BPI_25": row_opp.get("BPI_25", 0),
+                            "OFF EFF": row_opp.get("OFF EFF", 1.00),
+                            "DEF EFF": row_opp.get("DEF EFF", 1.00),
                             "WIN% ALL GM": row_opp.get("WIN% ALL GM", 0.5),
                             "WIN% CLOSE GM": row_opp.get("WIN% CLOSE GM", 0.5),
                             "AVG MARGIN": row_opp.get("AVG MARGIN", 0),
