@@ -1996,19 +1996,55 @@ with tab_home:
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
 #######################################
+#############################################
+# -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
+#############################################
 with tab_team_reports:
+    # Advanced CSS styling for the tab and table elements
+    st.markdown("""
+    <style>
+    /* Container and header styling */
+    .team-report-container {
+        background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .header-with-line {
+        position: relative;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .header-with-line:after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100px;
+        height: 4px;
+        background: linear-gradient(90deg, #0360CE, #87CEEB);
+        border-radius: 2px;
+    }
+    /* Performance badges */
+    .badge-elite { background-color: gold; color: black; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    .badge-solid { background-color: #4CAF50; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    .badge-mid { background-color: #2196F3; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    .badge-subpar { background-color: #FF9800; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    .badge-weak { background-color: #F44336; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.header(":blue[TEAM REPORTS]")
     st.caption(":green[_DATA AS OF: 3/19/2025_]")
 
-    # Primary Team Selection
+    # -- TEAM & OPPONENT SELECTION --
     selected_team_reports = st.selectbox(
         ":green[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
         index=0,
-        key="select_team_reports"  # unique key
+        key="select_team_reports"
     )
-
-    # Opponent Selection for Head-to-Head
     selected_opponent = st.selectbox(
         ":orange[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
@@ -2018,40 +2054,34 @@ with tab_team_reports:
 
     if selected_team_reports:
         # ---------------------
-        # TEAM OVERVIEW
+        # TEAM OVERVIEW & INSIGHTS
         # ---------------------
         team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
         if team_data.empty:
             st.warning("No data found for the selected team.")
         else:
-            # Basic Info
             colA, colB = st.columns(2)
             with colA:
                 st.markdown(f"### {selected_team_reports}")
-
                 conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
                 record = "N/A"
                 if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
                     w = int(team_data["WIN_25"].iloc[0])
                     l = int(team_data["LOSS_25"].iloc[0])
                     record = f"{w}-{l}"
-
                 seed_info = ""
                 if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
                     seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}"
                 kp_rank = ""
                 if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
                     kp_rank = f"KenPom Rank: {int(team_data['KP_Rank'].iloc[0])}"
-
-                # Display Basic Info
                 st.markdown(f"""
                 **Conference:** {conf}  
                 **Record:** {record}  
                 {seed_info}  
                 {kp_rank}
                 """)
-
-                # Performance Badge
+                # Performance Badge using your existing function
                 if all(m in team_data.columns for m in get_default_metrics()):
                     t_avgs, t_stdevs = compute_tournament_stats(df_main)
                     perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
@@ -2062,7 +2092,6 @@ with tab_team_reports:
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
-
                 # Interpretive Insights
                 with st.expander("📊 Interpretive Insights"):
                     insights = []
@@ -2073,7 +2102,6 @@ with tab_team_reports:
                             std_val = max(t_stdevs[metric], 1e-6)
                             team_val = team_data.iloc[0][metric]
                             z = (team_val - mean_val) / std_val
-                            # Invert sign for "good" in lower-is-better metrics
                             if metric in ["DEF EFF", "TO/GM"]:
                                 z = -z
                             if abs(z) < 0.3:
@@ -2086,18 +2114,18 @@ with tab_team_reports:
                                 insights.append(f"**{metric}** | Below NCAA average.")
                             else:
                                 insights.append(f"**{metric}** | Notable weakness.")
-
                     st.markdown("**Team Metric Highlights:**")
                     for line in insights:
                         st.write(f"- {line}")
-
             with colB:
-                # Radar Chart for single team
+                # Single-team Radar Chart
                 single_radar_fig = create_radar_chart([selected_team_reports], df_main)
                 if single_radar_fig:
                     st.plotly_chart(single_radar_fig, use_container_width=True)
 
-            # Detailed metrics
+            # ---------------------
+            # DETAILED TEAM METRICS WITH NCAA AVERAGES (and Opponent values if selected)
+            # ---------------------
             with st.expander("View All Team Metrics"):
                 detailed_metrics = [
                     "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
@@ -2108,57 +2136,101 @@ with tab_team_reports:
                     "OFF REB/GM", "DEF REB/GM", "BLKS/GM", "STL/GM", 
                     "STOCKS/GM", "STOCKS-TOV/GM"
                 ]
-                avail = [m for m in detailed_metrics if m in team_data.columns]
-                detail_df = team_data[avail].T.reset_index()
-                detail_df.columns = ["Metric", "Value"]
+                # Use only metrics that exist in the team data
+                metrics_used = [m for m in detailed_metrics if m in team_data.columns]
+                if metrics_used:
+                    import numpy as np
+                    import matplotlib.cm as cm
+                    import matplotlib.colors as mcolors
 
-                # Format numeric columns
-                def _fmt(val):
-                    if isinstance(val, float):
-                        return f"{val:.2f}"
-                    return str(val)
-                detail_df["Value"] = detail_df["Value"].apply(_fmt)
+                    # Build a DataFrame with Team value and NCAA average; add Opponent column if one is selected
+                    df_metrics = pd.DataFrame(index=metrics_used)
+                    df_metrics["Team"] = [team_data[m].iloc[0] for m in metrics_used]
+                    df_metrics["NCAA Avg"] = [df_main[m].mean() for m in metrics_used]
+                    if selected_opponent and selected_opponent != selected_team_reports:
+                        opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
+                        df_metrics["Opponent"] = [opp_data[m].iloc[0] if m in opp_data.columns else np.nan for m in metrics_used]
+                    df_metrics.reset_index(inplace=True)
+                    df_metrics.rename(columns={"index": "Metric"}, inplace=True)
 
-                # Advanced CSS styling via Styler
-                styled_table = (
-                    detail_df.style
-                    .set_properties(**{"text-align": "center"})
-                    .set_table_styles([
-                        {
-                            "selector": "th",
-                            "props": [
-                                ("background-color", "#0360CE"),
-                                ("color", "white"),
-                                ("font-weight", "bold"),
-                                ("text-align", "center"),
-                                ("padding", "6px 12px"),
-                                ("border", "1px solid #222")
-                            ]
-                        },
-                        {
-                            "selector": "td",
-                            "props": [
-                                ("text-align", "center"),
-                                ("border", "1px solid #ddd"),
-                                ("padding", "5px 10px")
-                            ]
-                        },
-                        {
-                            "selector": "table",
-                            "props": [
-                                ("border-collapse", "collapse"),
-                                ("border", "2px solid #222"),
-                                ("border-radius", "8px"),
-                                ("overflow", "hidden"),
-                                ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
-                            ]
-                        },
-                    ])
-                )
-                st.markdown(styled_table.to_html(), unsafe_allow_html=True)
+                    # Format numeric values
+                    def fmt(val):
+                        try:
+                            return f"{float(val):.2f}"
+                        except:
+                            return str(val)
+                    for col in df_metrics.columns[1:]:
+                        df_metrics[col] = df_metrics[col].apply(fmt)
+
+                    # Define metric direction – adjust these as needed:
+                    metric_direction = {
+                        "KP_Rank": "lower",
+                        "KP_AdjEM": "higher",
+                        "KP_SOS_AdjEM": "higher",
+                        "OFF EFF": "higher",
+                        "DEF EFF": "lower",
+                        "WIN% ALL GM": "higher",
+                        "WIN% CLOSE GM": "higher",
+                        "PTS/GM": "higher",
+                        "OPP PTS/GM": "lower",
+                        "AVG MARGIN": "higher",
+                        "eFG%": "higher",
+                        "OPP eFG%": "lower",
+                        "TS%": "higher",
+                        "OPP TS%": "lower",
+                        "AST/GM": "higher",
+                        "TO/GM": "lower",
+                        "AST/TO%": "higher",
+                        "OFF REB/GM": "higher",
+                        "DEF REB/GM": "higher",
+                        "BLKS/GM": "higher",
+                        "STL/GM": "higher",
+                        "STOCKS/GM": "higher",
+                        "STOCKS-TOV/GM": "higher"
+                    }
+                    
+                    # Function to compute background color based on z-score versus NCAA Avg
+                    def color_func(val, metric, col):
+                        try:
+                            val_float = float(val)
+                        except:
+                            return ""
+                        ncaa = df_main[metric].mean()
+                        std = df_main[metric].std() if df_main[metric].std() != 0 else 1
+                        # For the "Team" and "Opponent" columns, adjust sign based on metric direction
+                        direction = metric_direction.get(metric, "higher")
+                        if col in ["Team", "Opponent"]:
+                            diff = (val_float - ncaa) / std if direction == "higher" else (ncaa - val_float) / std
+                        else:
+                            diff = 0  # NCAA Avg column remains neutral
+                        # Normalize z-score from -2 to 2 into 0-1 scale
+                        diff = max(min(diff, 2), -2)
+                        norm_val = (diff + 2) / 4
+                        cmap = cm.get_cmap("RdYlGn")
+                        rgba = cmap(norm_val)
+                        return mcolors.to_hex(rgba)
+                    
+                    def style_cell(val, metric, col):
+                        bg = color_func(val, metric, col)
+                        return f"background-color: {bg}; text-align: center;"
+                    
+                    # Apply styling row-by-row
+                    def row_style(row):
+                        styles = []
+                        for col in df_metrics.columns:
+                            if col == "Metric":
+                                styles.append("")
+                            else:
+                                styles.append(style_cell(row[col], row["Metric"], col))
+                        return styles
+                    
+                    styled_table = df_metrics.style.apply(lambda row: row_style(row), axis=1)
+                    st.markdown(styled_table.to_html(), unsafe_allow_html=True)
+                else:
+                    st.info("No detailed metrics available for this team.")
 
             # ---------------------
-            # HEAD-TO-HEAD SECTION
+            # HEAD-TO-HEAD COMPARISON SECTION
             # ---------------------
             if selected_opponent and selected_opponent != selected_team_reports:
                 opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
@@ -2167,10 +2239,9 @@ with tab_team_reports:
                 else:
                     st.markdown("---")
                     st.markdown(f"## :red[Head-to-Head: {selected_team_reports} vs. {selected_opponent}]")
-
                     colH2H1, colH2H2 = st.columns(2)
                     with colH2H1:
-                        # Basic Opponent Info
+                        # Display basic opponent info
                         st.markdown(f"#### {selected_opponent}")
                         opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
                         opp_record = "N/A"
@@ -2184,14 +2255,12 @@ with tab_team_reports:
                         opp_kp_rank = ""
                         if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
                             opp_kp_rank = f"KenPom Rank: {int(opp_data['KP_Rank'].iloc[0])}"
-
                         st.markdown(f"""
                         **Conference:** {opp_conf}  
                         **Record:** {opp_record}  
                         {opp_seed}  
                         {opp_kp_rank}
                         """)
-
                         # Opponent performance badge
                         if all(m in opp_data.columns for m in get_default_metrics()):
                             t_avgs, t_stdevs = compute_tournament_stats(df_main)
@@ -2203,15 +2272,13 @@ with tab_team_reports:
                                 </span>
                             </div>
                             """, unsafe_allow_html=True)
-
                     with colH2H2:
-                        # Combined Radar (both teams)
+                        # Combined radar chart for head-to-head
                         compare_radar_fig = create_radar_chart([selected_team_reports, selected_opponent], df_main)
                         if compare_radar_fig:
                             st.plotly_chart(compare_radar_fig, use_container_width=True)
-
                     with st.expander("Head-to-Head Stats Comparison"):
-                        # Display side-by-side table for certain key metrics
+                        # Build a side-by-side comparison table for key metrics
                         comparison_metrics = [
                             "KP_AdjEM", "OFF EFF", "DEF EFF", 
                             "WIN% ALL GM", "WIN% CLOSE GM", "AVG MARGIN",
@@ -2230,55 +2297,27 @@ with tab_team_reports:
                         comp_df = pd.DataFrame({
                             "Metric": labels,
                             selected_team_reports: home_vals,
+                            "NCAA Avg": [df_main[m].mean() if m in df_main.columns else np.nan for m in labels],
                             selected_opponent: away_vals
                         })
-
                         # Format numeric columns
-                        for c in [selected_team_reports, selected_opponent]:
-                            comp_df[c] = comp_df[c].apply(lambda x: f"{x:.2f}" if isinstance(x, (float,int)) else str(x))
-
-                        # Apply advanced styling
-                        comp_styler = (
-                            comp_df.style
-                            .set_properties(**{"text-align": "center"})
-                            .set_table_styles([
-                                {
-                                    "selector": "th",
-                                    "props": [
-                                        ("background-color", "#7B68EE"),
-                                        ("color", "white"),
-                                        ("font-weight", "bold"),
-                                        ("text-align", "center"),
-                                        ("padding", "6px 12px"),
-                                        ("border", "1px solid #222")
-                                    ]
-                                },
-                                {
-                                    "selector": "td",
-                                    "props": [
-                                        ("border", "1px solid #ccc"),
-                                        ("padding", "5px 10px"),
-                                        ("text-align", "center")
-                                    ]
-                                },
-                                {
-                                    "selector": "table",
-                                    "props": [
-                                        ("border-collapse", "collapse"),
-                                        ("border", "2px solid #555"),
-                                        ("border-radius", "8px"),
-                                        ("overflow", "hidden"),
-                                        ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
-                                    ]
-                                },
-                            ])
-                        )
-
-                        st.markdown(comp_styler.to_html(), unsafe_allow_html=True)
-
+                        for col in [selected_team_reports, "NCAA Avg", selected_opponent]:
+                            comp_df[col] = comp_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (float, int)) else str(x))
+                        
+                        # Reuse styling functions defined above for colorscaling
+                        def row_style_h2h(row):
+                            styles = []
+                            for col in comp_df.columns:
+                                if col == "Metric":
+                                    styles.append("")
+                                else:
+                                    styles.append(style_cell(row[col], row["Metric"], col))
+                            return styles
+                        styled_h2h = comp_df.style.apply(lambda row: row_style_h2h(row), axis=1)
+                        st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
     else:
-        # If no team selected
         st.info("Please select a team to view detailed reports.")
+
 
 
 # --- Radar Charts Tab ---
