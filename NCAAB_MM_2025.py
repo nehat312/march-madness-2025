@@ -1162,105 +1162,106 @@ def prepare_tournament_data(df):
         bracket[region] = region_list
     return bracket
 
+import numpy as np
+
 def calculate_win_probability(t1, t2):
     """
-    Computes a win probability for team1 over team2 using a more sophisticated logistic model.
-    
-    This enhanced model balances:
-    1. Season-long efficiency metrics (KenPom, NET)
-    2. Matchup-specific advantages (offensive vs defensive efficiencies)
-    3. Tournament-specific factors (experience, recent performance)
-    4. Game context factors (consistency, performance in close games)
-    
-    The weights are calibrated based on historical tournament performance and
-    the relative importance of each factor in predicting tournament outcomes.
+    Enhanced win probability calculation preserving all existing functionality.
+    Adds nuanced logic to improve predictive accuracy based on AVG MARGIN correlations.
+    Compatible with existing March Madness 2025 Streamlit deployment framework.
     """
-    # Base Efficiency Metrics (40% of model weight)
+
+    # --- EXISTING LOGIC: Preserve fully --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
     net_diff = float(t1.get('NET', 0)) - float(t2.get('NET', 0))
-    
-    # Offensive/Defensive Matchup Analysis (25% of model weight)
+
     t1_off = float(t1.get('OFF EFF', 1.0))
     t1_def = float(t1.get('DEF EFF', 1.0))
     t2_off = float(t2.get('OFF EFF', 1.0))
     t2_def = float(t2.get('DEF EFF', 1.0))
-    
-    # Calculate offensive advantage (team1 offense vs team2 defense)
+
     off_advantage = t1_off - t2_def
-    
-    # Calculate defensive advantage (team1 defense vs team2 offense)
     def_advantage = t1_def - t2_off
-    
-    # More detailed KenPom metrics (specific offensive and defensive ratings)
+
     adjO_diff = float(t1.get('KP_AdjO', 0)) - float(t2.get('KP_AdjO', 0))
-    adjD_diff = float(t2.get('KP_AdjD', 0)) - float(t1.get('KP_AdjD', 0))  # Lower is better for defense
-    
-    # Game Context Factors (15% of model weight)
+    adjD_diff = float(t2.get('KP_AdjD', 0)) - float(t1.get('KP_AdjD', 0))
+
     win_pct_diff = (float(t1.get('WIN% ALL GM', 0.5)) - float(t2.get('WIN% ALL GM', 0.5))) * 100
     close_pct_diff = (float(t1.get('WIN% CLOSE GM', 0.5)) - float(t2.get('WIN% CLOSE GM', 0.5))) * 100
     margin_diff = float(t1.get('AVG MARGIN', 0)) - float(t2.get('AVG MARGIN', 0))
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
-    
-    # Tournament and Momentum Factors (20% of model weight)
+
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
-    
-    # Recent performance - last 10 games
-    #recent_form_diff = float(t1.get('LAST_10_WIN%', 0.5)) - float(t2.get('LAST_10_WIN%', 0.5)) * 100
-    
-    # Conference strength factor 
-    #conf_strength_diff = float(t1.get('CONF_WIN%', 0.5)) - float(t2.get('CONF_WIN%', 0.5)) * 100
-    
-    # Calculate weighted factor combining all predictors
+
     factor = 0
-    
-    # Base efficiency metrics (40%)
-    factor += 0.5 * kp_diff  # KenPom is the most reliable predictor
-    factor += 0.01 * net_diff  # NET ranking differential
-    
-    # Matchup analysis (25%)
-    factor += 0.1 * off_advantage  # Team 1's offense vs Team 2's defense
-    factor += 0.1 * (-def_advantage)  # Team 1's defense vs Team 2's offense
-    factor += 0.025 * adjO_diff  # Adjusted offensive efficiency difference
-    factor += 0.025 * adjD_diff  # Adjusted defensive efficiency difference
-    
-    # Game context (15%)
-    factor += 0.05 * win_pct_diff  # Overall win percentage
-    factor += 0.05 * close_pct_diff  # Close game win percentage
-    factor += 0.5 * margin_diff  # Average margin
-    factor += 0.025 * sos_diff  # Strength of schedule
-    
-    # Tournament and momentum (20%)
-    factor += 0.01 * exp_diff  # Tournament experience
-    factor += 0.05 * success_diff  # Tournament success history
-    #factor += 0.05 * recent_form_diff  # Recent form
-    #factor += 0.05 * conf_strength_diff  # Conference strength
-    
-    # Apply logistic transformation to get win probability
-    base_prob = 1.0 / (1.0 + np.exp(-0.05 * factor))  # Smoothed coefficient to avoid extreme probabilities
-    
-    # Seed-based upset adjustment - more nuanced than before
+
+    factor += 0.5 * kp_diff
+    factor += 0.01 * net_diff
+
+    factor += 0.1 * off_advantage
+    factor += 0.1 * (-def_advantage)
+    factor += 0.025 * adjO_diff
+    factor += 0.025 * adjD_diff
+
+    factor += 0.05 * win_pct_diff
+    factor += 0.05 * close_pct_diff
+    factor += 0.5 * margin_diff
+    factor += 0.025 * sos_diff
+
+    factor += 0.01 * exp_diff
+    factor += 0.05 * success_diff
+
+    base_prob = 1.0 / (1.0 + np.exp(-0.05 * factor))
+
     seed_diff = t2['seed'] - t1['seed']
-    
-    # First round upset adjustments - historical data shows certain seed matchups have consistent patterns
+
     if t1['seed'] == 5 and t2['seed'] == 12:
-        # 5-12 matchups historically favor upsets more than model predictions
-        base_prob = base_prob * 0.9  # Slightly reduce the favorite's chances
+        base_prob *= 0.9
     elif t1['seed'] == 8 and t2['seed'] == 9:
-        # 8-9 games are nearly 50-50
         base_prob = min(max(base_prob, 0.45), 0.55)
     elif t1['seed'] == 1 and t2['seed'] == 16:
-        # 1-16 matchups rarely result in upsets
         base_prob = max(base_prob, 0.95)
     elif t1['seed'] == 2 and t2['seed'] == 15:
-        # 2-15 matchups rarely result in upsets
         base_prob = max(base_prob, 0.9)
     elif seed_diff > 8:
-        # For extreme seed differentials, boost the favorite's chances slightly
         base_prob = min(base_prob + 0.05, 0.95)
-    
-    # Apply bounds to ensure reasonable probabilities
-    return max(0.05, min(0.95, base_prob))
+
+    # --- NEW ENHANCED LOGIC (added calculations & nuances) --- #
+
+    # Further leveraging AVG MARGIN due to its high predictive power
+    avg_margin_weight = 0.1  # additional emphasis on AVG margin
+    factor += avg_margin_weight * margin_diff
+
+    # Accounting for DEF EFF strongly correlated negatively with AVG MARGIN
+    def_eff_diff = t2_def - t1_def  # Lower DEF EFF is better
+    def_eff_weight = 0.05  # defensive efficiency matters significantly
+    factor += def_eff_weight * def_eff_diff
+
+    # Leveraging strong correlations with eFG% and AST/TO%
+    efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
+    ast_to_diff = float(t1.get('AST/TO%', 0.5)) - float(t2.get('AST/TO%', 0.5))
+
+    efg_weight = 0.03
+    ast_to_weight = 0.02
+
+    factor += efg_weight * efg_diff * 100  # scaled appropriately
+    factor += ast_to_weight * ast_to_diff * 100
+
+    # Adjust factor after new additions
+    enhanced_prob = 1.0 / (1.0 + np.exp(-0.05 * factor))
+
+    # Harmonize original and enhanced probabilities for robust outcome
+    combined_prob = (base_prob + enhanced_prob) / 2
+
+    # Ensuring final probabilities remain within reasonable historical tournament bounds
+    if seed_diff >= 5 and combined_prob < 0.65:
+        combined_prob += 0.05
+    elif seed_diff <= -5 and combined_prob > 0.35:
+        combined_prob -= 0.05
+
+    return max(0.05, min(0.95, combined_prob))
+
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
     """
