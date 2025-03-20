@@ -156,7 +156,7 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
              ]
 
-extra_cols_for_treemap = ["CONFERENCE", "TM_KP"] #, "SEED_25"
+extra_cols_for_treemap = ["CONFERENCE", "TM_KP", "REGION_25"] #, "SEED_25"
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
@@ -861,18 +861,18 @@ def create_team_radar(team, dark_mode=True, key=None):
 def create_treemap(df_notnull):
     try:
         if "KP_Rank" in df_notnull.columns:
-            top_150_teams = df_notnull.sort_values(by="KP_Rank").head(150)
+            top_100_teams = df_notnull.sort_values(by="KP_Rank").head(100)
         else:
-            top_150_teams = df_notnull.copy()
-        if top_150_teams.empty:
+            top_100_teams = df_notnull.copy()
+        if top_100_teams.empty:
             st.warning("No data to display in treemap.")
             return None
         required_columns = ["CONFERENCE", "TM_KP", "KP_AdjEM", "KP_Rank", "WIN_25", "LOSS_25"]
-        if not all(col in top_150_teams.columns for col in required_columns):
-            missing_cols = [col for col in required_columns if col not in top_150_teams.columns]
+        if not all(col in top_100_teams.columns for col in required_columns):
+            missing_cols = [col for col in required_columns if col not in top_100_teams.columns]
             st.error(f"Missing required columns for treemap: {missing_cols}")
             return None
-        treemap_data = top_150_teams.copy()
+        treemap_data = top_100_teams.copy()
         treemap_data["KP_AdjEM"] = pd.to_numeric(treemap_data["KP_AdjEM"], errors='coerce')
         treemap_data = treemap_data.dropna(subset=["KP_AdjEM"])
         if "TM_KP" not in treemap_data.columns:
@@ -1197,7 +1197,7 @@ def calculate_win_probability(t1, t2):
     H2H matchup win probability calculation.
     Integrates historical seed-based expectations with current efficiency metrics.
     Combines threshold evaluations and advanced analytics via logistic transformations.
-    Incorporates ESPN BPI_25 (with lower weight than KP_AdjEM) and uses slightly reduced base seeding bias.
+    Slightly reduced base seeding bias.
     """
 
     # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
@@ -1220,9 +1220,9 @@ def calculate_win_probability(t1, t2):
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
     
     # --- Historical threshold constants (from KP metrics) --- #
-    KP_AdjEM_Rk_THRESHOLD = 10     
-    KP_AdjO_Rk_THRESHOLD = 39      
-    KP_AdjD_Rk_THRESHOLD = 25      
+    KP_AdjEM_Rk_THRESHOLD = 25 # actual=5.7; no outliers=3.3    
+    KP_AdjO_Rk_THRESHOLD = 50 # actual=39      
+    KP_AdjD_Rk_THRESHOLD = 35 # actual=25
     KP_AdjEM_champ_live = 21.5
     KP_AdjEM_champ_avg = 27.9      
     KP_AdjEM_champ_min = 19.1      
@@ -1864,7 +1864,7 @@ with tab_home:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     
     # --- Top Upset Candidates Table in Round of 64 ---
-    st.markdown("### :primary[Top Upset Candidates - Round of 64]")
+    st.markdown("### :primary[TOP UPSET CANDIDATES -- ROUND OF 64]")
     bracket = prepare_tournament_data(df_main)
     if bracket is not None:
         # Define the standard Round of 64 pairings (using seeding conventions)
@@ -1888,20 +1888,20 @@ with tab_home:
                     # Calculate the upset probability: chance that the underdog beats the favorite
                     upset_prob = calculate_win_probability(underdog, favorite)
                     upset_candidates.append({
-                        "Region": region,
-                        "Matchup": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
-                        "Favorite": favorite['team'],
-                        "Fav Seed": favorite['seed'],
-                        "Underdog": underdog['team'],
-                        "UD Seed": underdog['seed'],
-                        "Upset Prob (%)": round(upset_prob * 100, 1)
+                        "MATCHUP": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
+                        "REGION": region,
+                        "FAV": favorite['team'],
+                        "FAV SEED": favorite['seed'],
+                        "DOG": underdog['team'],
+                        "DOG SEED": underdog['seed'],
+                        "UPSET PROB (%)": round(upset_prob * 100, 1)
                     })
         if upset_candidates:
             df_upsets = pd.DataFrame(upset_candidates)
-            df_upsets = df_upsets.sort_values("Upset Prob (%)", ascending=False).reset_index(drop=True)
+            df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
             # Apply advanced styling similar to your existing styled tables
-            upset_styler = df_upsets.style.format({"Upset Prob (%)": "{:.1f}"})\
-                .background_gradient(subset=["Upset Prob (%)"], cmap="RdYlGn")\
+            upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
+                .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
                 .set_table_styles(detailed_table_styles)\
                 .set_properties(**{"text-align": "center"})
             st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
@@ -2989,20 +2989,20 @@ with tab_team:
                     "AVG MARGIN": "{:.1f}"
                 }
                 color_scales = {
-                    "KP_Rank": "RdBu_r",
-                    "WIN_25": "RdBu", 
-                    "LOSS_25": "RdBu_r",
-                    "AVG MARGIN": "RdBu",
-                    "WIN% ALL GM": "RdBu",
-                    "WIN% CLOSE GM": "RdBu",
-                    "KP_AdjEM": "RdBu",
-                    "KP_SOS_AdjEM": "RdBu",
-                    "OFF EFF": "RdBu", 
-                    "DEF EFF": "RdBu_r",
-                    "TS%": "RdBu", 
-                    "OPP TS%": "RdBu_r",
-                    "AST/TO%": "RdBu",
-                    "STOCKS/GM": "RdBu", 
+                    "KP_Rank": "RdYlGn_r",
+                    "WIN_25": "RdYlGn", 
+                    "LOSS_25": "RdYlGn_r",
+                    "AVG MARGIN": "RdYlGn",
+                    "WIN% ALL GM": "RdYlGn",
+                    "WIN% CLOSE GM": "RdYlGn",
+                    "KP_AdjEM": "RdYlGn",
+                    "KP_SOS_AdjEM": "RdYlGn_r",
+                    "OFF EFF": "RdYlGn", 
+                    "DEF EFF": "RdYlGn_r",
+                    "TS%": "RdYlGn", 
+                    "OPP TS%": "RdYlGn_r",
+                    "AST/TO%": "RdYlGn",
+                    "STOCKS/GM": "RdYlGn", 
                 }
                 styled_table = display_df.style.format({col: fmt for col, fmt in format_dict.items() if col in display_df.columns})
                 for col, cmap in color_scales.items():
