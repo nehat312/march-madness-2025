@@ -2324,7 +2324,7 @@ with tab_team_reports:
                             )
                             .format(precision=2, subset=numeric_cols)
                             .set_properties(**{"text-align": "center"})
-                            .hide_index()
+                            #.hide_index()
                         )
 
                         # 10) Display the final table
