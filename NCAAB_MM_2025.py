@@ -1170,7 +1170,9 @@ def calculate_win_probability(t1, t2):
     Enhanced win probability calculation preserving all existing functionality.
     Integrates historical seed-based expectations with current efficiency metrics.
     Combines threshold evaluations and advanced analytics via logistic transformations.
+    The seed-based adjustments have been relaxed to allow for more variability in outcomes.
     """
+    import numpy as np
 
     # --- METRIC DIFFERENCES & THRESHOLD LOGIC --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
@@ -1191,30 +1193,30 @@ def calculate_win_probability(t1, t2):
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
 
     # --- Historical threshold constants --- #
-    KP_AdjEM_Rk_THRESHOLD = 10     # actual=5.7; no outliers=3.3
-    KP_AdjO_Rk_THRESHOLD = 39      # actual=39
-    KP_AdjD_Rk_THRESHOLD = 25      # actual=25
+    KP_AdjEM_Rk_THRESHOLD = 10     
+    KP_AdjO_Rk_THRESHOLD = 39      
+    KP_AdjD_Rk_THRESHOLD = 25      
     KP_AdjEM_champ_live = 21.5
-    KP_AdjEM_champ_avg = 27.9      # Average champion
-    KP_AdjEM_champ_min = 19.1      # Lowest champion
-    KP_AdjEM_champ_max = 35.7      # Highest champion
+    KP_AdjEM_champ_avg = 27.9      
+    KP_AdjEM_champ_min = 19.1      
+    KP_AdjEM_champ_max = 35.7      
     KP_AdjO_THRESHOLD = 115
     KP_AdjD_THRESHOLD = 100
 
     # --- FACTOR WEIGHTS REBALANCING --- #
     factor = 0
-    factor += 0.35 * kp_diff         # Reduced from 0.5 to make room for thresholds
+    factor += 0.35 * kp_diff         
     factor += 0.01 * net_diff
-    factor += 0.08 * off_advantage    # Slightly reduced
-    factor += 0.08 * (-def_advantage) # Slightly reduced
-    factor += 0.02 * adjO_diff       # Slightly reduced
-    factor += 0.02 * adjD_diff       # Slightly reduced
-    factor += 0.04 * win_pct_diff    # Slightly reduced
-    factor += 0.04 * close_pct_diff  # Slightly reduced
-    factor += 0.4 * margin_diff      # Reduced from 0.5
-    factor += 0.02 * sos_diff        # Slightly reduced
+    factor += 0.08 * off_advantage    
+    factor += 0.08 * (-def_advantage) 
+    factor += 0.02 * adjO_diff       
+    factor += 0.02 * adjD_diff       
+    factor += 0.04 * win_pct_diff    
+    factor += 0.04 * close_pct_diff  
+    factor += 0.4 * margin_diff      
+    factor += 0.02 * sos_diff        
     factor += 0.01 * exp_diff
-    factor += 0.04 * success_diff    # Slightly reduced
+    factor += 0.04 * success_diff    
 
     # --- THRESHOLD EVALUATION FUNCTION --- #
     def threshold_evaluation(team):
@@ -1223,111 +1225,91 @@ def calculate_win_probability(t1, t2):
         kp_adjO = float(team.get('KP_AdjO', 0))
         kp_adjD = float(team.get('KP_AdjD', 0))
         
-        # Bonus for championship-caliber efficiency
         if kp_adjEM >= KP_AdjEM_champ_min:
             score += 3
         if kp_adjEM >= KP_AdjEM_champ_live:
             score += 2
-            
-        # Offensive efficiency evaluation
         if kp_adjO >= KP_AdjO_THRESHOLD:
             score += 2
         elif kp_adjO >= (KP_AdjO_THRESHOLD - 5):
             score += 1
-            
-        # Defensive efficiency evaluation (lower is better)
         if kp_adjD <= KP_AdjD_THRESHOLD:
             score += 2
         elif kp_adjD <= (KP_AdjD_THRESHOLD + 5):
             score += 1
-            
-        # Rankings-based evaluations
         kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999))
         kp_adjO_rk = float(team.get('KP_AdjO_Rk', 999))
         kp_adjD_rk = float(team.get('KP_AdjD_Rk', 999))
-        
         if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
             score += 2
         elif kp_adjEM_rk <= 20:
             score += 1
-            
         if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
             score += 1
-            
         if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
             score += 1.5
-            
         return score
 
     t1_threshold_score = threshold_evaluation(t1)
     t2_threshold_score = threshold_evaluation(t2)
     threshold_diff = t1_threshold_score - t2_threshold_score
-    # Lower threshold weight to soften its impact
     threshold_weight = 0.10  
     factor += threshold_weight * threshold_diff
 
     # --- ENHANCED ANALYTICS --- #
     efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
     ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
-    factor += 0.03 * efg_diff * 100  # Scale percentage appropriately
+    factor += 0.03 * efg_diff * 100  
     factor += 0.02 * ast_to_diff * 100
-    def_eff_diff = t2_def - t1_def  # Lower defensive efficiency is better
+    def_eff_diff = t2_def - t1_def  
     factor += 0.05 * def_eff_diff
 
     # --- HISTORICAL SEED-BASED BASE PROBABILITY --- #
-    # Establish baseline win probability using seed information:
-    # Lower seed number indicates a historically favored team.
     seed1 = int(t1.get('seed', 0))
     seed2 = int(t2.get('seed', 0))
     if seed1 < seed2:
-        base_seed_prob = 0.65  # t1 is favored
+        base_seed_prob = 0.65  
     else:
-        base_seed_prob = 0.35  # t1 is the underdog
+        base_seed_prob = 0.35  
 
     # --- APPLYING EFFICIENCY METRIC ADJUSTMENTS VIA LOGISTIC TRANSFORMATION --- #
-    # Calculate adjustment factors (range 0 to 1) based on the combined performance factor.
     adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
-    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))  # Complementary adjustment for t2
-
-    # Combine the historical seed baseline with efficiency adjustments.
+    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
     adjusted_t1 = base_seed_prob * adjustment_t1
     adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
-
-    # Normalize so the final win probabilities sum to 1.
     total = adjusted_t1 + adjusted_t2
     final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
 
-    # --- SEED-BASED HISTORICAL UPSET PATTERNS (LIGHTENED) --- #
+    # --- SEED-BASED HISTORICAL UPSET PATTERNS (RELAXED) --- #
     seed_diff = seed2 - seed1
     if t1['seed'] == 1 and t2['seed'] == 16:
-        final_prob = max(final_prob, 0.95)  # Slightly reduced guarantee
-    elif t1['seed'] == 2 and t2['seed'] == 15:
         final_prob = max(final_prob, 0.90)
+    elif t1['seed'] == 2 and t2['seed'] == 15:
+        final_prob = max(final_prob, 0.85)
     elif t1['seed'] == 3 and t2['seed'] == 14:
-        final_prob = max(final_prob, 0.80)
-    elif t1['seed'] == 4 and t2['seed'] == 13:
         final_prob = max(final_prob, 0.75)
+    elif t1['seed'] == 4 and t2['seed'] == 13:
+        final_prob = max(final_prob, 0.70)
     elif t1['seed'] == 5 and t2['seed'] == 12:
-        final_prob = min(max(final_prob, 0.65), 0.73)
+        final_prob = min(max(final_prob, 0.60), 0.70)
     elif t1['seed'] == 6 and t2['seed'] == 11:
-        final_prob = min(max(final_prob, 0.55), 0.73)
+        final_prob = min(max(final_prob, 0.50), 0.70)
     elif t1['seed'] == 7 and t2['seed'] == 10:
-        final_prob = min(max(final_prob, 0.52), 0.68)
+        final_prob = min(max(final_prob, 0.48), 0.68)
     elif t1['seed'] == 8 and t2['seed'] == 9:
         final_prob = min(max(final_prob, 0.45), 0.55)
     elif seed_diff > 8:
-        seed_factor = min(0.04 * seed_diff, 0.20)  # Softer scaling
-        final_prob = min(final_prob + seed_factor, 0.93)
+        seed_factor = min(0.03 * seed_diff, 0.15)
+        final_prob = min(final_prob + seed_factor, 0.90)
 
     # --- LIGHTENED SANITY CHECKS AND FINAL ADJUSTMENTS --- #
     if seed_diff >= 10 and final_prob < 0.80:
-        final_prob = min(final_prob + 0.10, 0.90)
+        final_prob = min(final_prob + 0.07, 0.88)
     elif seed_diff >= 5 and final_prob < 0.65:
-        final_prob = min(final_prob + 0.07, 0.80)
+        final_prob = min(final_prob + 0.05, 0.78)
     elif seed_diff <= -5 and final_prob > 0.35:
-        final_prob = max(final_prob - 0.07, 0.20)
+        final_prob = max(final_prob - 0.05, 0.25)
 
-    # Final cap: ensure the win probability remains within a reasonable range.
     return max(0.03, min(0.97, final_prob))
 
 
@@ -2972,7 +2954,7 @@ with tab_pred:
     if st.button("Run Bracket Simulation"):
         with st.spinner("Simulating..."):
             # (1) Aggregated results from your multi-run simulation
-            aggregated = run_tournament_simulation(num_sims=100)
+            aggregated = run_tournament_simulation(num_sims=1000)
 
             # (2) Single-run logs (a single bracket outcome)
             single_run = run_simulation_once(df_main)
@@ -3024,8 +3006,8 @@ with tab_pred:
         champion_styler = (
             champion_df.style
             .format({
-                "CHAMP PROBABILITY (%)": "{:.1f}",
-                "KP_AdjEM": "{:.1f}",
+                "CHAMP PROBABILITY (%)": "{:.2f}",
+                "KP_AdjEM": "{:.2f}",
                 "NET_25": "{:.0f}"
             })
             .background_gradient(
@@ -3079,44 +3061,48 @@ with tab_pred:
         #     st.write(f"{row['TEAM']}: {row['CHAMP%']:.1f}%")
 
 
-        # B) 2×2 subplot for region winners (if aggregator has something like aggregator["Region"])
+                # --- REGIONAL SUBPLOT (2×2) --- #
         region_probs = aggregated.get("Region", None)
         if region_probs is None:
-            st.info("No region-level winner data found in aggregator. Skipping 2×2 subplot.")
-        else:
-            st.markdown("##### Regional Championship Probabilities")
-            from plotly.subplots import make_subplots
-            fig_region = make_subplots(rows=2, cols=2, subplot_titles=["West", "East", "South", "Midwest"])
+            # Fallback: compute region-level probabilities from champion_df
+            fallback_region_probs = {}
+            for region in champion_df["REGION"].unique():
+                subset = champion_df[champion_df["REGION"] == region]
+                # Use top 5 teams in each region (if available)
+                region_data = dict(zip(subset["TEAM"], subset["CHAMP PROBABILITY (%)"]))
+                fallback_region_probs[region] = region_data
+            region_probs = fallback_region_probs
 
-            row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
-            for region_name in ["West","East","South","Midwest"]:
-                if region_name not in region_probs:
-                    continue
-                items = sorted(region_probs[region_name].items(), key=lambda x: x[1], reverse=True)[:8]
-                x_vals = [itm[0] for itm in items]
-                y_vals = [itm[1] for itm in items]
-                (r, c) = row_col_map[region_name]
-                fig_region.add_trace(
-                    go.Bar(x=x_vals, y=y_vals, name=region_name,
-                           text=[f"{v:.1f}%" for v in y_vals],
-                           textposition="outside", marker_color="steelblue"),
-                    row=r, col=c
-                )
-                fig_region.update_xaxes(tickangle=-45, row=r, col=c)
-                if y_vals:
-                    fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
-
-            fig_region.update_layout(
-                template="plotly_dark",
-                height=600,
-                title="Regional Championship Odds",
-                #color_continuous_scale=px.colors.diverging.RdYlGn,
-                showlegend=False,
-                margin=dict(l=50, r=50, t=60, b=60),
+        st.markdown("##### Regional Championship Probabilities")
+        fig_region = make_subplots(rows=2, cols=2, subplot_titles=["West", "East", "South", "Midwest"])
+        row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
+        for region_name in ["West", "East", "South", "Midwest"]:
+            if region_name not in region_probs:
+                continue
+            items = sorted(region_probs[region_name].items(), key=lambda x: x[1], reverse=True)[:8]
+            x_vals = [itm[0] for itm in items]
+            y_vals = [itm[1] for itm in items]
+            (r, c) = row_col_map[region_name]
+            fig_region.add_trace(
+                go.Bar(x=x_vals, y=y_vals, name=region_name,
+                       text=[f"{v:.1f}%" for v in y_vals],
+                       textposition="outside", marker_color="steelblue"),
+                row=r, col=c
             )
-            st.plotly_chart(fig_region, use_container_width=True)
+            fig_region.update_xaxes(tickangle=-45, row=r, col=c)
+            if y_vals:
+                fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
 
-        # C) 1×1 bar chart for championship probabilities
+        fig_region.update_layout(
+            template="plotly_dark",
+            height=600,
+            title="Regional Championship Odds",
+            showlegend=False,
+            margin=dict(l=50, r=50, t=60, b=60),
+        )
+        st.plotly_chart(fig_region, use_container_width=True)
+
+        # --- 1×1 CHAMPIONSHIP BAR CHART --- #
         st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
         top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
         fig_champ = go.Figure()
@@ -3127,7 +3113,6 @@ with tab_pred:
                 text=[f"{tc[1]:.1f}%" for tc in top_champs],
                 textposition="outside",
                 marker_color="tomato",
-                
             )
         )
         fig_champ.update_layout(
