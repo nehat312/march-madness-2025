@@ -2145,13 +2145,13 @@ with tab_team_reports:
 
                     # Build a DataFrame with Team value and NCAA average; add Opponent column if one is selected
                     df_metrics = pd.DataFrame(index=metrics_used)
-                    df_metrics["Team"] = [team_data[m].iloc[0] for m in metrics_used]
+                    df_metrics["TEAM"] = [team_data[m].iloc[0] for m in metrics_used]
                     df_metrics["NCAA Avg"] = [df_main[m].mean() for m in metrics_used]
                     if selected_opponent and selected_opponent != selected_team_reports:
                         opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
-                        df_metrics["Opponent"] = [opp_data[m].iloc[0] if m in opp_data.columns else np.nan for m in metrics_used]
+                        df_metrics["OPP"] = [opp_data[m].iloc[0] if m in opp_data.columns else np.nan for m in metrics_used]
                     df_metrics.reset_index(inplace=True)
-                    df_metrics.rename(columns={"index": "Metric"}, inplace=True)
+                    df_metrics.rename(columns={"index": "METRIC"}, inplace=True)
 
                     # Format numeric values
                     def fmt(val):
@@ -2218,10 +2218,10 @@ with tab_team_reports:
                     def row_style(row):
                         styles = []
                         for col in df_metrics.columns:
-                            if col == "Metric":
+                            if col == "METRIC":
                                 styles.append("")
                             else:
-                                styles.append(style_cell(row[col], row["Metric"], col))
+                                styles.append(style_cell(row[col], row["METRIC"], col))
                         return styles
                     
                     styled_table = df_metrics.style.apply(lambda row: row_style(row), axis=1)
@@ -2309,10 +2309,10 @@ with tab_team_reports:
                         def row_style_h2h(row):
                             styles = []
                             for col in comp_df.columns:
-                                if col == "Metric":
+                                if col == "METRIC":
                                     styles.append("")
                                 else:
-                                    styles.append(style_cell(row[col], row["Metric"], col))
+                                    styles.append(style_cell(row[col], row["METRIC"], col))
                             return styles
                         styled_h2h = comp_df.style.apply(lambda row: row_style_h2h(row), axis=1)
                         st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
