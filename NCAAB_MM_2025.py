@@ -132,7 +132,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # ----------------------------------------------------------------------------
 # Load Data from GitHub CSV
 abs_path = r'https://raw.githubusercontent.com/nehat312/march-madness-2025/main'
-mm_database_csv = abs_path + '/data/mm_2025_database.csv'
+mm_database_csv = abs_path + '/data/mm_2025_database_vF.csv'
 
 @st.cache_data
 def load_data():
