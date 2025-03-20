@@ -2126,7 +2126,7 @@ with tab_team_reports:
             # ---------------------
             # DETAILED TEAM METRICS WITH NCAA AVERAGES (and Opponent values if selected)
             # ---------------------
-            with st.expander("View All Team Metrics"):
+            with st.expander(":blue[View All Team Metrics]"):
                 detailed_metrics = [
                     "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM", 
                     "OFF EFF", "DEF EFF", "WIN% ALL GM", "WIN% CLOSE GM",
@@ -2227,7 +2227,7 @@ with tab_team_reports:
                     styled_table = df_metrics.style.apply(lambda row: row_style(row), axis=1)
                     st.markdown(styled_table.to_html(), unsafe_allow_html=True)
                 else:
-                    st.info("No detailed metrics available for this team.")
+                    st.info("No detailed metrics available for selected team.")
 
             # ---------------------
             # HEAD-TO-HEAD COMPARISON SECTION
@@ -2235,10 +2235,10 @@ with tab_team_reports:
             if selected_opponent and selected_opponent != selected_team_reports:
                 opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
                 if opp_data.empty:
-                    st.warning("No data available for the selected opponent.")
+                    st.warning("No data available for selected opponent.")
                 else:
                     st.markdown("---")
-                    st.markdown(f"## :red[Head-to-Head: {selected_team_reports} vs. {selected_opponent}]")
+                    st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
                     colH2H1, colH2H2 = st.columns(2)
                     with colH2H1:
                         # Display basic opponent info
@@ -2251,10 +2251,10 @@ with tab_team_reports:
                             opp_record = f"{w2}-{l2}"
                         opp_seed = ""
                         if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
-                            opp_seed = f"Seed: {int(opp_data['SEED_25'].iloc[0])}"
+                            opp_seed = f"**Seed**: {int(opp_data['SEED_25'].iloc[0])}"
                         opp_kp_rank = ""
                         if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
-                            opp_kp_rank = f"KenPom Rank: {int(opp_data['KP_Rank'].iloc[0])}"
+                            opp_kp_rank = f"**KenPom Rank**: {int(opp_data['KP_Rank'].iloc[0])}"
                         st.markdown(f"""
                         **Conference:** {opp_conf}  
                         **Record:** {opp_record}  
@@ -2274,10 +2274,10 @@ with tab_team_reports:
                             """, unsafe_allow_html=True)
                     with colH2H2:
                         # Combined radar chart for head-to-head
-                        compare_radar_fig = create_radar_chart([selected_team_reports, selected_opponent], df_main)
+                        compare_radar_fig = create_radar_chart([selected_opponent], df_main)
                         if compare_radar_fig:
                             st.plotly_chart(compare_radar_fig, use_container_width=True)
-                    with st.expander("Head-to-Head Stats Comparison"):
+                    with st.expander(":blue[H2H STATISTICAL COMPARISON]"):
                         # Build a side-by-side comparison table for key metrics
                         comparison_metrics = [
                             "KP_AdjEM", "OFF EFF", "DEF EFF", 
@@ -2295,13 +2295,14 @@ with tab_team_reports:
                                 home_vals.append(hv)
                                 away_vals.append(av)
                         comp_df = pd.DataFrame({
-                            "Metric": labels,
+                            "METRIC": labels,
                             selected_team_reports: home_vals,
-                            "NCAA Avg": [df_main[m].mean() if m in df_main.columns else np.nan for m in labels],
-                            selected_opponent: away_vals
+                            selected_opponent: away_vals,
+                            "NCAA AVG": [df_main[m].mean() if m in df_main.columns else np.nan for m in labels],
+                            
                         })
                         # Format numeric columns
-                        for col in [selected_team_reports, "NCAA Avg", selected_opponent]:
+                        for col in [selected_team_reports, "NCAA AVG", selected_opponent]:
                             comp_df[col] = comp_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (float, int)) else str(x))
                         
                         # Reuse styling functions defined above for colorscaling
