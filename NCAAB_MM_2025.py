@@ -2130,6 +2130,7 @@ with tab_team_reports:
                 {seed_info}  
                 {kp_rank}
                 """)
+
                 # Performance Badge using existing logic
                 if all(m in team_data.columns for m in get_default_metrics()):
                     t_avgs, t_stdevs = compute_tournament_stats(df_main)
@@ -2142,37 +2143,38 @@ with tab_team_reports:
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Interpretive Insights
-                with st.expander("📊 Interpretive Insights"):
-                    insights = []
-                    t_avgs, t_stdevs = compute_tournament_stats(df_main)
-                    for metric in get_default_metrics():
-                        if metric in team_data.columns:
-                            mean_val = t_avgs[metric]
-                            std_val = max(t_stdevs[metric], 1e-6)
-                            team_val = team_data.iloc[0][metric]
-                            z = (team_val - mean_val) / std_val
-                            if metric in ["DEF EFF", "TO/GM"]:
-                                z = -z
-                            if abs(z) < 0.3:
-                                insights.append(f"**{metric}** | Near NCAA average.")
-                            elif z >= 1.0:
-                                insights.append(f"**{metric}** | Clear strength.")
-                            elif 0.3 <= z < 1.0:
-                                insights.append(f"**{metric}** | Above NCAA average.")
-                            elif -1.0 < z <= -0.3:
-                                insights.append(f"**{metric}** | Below NCAA average.")
-                            else:
-                                insights.append(f"**{metric}** | Notable weakness.")
-                    st.markdown("**Team Metric Highlights:**")
-                    for line in insights:
-                        st.write(f"- {line}")
-
             with colB:
                 # Single-team Radar Chart
                 single_radar_fig = create_radar_chart([selected_team_reports], df_main)
                 if single_radar_fig:
                     st.plotly_chart(single_radar_fig, use_container_width=True)
+
+            # Instead of an expander for interpretive insights, let's store them in a variable
+            def get_interpretive_insights(row, df_all):
+                """Return bullet-point lines describing how each default metric compares to NCAA average."""
+                lines = []
+                t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                for metric in get_default_metrics():
+                    if metric in row:
+                        mean_val = t_avgs.get(metric, 0)
+                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                        team_val = row[metric]
+                        z = (team_val - mean_val) / std_val
+                        if metric in ["DEF EFF", "TO/GM"]:
+                            z = -z
+                        if abs(z) < 0.3:
+                            lines.append(f"**{metric}** | Near NCAA average.")
+                        elif z >= 1.0:
+                            lines.append(f"**{metric}** | Clear strength.")
+                        elif 0.3 <= z < 1.0:
+                            lines.append(f"**{metric}** | Above NCAA average.")
+                        elif -1.0 < z <= -0.3:
+                            lines.append(f"**{metric}** | Below NCAA average.")
+                        else:
+                            lines.append(f"**{metric}** | Notable weakness.")
+                return lines
+
+            team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
 
             # ---------------------
             # HEAD-TO-HEAD COMPARISON
@@ -2180,7 +2182,7 @@ with tab_team_reports:
             if selected_opponent and selected_opponent != selected_team_reports:
                 opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
                 if opp_data.empty:
-                    st.warning("No data available for selected opponent.")
+                    st.warning("No data available for the selected opponent.")
                 else:
                     st.markdown("---")
                     st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
@@ -2206,23 +2208,15 @@ with tab_team_reports:
                         {opp_seed}  
                         {opp_kp_rank}
                         """)
-                        # Opponent performance badge
-                        if all(m in opp_data.columns for m in get_default_metrics()):
-                            t_avgs, t_stdevs = compute_tournament_stats(df_main)
-                            opp_perf = compute_performance_text(opp_data.iloc[0], t_avgs, t_stdevs)
-                            st.markdown(f"""
-                            <div style='text-align: center; margin: 20px 0;'>
-                                <span class='{opp_perf["class"]}' style='font-size: 18px; padding: 8px 16px;'>
-                                    Overall Rating: {opp_perf["text"]}
-                                </span>
-                            </div>
-                            """, unsafe_allow_html=True)
 
                     with colH2H2:
-                        # Combined radar chart for head-to-head
+                        # Combined radar chart for head-to-head (opponent only or both)
                         compare_radar_fig = create_radar_chart([selected_opponent], df_main)
                         if compare_radar_fig:
                             st.plotly_chart(compare_radar_fig, use_container_width=True)
+
+                    # Compute interpretive insights for the opponent
+                    opp_insights = get_interpretive_insights(opp_data.iloc[0], df_main)
 
                     with st.expander("Head-to-Head Stats Comparison"):
                         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2245,16 +2239,12 @@ with tab_team_reports:
                         row_opp = opp_data.iloc[0]
 
                         # 3) Compute NCAA average & TOURNEY average
-                        #    (filter out rows missing these columns to avoid errors)
                         valid_df = df_main.dropna(subset=h2h_metrics, how="all")
                         ncaa_avg = valid_df[h2h_metrics].mean(numeric_only=True)
-
-                        # Only teams with a 2025 seed
                         tourney_df = valid_df[valid_df["SEED_25"].notna()]
                         if not tourney_df.empty:
                             tourney_avg = tourney_df[h2h_metrics].mean(numeric_only=True)
                         else:
-                            # fallback if no seeds
                             tourney_avg = pd.Series([np.nan]*len(h2h_metrics), index=h2h_metrics)
 
                         # 4) Build a DataFrame for final display
@@ -2265,7 +2255,6 @@ with tab_team_reports:
                         final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
 
                         # 5) Mark which metrics are "lower is better"
-                        #    (All others are assumed "higher is better")
                         lower_is_better = {
                             "KP_Rank": True,
                             "DEF EFF": True,
@@ -2273,7 +2262,6 @@ with tab_team_reports:
                             "OPP eFG%": True,
                             "OPP TS%": True,
                             "TO/GM": True,
-                            # add more if needed
                         }
 
                         # 6) Compute ADVANTAGE for each row
@@ -2287,7 +2275,6 @@ with tab_team_reports:
                                 continue
                             invert = lower_is_better.get(metric, False)
                             if invert:
-                                # lower is better
                                 if valA < valB:
                                     advantage_list.append(selected_team_reports)
                                 elif valB < valA:
@@ -2295,7 +2282,6 @@ with tab_team_reports:
                                 else:
                                     advantage_list.append("Tie")
                             else:
-                                # higher is better
                                 if valA > valB:
                                     advantage_list.append(selected_team_reports)
                                 elif valB > valA:
@@ -2305,55 +2291,70 @@ with tab_team_reports:
 
                         final_df["ADVANTAGE"] = advantage_list
 
-                        # 7) Tally up advantages for each team
+                        # 7) Tally up advantages
                         adv_team = sum(1 for x in advantage_list if x == selected_team_reports)
                         adv_opp = sum(1 for x in advantage_list if x == selected_opponent)
 
                         # 8) Format numeric columns for display
                         numeric_cols = [selected_team_reports, selected_opponent, "NCAA AVG", "TOURNEY AVG"]
                         for col in numeric_cols:
-                            final_df[col] = final_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
+                            final_df[col] = final_df[col].apply(
+                                lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x)
+                            )
 
-                        # 9) Apply color scaling row-wise across the numeric columns
+                        # 9) Create a styled object with row-wise color scaling
                         styled_h2h = (
                             final_df.style
-                            .background_gradient(
-                                cmap="RdYlGn",
-                                subset=numeric_cols,
-                                axis=1  # color-scale each row from min to max
-                            )
+                            .background_gradient(cmap="RdYlGn", subset=numeric_cols, axis=1)
                             .format(precision=2, subset=numeric_cols)
                             .set_properties(**{"text-align": "center"})
-                            #.hide_index()
                         )
+                        # We'll output via markdown to ensure the global <style> is applied
+                        h2h_html = styled_h2h.to_html()
 
-                        # 10) Display the final table
-                        st.dataframe(styled_h2h, use_container_width=True)
+                        # 10) Display the final table with advanced CSS
+                        st.markdown(h2h_html, unsafe_allow_html=True)
 
-                        # 11) Simple summary
+                        # 11) Summary with interpretive insights from both teams
                         if adv_team > adv_opp:
-                            st.write(
-                                f"**Summary**: {selected_team_reports} leads in {adv_team} metrics, "
+                            summary_text = (
+                                f"{selected_team_reports} leads in {adv_team} metrics, "
                                 f"while {selected_opponent} leads in {adv_opp}. "
                                 f"{selected_team_reports} appears favored overall."
                             )
                         elif adv_opp > adv_team:
-                            st.write(
-                                f"**Summary**: {selected_opponent} leads in {adv_opp} metrics, "
+                            summary_text = (
+                                f"{selected_opponent} leads in {adv_opp} metrics, "
                                 f"while {selected_team_reports} leads in {adv_team}. "
                                 f"{selected_opponent} appears favored overall."
                             )
                         else:
-                            st.write(
-                                f"**Summary**: Both teams match up evenly, each leading in {adv_team} metrics. "
+                            summary_text = (
+                                f"Both teams match up evenly, each leading in {adv_team} metrics. "
                                 "This could be a close one!"
                             )
 
+                        # Combine interpretive insights for each side into a final writeup
+                        # We'll do simple bullet lists for each:
+                        team_insights_str = "\n".join([f"- {ins}" for ins in team_insights])
+                        opp_insights_str = "\n".join([f"- {ins}" for ins in opp_insights])
+
+                        st.markdown(f"""
+                        <div style='margin-top:15px;'>
+                            <p><strong>Summary</strong>: {summary_text}</p>
+                            <p><strong>{selected_team_reports} Interpretive Insights</strong>:</p>
+                            <ul>
+                                {''.join(f"<li>{ins}</li>" for ins in team_insights)}
+                            </ul>
+                            <p><strong>{selected_opponent} Interpretive Insights</strong>:</p>
+                            <ul>
+                                {''.join(f"<li>{ins}</li>" for ins in opp_insights)}
+                            </ul>
+                        </div>
+                        """, unsafe_allow_html=True)
+
     else:
         st.info("Please select a team to view detailed reports.")
-
-
-
 
 # --- Radar Charts Tab ---
 with tab_radar:
