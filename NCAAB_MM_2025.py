@@ -2484,10 +2484,10 @@ with tab_regions:
         "High Point", "Montana", "Wofford", "SIU Edwardsville",
     ]
     regions = {
-        "W Region": east_teams_2025,
-        "X Region": midwest_teams_2025,
-        "Y Region": south_teams_2025,
-        "Z Region": west_teams_2025
+        "EAST REGION": east_teams_2025,
+        "MIDWEST REGION": midwest_teams_2025,
+        "SOUTH REGION": south_teams_2025,
+        "WEST REGION": west_teams_2025
     }
 
     def safe_format(x):
