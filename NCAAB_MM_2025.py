@@ -156,7 +156,7 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
              ]
 
-extra_cols_for_treemap = ["CONFERENCE", "TM_KP", "REGION_25"] #, "SEED_25"
+extra_cols_for_treemap = ["CONFERENCE", "TM_KP"] #, "SEED_25"  "REGION_25"
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
 df_main = mm_database_2025[actual_cols].copy()
@@ -1163,8 +1163,15 @@ def prepare_tournament_data(df):
             bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 2.0
 
     bracket = {}
-    for region in ['West','East','South','Midwest']:
-        region_df = bracket_teams[bracket_teams['REGION_25'].str.lower() == region.lower()].copy()
+    for region in ['West', 'East', 'South', 'Midwest']:
+        # Convert 'REGION_25' to string type, then lowercase, and compare.  .copy() is good practice
+        region_df = bracket_teams[bracket_teams['REGION_25'].astype(str).str.lower() == region.lower()].copy()
+
+        # Check if the region_df is empty after filtering.  This is crucial!
+        if region_df.empty:
+            sim_logger.warning(f"Region '{region}' not found in 'REGION_25' column.  Skipping.")
+            continue
+
         region_seeds = region_df['SEED_25'].unique().tolist()
         if len(region_seeds) < 16:
             sim_logger.warning(f"{region} region missing some seeds: {region_seeds}. Skipping.")
@@ -1172,13 +1179,14 @@ def prepare_tournament_data(df):
         region_df = region_df.sort_values('SEED_25')
         region_list = []
         for _, row in region_df.iterrows():
+            # Use .get() with a default for ALL optional columns to prevent KeyErrors.
             region_list.append({
-                'team':      row[name_col],
-                'seed':      int(row['SEED_25']),
-                'KP_AdjEM':  float(row['KP_AdjEM']),
-                'OFF EFF':   float(row['OFF EFF']),
-                'DEF EFF':   float(row['DEF EFF']),
-                'TOURNEY_SUCCESS':    float(row['TOURNEY_SUCCESS']),
+                'team': row[name_col],
+                'seed': int(row['SEED_25']),
+                'KP_AdjEM': float(row['KP_AdjEM']),
+                'OFF EFF': float(row['OFF EFF']),
+                'DEF EFF': float(row['DEF EFF']),
+                'TOURNEY_SUCCESS': float(row['TOURNEY_SUCCESS']),
                 'TOURNEY_EXPERIENCE': float(row['TOURNEY_EXPERIENCE']),
                 # Additional predictive metrics:
                 'WIN% ALL GM': float(row.get('WIN% ALL GM', 0.5)),
@@ -1899,7 +1907,6 @@ with tab_home:
         if upset_candidates:
             df_upsets = pd.DataFrame(upset_candidates)
             df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
-            # Apply advanced styling similar to your existing styled tables
             upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
                 .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
                 .set_table_styles(detailed_table_styles)\
