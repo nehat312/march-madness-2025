@@ -1169,9 +1169,11 @@ import numpy as np
 def calculate_win_probability(t1, t2):
     """
     Enhanced win probability calculation preserving all existing functionality.
-    Adds nuanced logic to improve predictive accuracy based on AVG MARGIN correlations.
+    Adds nuanced logic to improve predictive accuracy based on AVG MARGIN correlations
+    and integrates guiding threshold metrics historically linked to bracket success.
     Compatible with existing March Madness 2025 Streamlit deployment framework.
     """
+    import numpy as np
 
     # --- EXISTING LOGIC: Preserve fully --- #
     kp_diff = float(t1['KP_AdjEM']) - float(t2['KP_AdjEM'])
@@ -1229,6 +1231,58 @@ def calculate_win_probability(t1, t2):
     elif seed_diff > 8:
         base_prob = min(base_prob + 0.05, 0.95)
 
+    # --- NEW THRESHOLD LOGIC: Integrate guiding thresholds ---
+    # Historical threshold constants
+    KP_AdjEM_Rk_THRESHOLD = 10     # e.g., actual=5.7; no outliers=3.3
+    KP_AdjO_Rk_THRESHOLD = 39      # actual=39
+    KP_AdjD_Rk_THRESHOLD = 25      # actual=25
+
+    KP_AdjEM_champ_live = 21.5
+    KP_AdjEM_champ_avg = 27.9      # Average champion
+    KP_AdjEM_champ_min = 19.1      # Lowest champion
+    KP_AdjEM_champ_max = 35.7      # Highest champion
+
+    KP_AdjO_THRESHOLD = 115
+    KP_AdjD_THRESHOLD = 100
+
+    # Compute a bonus for each team based on threshold guidance
+    def threshold_bonus(team):
+        bonus = 0
+        kp_adjEM = float(team.get('KP_AdjEM', 0))
+        kp_adjO = float(team.get('KP_AdjO', 0))
+        kp_adjD = float(team.get('KP_AdjD', 0))
+        # Adjust bonus for KP_AdjEM relative to champion thresholds
+        if kp_adjEM < KP_AdjEM_champ_live:
+            bonus += 0.1
+        elif kp_adjEM > KP_AdjEM_champ_avg:
+            bonus -= 0.1
+        # Offensive efficiency bonus: higher is better
+        if kp_adjO >= KP_AdjO_THRESHOLD:
+            bonus += 0.05
+        else:
+            bonus -= 0.05
+        # Defensive efficiency bonus: lower is better
+        if kp_adjD <= KP_AdjD_THRESHOLD:
+            bonus += 0.05
+        else:
+            bonus -= 0.05
+
+        # Additional ranking-based bonuses (if ranking fields are provided)
+        kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999))
+        kp_adjO_rk = float(team.get('KP_AdjO_Rk', 999))
+        kp_adjD_rk = float(team.get('KP_AdjD_Rk', 999))
+        if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
+            bonus += 0.05
+        if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
+            bonus += 0.05
+        if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
+            bonus += 0.05
+        return bonus
+
+    threshold_diff = threshold_bonus(t1) - threshold_bonus(t2)
+    threshold_weight = 0.2  # Weight for the threshold adjustments
+    factor += threshold_weight * threshold_diff
+
     # --- NEW ENHANCED LOGIC (added calculations & nuances) --- #
 
     # Further leveraging AVG MARGIN due to its high predictive power
@@ -1263,6 +1317,7 @@ def calculate_win_probability(t1, t2):
         combined_prob -= 0.05
 
     return max(0.05, min(0.95, combined_prob))
+
 
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
@@ -2307,13 +2362,17 @@ with tab_team_reports:
                         
                         # Reuse styling functions defined above for colorscaling
                         def row_style_h2h(row):
+                            # Use the first column's value (which is the metric name) rather than relying on "METRIC"
+                            metric_val = row.iloc[0]
                             styles = []
-                            for col in comp_df.columns:
-                                if col == "METRIC":
+                            for i, col in enumerate(comp_df.columns):
+                                # For the first column, no style is applied
+                                if i == 0:
                                     styles.append("")
                                 else:
-                                    styles.append(style_cell(row[col], row["METRIC"], col))
+                                    styles.append(style_cell(row[col], metric_val, col))
                             return styles
+
                         styled_h2h = comp_df.style.apply(lambda row: row_style_h2h(row), axis=1)
                         st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
     else:
