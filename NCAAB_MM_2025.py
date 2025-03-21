@@ -309,6 +309,7 @@ def get_default_metrics():
         'AVG MARGIN',
         'KP_AdjEM',
         'BPI_25',
+        #'NET_25'
         'KP_AdjO',
         'KP_AdjD',
         'OFF EFF',
@@ -2149,35 +2150,224 @@ with tab_team_reports:
     # Advanced CSS styling for the tab and table elements
     st.markdown("""
     <style>
-    /* Container and header styling */
+    /* Main container styling */
     .team-report-container {
-        background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
         border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
+        padding: 24px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        margin-bottom: 25px;
+        border: 1px solid rgba(0, 60, 200, 0.1);
     }
+    
+    /* Header styling with animated gradient line */
     .header-with-line {
         position: relative;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+        padding-bottom: 12px;
+        margin-bottom: 22px;
+        font-weight: 600;
     }
     .header-with-line:after {
         content: "";
         position: absolute;
         bottom: 0;
         left: 0;
-        width: 100px;
+        width: 120px;
         height: 4px;
-        background: linear-gradient(90deg, #0360CE, #87CEEB);
+        background: linear-gradient(90deg, #0039A6, #87CEEB);
         border-radius: 2px;
+        animation: gradient-flow 3s ease infinite;
+        background-size: 200% 200%;
     }
-    /* Performance badges */
-    .badge-elite { background-color: gold; color: black; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
-    .badge-solid { background-color: #4CAF50; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
-    .badge-mid { background-color: #2196F3; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
-    .badge-subpar { background-color: #FF9800; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
-    .badge-weak { background-color: #F44336; color: white; border-radius: 20px; font-weight: bold; padding: 4px 12px; }
+    
+    @keyframes gradient-flow {
+        0% {background-position: 0% 50%;}
+        50% {background-position: 100% 50%;}
+        100% {background-position: 0% 50%;}
+    }
+    
+    /* Team cards styling */
+    .team-card {
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+    }
+    .team-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* Team info section */
+    .team-info {
+        border-left: 4px solid #0039A6;
+        padding-left: 15px;
+        margin: 15px 0;
+    }
+    
+    /* Performance badges with improved visuals */
+    .badge-elite { 
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        color: #000; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        padding: 5px 14px; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        text-shadow: 0px 1px 1px rgba(255,255,255,0.5);
+    }
+    .badge-solid { 
+        background: linear-gradient(135deg, #4CAF50, #388E3C); 
+        color: white; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        padding: 5px 14px; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    .badge-mid { 
+        background: linear-gradient(135deg, #2196F3, #1976D2); 
+        color: white; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        padding: 5px 14px; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    .badge-subpar { 
+        background: linear-gradient(135deg, #FF9800, #F57C00); 
+        color: white; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        padding: 5px 14px; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    .badge-weak { 
+        background: linear-gradient(135deg, #F44336, #D32F2F); 
+        color: white; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        padding: 5px 14px; 
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Head-to-head comparison container */
+    .h2h-container {
+        background: linear-gradient(135deg, #f0f4f8, #e6eef5);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 60, 200, 0.08);
+    }
+    
+    /* Stats table styling */
+    .stats-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .stats-table thead th {
+        background-color: #0039A6;
+        color: white;
+        padding: 12px;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .stats-table tbody tr:nth-child(even) {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    .stats-table tbody tr:hover {
+        background-color: rgba(33, 150, 243, 0.08);
+    }
+    .stats-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eaeaea;
+    }
+    
+    /* Insights section */
+    .insights-container {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 18px;
+        margin-top: 20px;
+        border-left: 4px solid #0039A6;
+    }
+    .insights-list li {
+        margin-bottom: 8px;
+        padding-left: 10px;
+        position: relative;
+    }
+    .insights-list li:before {
+        content: "•";
+        color: #0039A6;
+        font-weight: bold;
+        position: absolute;
+        left: -10px;
+    }
+    
+    /* Win probability indicator */
+    .win-prob-container {
+        margin: 20px 0;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+    }
+    .prob-meter {
+        height: 24px;
+        background: linear-gradient(to right, #F44336, #FFEB3B, #4CAF50);
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    .prob-indicator {
+        position: absolute;
+        top: 0;
+        width: 5px;
+        height: 100%;
+        background-color: black;
+        z-index: 1;
+    }
+    .prob-text {
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+        margin-top: 5px;
+    }
+    
+    /* Metric comparison indicators */
+    .metric-advantage {
+        font-weight: bold;
+    }
+    .team1-advantage {
+        color: #0039A6;
+    }
+    .team2-advantage {
+        color: #D32F2F;
+    }
+    .no-advantage {
+        color: #757575;
+    }
+    
+    /* Responsive adjustments */
+    @media screen and (max-width: 768px) {
+        .team-card {
+            margin-bottom: 15px;
+        }
+        .stats-table {
+            font-size: 14px;
+        }
+        .header-with-line:after {
+            width: 80px;
+        }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -2199,86 +2389,189 @@ with tab_team_reports:
     )
 
     if selected_team_reports:
-        # ---------------------
-        # TEAM OVERVIEW & INSIGHTS
-        # ---------------------
-        team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
-        if team_data.empty:
-            st.warning("No data found for the selected team.")
-        else:
-            colA, colB = st.columns(2)
-            with colA:
-                st.markdown(f"### {selected_team_reports}")
-                conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
-                record = "N/A"
-                if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
-                    w = int(team_data["WIN_25"].iloc[0])
-                    l = int(team_data["LOSS_25"].iloc[0])
-                    record = f"{w}-{l}"
-                seed_info = ""
-                if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
-                    seed_info = f"**Seed**: {int(team_data['SEED_25'].iloc[0])}"
-                kp_rank = ""
-                if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
-                    kp_rank = f"**KenPom Rank**: {int(team_data['KP_Rank'].iloc[0])}"
-                BPI_rank = ""
-                if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
-                    kp_rank = f"**BPI Rank**: {int(team_data['BPI_Rk_25'].iloc[0])}"
-                NET_rank = ""
-                if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
-                    kp_rank = f"**NET Rank**: {int(team_data['NET_25'].iloc[0])}"                                          
-                st.markdown(f"""
-                **Conference:** {conf}  
-                **Record:** {record}  
-                {seed_info}  
-                {kp_rank}
-                {BPI_rank}
-                {NET_rank}
-                """)
-
-                # Performance Badge using existing logic
-                if all(m in team_data.columns for m in get_default_metrics()):
-                    t_avgs, t_stdevs = compute_tournament_stats(df_main)
-                    perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
+            # ---------------------
+            # TEAM OVERVIEW & INSIGHTS
+            # ---------------------
+            team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
+            if team_data.empty:
+                st.warning("No data found for the selected team.")
+            else:
+                # Container for team overview
+                st.markdown("""
+                <div class="team-report-container">
+                    <h2 class="header-with-line">Team Overview</h2>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Helper function to generate interpretive insights
+                def get_interpretive_insights(row, df_all):
+                    """Return bullet-point lines describing how each default metric compares to NCAA average."""
+                    lines = []
+                    t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                    for metric in get_default_metrics():
+                        if metric in row:
+                            mean_val = t_avgs.get(metric, 0)
+                            std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                            team_val = row[metric]
+                            z = (team_val - mean_val) / std_val
+                            # For these metrics, lower is better, so invert the sign
+                            if metric in ["DEF EFF", "TO/GM"]:
+                                z = -z
+                            if abs(z) < 0.3:
+                                lines.append(f"**{metric}** | Near NCAA average.")
+                            elif z >= 1.0:
+                                lines.append(f"**{metric}** | Clear strength.")
+                            elif 0.3 <= z < 1.0:
+                                lines.append(f"**{metric}** | Above NCAA average.")
+                            elif -1.0 < z <= -0.3:
+                                lines.append(f"**{metric}** | Below NCAA average.")
+                            else:
+                                lines.append(f"**{metric}** | Notable weakness.")
+                    return lines
+                
+                colA, colB = st.columns(2)
+                with colA:
+                    # Get team info
+                    conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+                    record = "N/A"
+                    if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
+                        w = int(team_data["WIN_25"].iloc[0])
+                        l = int(team_data["LOSS_25"].iloc[0])
+                        record = f"{w}-{l}"
+                    
+                    seed_info = ""
+                    if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
+                        seed_num = int(team_data["SEED_25"].iloc[0])
+                        seed_color = "#" + ["DC3545", "FD7E14", "28A745", "007BFF"][min(seed_num//5, 3)]
+                        seed_info = f'<span style="background-color:{seed_color}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">Seed {seed_num}</span>'
+                    
+                    # Rankings with styled indicators
+                    rankings = []
+                    if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
+                        kp_rank = int(team_data["KP_Rank"].iloc[0])
+                        kp_class = "text-success" if kp_rank <= 25 else "text-warning" if kp_rank <= 60 else "text-danger"
+                        rankings.append(f'<span class="{kp_class}">KenPom: #{kp_rank}</span>')
+                    
+                    if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
+                        bpi_rank = int(team_data["BPI_Rk_25"].iloc[0])
+                        bpi_class = "text-success" if bpi_rank <= 25 else "text-warning" if bpi_rank <= 60 else "text-danger"
+                        rankings.append(f'<span class="{bpi_class}">BPI: #{bpi_rank}</span>')
+                    
+                    if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
+                        net_rank = int(team_data["NET_25"].iloc[0])
+                        net_class = "text-success" if net_rank <= 25 else "text-warning" if net_rank <= 60 else "text-danger"
+                        rankings.append(f'<span class="{net_class}">NET: #{net_rank}</span>')
+                    
+                    rankings_html = " | ".join(rankings)
+                    
+                    # Team logo and info
+                    # Using a letter avatar as placeholder (in production you might use actual logos)
+                    team_initial = selected_team_reports[0].upper()
+                    
                     st.markdown(f"""
-                    <div style='text-align: center; margin: 20px 0;'>
-                        <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
-                            Overall Rating: {perf_data["text"]}
-                        </span>
+                    <div class="team-card">
+                        <div style="display:flex; align-items:center; margin-bottom:15px;">
+                            <div style="width:60px; height:60px; background-color:#0039A6; color:white; 
+                                        border-radius:50%; display:flex; align-items:center; justify-content:center; 
+                                        font-size:24px; font-weight:bold; margin-right:15px;">
+                                {team_initial}
+                            </div>
+                            <div>
+                                <h2 style="margin:0; color:#0039A6;">{selected_team_reports}</h2>
+                                <p style="margin:0; color:#666;">{conf}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="team-info">
+                            <p style="font-size:18px; margin-bottom:10px;">
+                                <strong>Record:</strong> <span style="font-weight:bold;">{record}</span> {seed_info}
+                            </p>
+                            <p style="margin-bottom:10px;">
+                                <strong>Rankings:</strong> {rankings_html}
+                            </p>
+                            
+                            <!-- Key Stats Section -->
+                            <div style="margin-top:15px;">
+                                <h4 style="border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h4>
+                                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                    """, unsafe_allow_html=True)
+                    
+                    # Key stats in circular indicators
+                    key_stats = []
+                    if "OFF EFF" in team_data.columns:
+                        off_eff = round(team_data["OFF EFF"].iloc[0], 1)
+                        key_stats.append(("OFF. EFF", off_eff, "#4CAF50"))
+                    if "DEF EFF" in team_data.columns:
+                        def_eff = round(team_data["DEF EFF"].iloc[0], 1)
+                        key_stats.append(("DEF. EFF", def_eff, "#F44336"))
+                    if "TS%" in team_data.columns:
+                        ts_pct = round(team_data["TS%"].iloc[0] * 100, 1)
+                        key_stats.append(("TS%", ts_pct, "#2196F3"))
+                    if "TTL REB/GM" in team_data.columns:
+                        reb = round(team_data["TTL REB/GM"].iloc[0], 1)
+                        key_stats.append(("REB/G", reb, "#FF9800"))
+                    
+                    # Display key stats
+                    for stat_name, stat_value, color in key_stats:
+                        st.markdown(f"""
+                            <div style="text-align:center; width:80px;">
+                                <div style="width:50px; height:50px; border-radius:50%; background-color:{color}; 
+                                            color:white; display:flex; align-items:center; justify-content:center; 
+                                            font-weight:bold; margin:0 auto;">
+                                    {stat_value}
+                                </div>
+                                <div style="font-size:12px; margin-top:5px;">{stat_name}</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown("""
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    # Performance Badge using existing logic
+                    if all(m in team_data.columns for m in get_default_metrics()):
+                        t_avgs, t_stdevs = compute_tournament_stats(df_main)
+                        perf_data = compute_performance_text(team_data.iloc[0], t_avgs, t_stdevs)
+                        st.markdown(f"""
+                        <div style='text-align: center; margin: 20px 0;'>
+                            <span class='{perf_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                                Overall Rating: {perf_data["text"]}
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                with colB:
+                    # Single-team Radar Chart
+                    single_radar_fig = create_radar_chart([selected_team_reports], df_main)
+                    if single_radar_fig:
+                        st.plotly_chart(single_radar_fig, use_container_width=True)
+                    
+                    # Improved insights display
+                    team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
+                    if team_insights:
+                        st.markdown("""
+                        <div class="insights-container">
+                            <h4 style="margin-top:0; color:#0039A6;">Team Insights</h4>
+                            <ul class="insights-list">
+                        """, unsafe_allow_html=True)
+                        
+                        for insight in team_insights:
+                            metric, comment = insight.split(" | ")
+                            st.markdown(f"""
+                            <li>
+                                <strong>{metric}:</strong> {comment}
+                            </li>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("""
+                            </ul>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-            with colB:
-                # Single-team Radar Chart
-                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
-                if single_radar_fig:
-                    st.plotly_chart(single_radar_fig, use_container_width=True)
 
-            # Helper function to generate interpretive insights
-            def get_interpretive_insights(row, df_all):
-                """Return bullet-point lines describing how each default metric compares to NCAA average."""
-                lines = []
-                t_avgs, t_stdevs = compute_tournament_stats(df_all)
-                for metric in get_default_metrics():
-                    if metric in row:
-                        mean_val = t_avgs.get(metric, 0)
-                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
-                        team_val = row[metric]
-                        z = (team_val - mean_val) / std_val
-                        # For these metrics, lower is better, so invert the sign
-                        if metric in ["DEF EFF", "TO/GM"]:
-                            z = -z
-                        if abs(z) < 0.3:
-                            lines.append(f"**{metric}** | Near NCAA average.")
-                        elif z >= 1.0:
-                            lines.append(f"**{metric}** | Clear strength.")
-                        elif 0.3 <= z < 1.0:
-                            lines.append(f"**{metric}** | Above NCAA average.")
-                        elif -1.0 < z <= -0.3:
-                            lines.append(f"**{metric}** | Below NCAA average.")
-                        else:
-                            lines.append(f"**{metric}** | Notable weakness.")
-                return lines
 
             team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
 
