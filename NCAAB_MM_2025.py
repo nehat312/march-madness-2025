@@ -2415,7 +2415,7 @@ with tab_team_reports:
                             team_val = row[metric]
                             z = (team_val - mean_val) / std_val
                             # For these metrics, lower is better, so invert the sign
-                            if metric in ["DEF EFF", "TO/GM"]:
+                            if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM",]:
                                 z = -z
                             if abs(z) < 0.3:
                                 lines.append(f"**{metric}** | Near NCAA average.")
@@ -2603,10 +2603,10 @@ with tab_team_reports:
                             opp_kp_rank = f"**KenPom Rank**: {int(opp_data['KP_Rank'].iloc[0])}"
                         opp_BPI_rank = ""
                         if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
-                            kp_rank = f"**BPI Rank**: {int(opp_data['BPI_Rk_25'].iloc[0])}"
+                            opp_BPI_rank = f"**BPI Rank**: {int(opp_data['BPI_Rk_25'].iloc[0])}"
                         opp_NET_rank = ""
                         if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
-                            kp_rank = f"**NET Rank**: {int(opp_data['NET_25'].iloc[0])}"
+                            opp_NET_rank = f"**NET Rank**: {int(opp_data['NET_25'].iloc[0])}"
                         st.markdown(f"""
                         **Conference:** {opp_conf}  
                         **Record:** {opp_record}  
@@ -2935,28 +2935,76 @@ with tab_regions:
     #df_heat_T = df_heat_T[core_cols]
 
     east_teams_2025 = [
-        "Duke", "Alabama", "Iowa St.", "Maryland",
-        "Memphis", "Mississippi", "Saint Mary's", "Mississippi St.",
-        "Baylor", "Vanderbilt", "North Carolina", "Colorado St.",
-        "Grand Canyon", "Lipscomb", "Robert Morris", "American",
+    "Duke",
+    "Alabama",
+    "Wisconsin",
+    "Arizona",
+    "Oregon",
+    "BYU",
+    "Saint Mary's",
+    "Mississippi St.",
+    "Baylor",
+    "Vanderbilt",
+    "VCU",
+    "Liberty",
+    "Akron",
+    "Montana",
+    "Robert Morris",
+    "American",
     ]
     west_teams_2025 = [
-        "Auburn", "St. John's", "Texas Tech", "Texas A&M",
-        "Michigan", "Missouri", "UCLA", "Gonzaga",
-        "Georgia", "Utah St.", "Drake", "UC San Diego",
-        "Yale", "UNC Wilmington", "Nebraska Omaha", "Alabama St.",
+    "Florida",
+    "St John's",
+    "Texas Tech",
+    "Maryland",
+    "Memphis",
+    "Missouri",
+    "Kansas",
+    "UConn",
+    "Oklahoma",
+    "Arkansas",
+    "Drake",
+    "Colorado St.",
+    "Grand Canyon",
+    "NC Wilmington",
+    "Omaha",
+    "Norfolk St.",
     ]
     south_teams_2025 = [
-        "Florida", "Michigan St.", "Kentucky", "Arizona",
-        "Oregon", "Illinois", "Marquette", "Connecticut",
-        "Oklahoma", "New Mexico", "Texas", "Liberty",
-        "Akron", "Troy", "Bryant", "Norfolk St.",
+    "Auburn",
+    "Michigan St.",
+    "Iowa St",
+    "Texas A&M",
+    "Michigan",
+    "Mississippi",
+    "Marquette",
+    "Louisville",
+    "Creighton",
+    "New Mexico",
+    "North Carolina",
+    "UCSD",
+    "Yale",
+    "Lipscomb",
+    "Bryant",
+    "Alabama St.",
     ]
     midwest_teams_2025 = [
-        "Houston", "Tennessee", "Wisconsin", "Purdue",
-        "Clemson", "BYU", "Kansas", "Louisville",
-        "Creighton", "Arkansas", "VCU", "McNeese",
-        "High Point", "Montana", "Wofford", "SIU Edwardsville",
+    "Houston",
+    "Tennessee",
+    "Kentucky",
+    "Purdue",
+    "Clemson",
+    "Illinois",
+    "UCLA",
+    "Gonzaga",
+    "Georgia",
+    "Utah St.",
+    "Texas",
+    "McNeese",
+    "High Point",
+    "Troy",
+    "Wofford",
+    "SIUE",
     ]
     regions = {
         "EAST REGION": east_teams_2025,
@@ -2987,8 +3035,10 @@ with tab_regions:
         "eFG%": "RdYlGn",
         "TS%": "RdYlGn",
         "OPP TS%": "RdYlGn_r",
+        "OPP eFG%": "RdYlGn_r",
         "AST/TO%": "RdYlGn",
         "STOCKS/GM": "RdYlGn",
+        "STOCKS-TOV/GM": "RdYlGn",
         "WIN% ALL GM": "RdYlGn",
         "WIN% CLOSE GM": "RdYlGn",
         "NET_25": "RdYlGn_r",
@@ -2998,6 +3048,12 @@ with tab_regions:
         "KP_AdjD": "RdYlGn_r",
         "PTS/GM": "RdYlGn",
         "OPP PTS/GM": "RdYlGn",
+        "OFF REB/GM": "RdYlGn",
+        "DEF REB/GM": "RdYlGn",
+        "STL/GM": "RdYlGn",
+        "AST/GM": "RdYlGn",
+        "TO/GM": "RdYlGn_r",
+
     }
 
     # Advanced table styling to match TEAM METRICS tab
