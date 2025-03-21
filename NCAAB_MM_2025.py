@@ -2452,10 +2452,10 @@ with tab_team_reports:
                         kp_class = "text-success" if kp_rank <= 25 else "text-warning" if kp_rank <= 60 else "text-danger"
                         rankings.append(f'<span class="{kp_class}">KenPom: #{kp_rank}</span>')
                     
-                    if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
-                        bpi_rank = int(team_data["BPI_Rk_25"].iloc[0])
-                        bpi_class = "text-success" if bpi_rank <= 25 else "text-warning" if bpi_rank <= 60 else "text-danger"
-                        rankings.append(f'<span class="{bpi_class}">BPI: #{bpi_rank}</span>')
+                    # if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
+                    #     bpi_rank = int(team_data["BPI_Rk_25"].iloc[0])
+                    #     bpi_class = "text-success" if bpi_rank <= 25 else "text-warning" if bpi_rank <= 60 else "text-danger"
+                    #     rankings.append(f'<span class="{bpi_class}">BPI: #{bpi_rank}</span>')
                     
                     if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
                         net_rank = int(team_data["NET_25"].iloc[0])
@@ -2668,8 +2668,8 @@ with tab_team_reports:
                         h2h_metrics = [
                             "SEED_25",
                             "BPI_25", "KP_AdjEM",
-                            
-                            "BPI_Rk_25", "KP_Rank", "KP_SOS_AdjEM",
+                            #"BPI_Rk_25",
+                            "KP_Rank", "KP_SOS_AdjEM",
                             "KP_AdjO", "KP_AdjO",
                             "OFF EFF", "DEF EFF",
                             "WIN% ALL GM", #"WIN% CLOSE GM",
@@ -2708,7 +2708,7 @@ with tab_team_reports:
                         lower_is_better = {
                             "KP_Rank": True,
                             "KP_SOS_AdjEM":True,
-                            "BPI_Rk_25":True,
+                            #"BPI_Rk_25":True,
                             "DEF EFF": True,
                             "OPP PTS/GM": True,
                             "OPP eFG%": True,
