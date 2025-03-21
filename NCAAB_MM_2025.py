@@ -2215,7 +2215,7 @@ with tab_team_reports:
         font-weight: bold; 
         padding: 5px 14px; 
         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-        text-shadow: 0px 1px 1px rgba(255,255,255,0.5);
+        text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
     }
     .badge-solid { 
         background: linear-gradient(135deg, #4CAF50, #388E3C); 
@@ -2496,20 +2496,36 @@ with tab_team_reports:
                                 <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
                     """, unsafe_allow_html=True)
                     
-                    # Key stats in circular indicators
+                    # Key stats in circular indicators with upgraded color palette
                     key_stats = []
+                    if "WIN% ALL GM" in team_data.columns:
+                        kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
+                        key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))  # SeaGreen
+                    if "KP_AdjEM" in team_data.columns:
+                        kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
+                        key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))  # SeaGreen
+                    if "BPI_25" in team_data.columns:
+                        bpi_val = round(team_data["BPI_25"].iloc[0], 1)
+                        key_stats.append(("ESPN BPI", bpi_val, "#6A5ACD"))        # SlateBlue
+                    if "KP_AdjO" in team_data.columns:
+                        kp_adjO = round(team_data["KP_AdjO"].iloc[0], 1)
+                        key_stats.append(("KenPom AdjO.", kp_adjO, "#1E90FF"))    # DodgerBlue
+                    if "KP_AdjD" in team_data.columns:
+                        kp_adjD = round(team_data["KP_AdjD"].iloc[0], 1)
+                        key_stats.append(("KenPom AdjD", kp_adjD, "#DC143C"))     # Crimson
                     if "OFF EFF" in team_data.columns:
-                        off_eff = round(team_data["OFF EFF"].iloc[0], 1)
-                        key_stats.append(("OFF. EFF", off_eff, "#4CAF50"))
+                        off_eff = round(team_data["OFF EFF"].iloc[0], 2)
+                        key_stats.append(("TeamRankings OEff.", off_eff, "#008B8B"))  # DarkCyan
                     if "DEF EFF" in team_data.columns:
-                        def_eff = round(team_data["DEF EFF"].iloc[0], 1)
-                        key_stats.append(("DEF. EFF", def_eff, "#F44336"))
-                    if "TS%" in team_data.columns:
-                        ts_pct = round(team_data["TS%"].iloc[0] * 100, 1)
-                        key_stats.append(("TS%", ts_pct, "#2196F3"))
-                    if "TTL REB/GM" in team_data.columns:
-                        reb = round(team_data["TTL REB/GM"].iloc[0], 1)
-                        key_stats.append(("REB/G", reb, "#FF9800"))
+                        def_eff = round(team_data["DEF EFF"].iloc[0], 2)
+                        key_stats.append(("TeamRankings DEff", def_eff, "#B22222"))   # Firebrick
+
+                    # if "TS%" in team_data.columns:
+                    #     ts_pct = round(team_data["TS%"].iloc[0] * 100, 1)
+                    #     key_stats.append(("TS%", ts_pct, "#2196F3"))
+                    # if "TTL REB/GM" in team_data.columns:
+                    #     reb = round(team_data["TTL REB/GM"].iloc[0], 1)
+                    #     key_stats.append(("REB/G", reb, "#FF9800"))
                     
                     # Display key stats
                     for stat_name, stat_value, color in key_stats:
@@ -2591,30 +2607,47 @@ with tab_team_reports:
                         st.markdown(f"#### {selected_opponent}")
                         opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
                         opp_record = "N/A"
-                        if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
-                            w2 = int(opp_data["WIN_25"].iloc[0])
-                            l2 = int(opp_data["LOSS_25"].iloc[0])
-                            opp_record = f"{w2}-{l2}"
-                        opp_seed = ""
-                        if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
-                            opp_seed = f"**Seed**: {int(opp_data['SEED_25'].iloc[0])}"
-                        opp_kp_rank = ""
-                        if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
-                            opp_kp_rank = f"**KenPom Rank**: {int(opp_data['KP_Rank'].iloc[0])}"
-                        opp_BPI_rank = ""
-                        if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
-                            opp_BPI_rank = f"**BPI Rank**: {int(opp_data['BPI_Rk_25'].iloc[0])}"
-                        opp_NET_rank = ""
-                        if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
-                            opp_NET_rank = f"**NET Rank**: {int(opp_data['NET_25'].iloc[0])}"
-                        st.markdown(f"""
-                        **Conference:** {opp_conf}  
-                        **Record:** {opp_record}  
-                        {opp_seed}  
-                        {opp_kp_rank}
-                        {opp_BPI_rank}
-                        {opp_NET_rank}
-                        """)
+                        # Display Opponent Key Stats (with same colors and format as selected team)
+                        opp_key_stats = []
+                        if "KP_AdjEM" in opp_data.columns:
+                            val = round(opp_data["KP_AdjEM"].iloc[0], 1)
+                            opp_key_stats.append(("KenPom AdjEM", val, "#2E8B57"))  # SeaGreen
+                        if "BPI_25" in opp_data.columns:
+                            val = round(opp_data["BPI_25"].iloc[0], 1)
+                            opp_key_stats.append(("ESPN BPI", val, "#6A5ACD"))      # SlateBlue
+                        if "KP_AdjO" in opp_data.columns:
+                            val = round(opp_data["KP_AdjO"].iloc[0], 1)
+                            opp_key_stats.append(("KenPom AdjO.", val, "#1E90FF"))  # DodgerBlue
+                        if "KP_AdjD" in opp_data.columns:
+                            val = round(opp_data["KP_AdjD"].iloc[0], 1)
+                            opp_key_stats.append(("KenPom AdjD", val, "#DC143C"))   # Crimson
+                        if "OFF EFF" in opp_data.columns:
+                            val = round(opp_data["OFF EFF"].iloc[0], 2)
+                            opp_key_stats.append(("TeamRankings OEff.", val, "#008B8B"))  # DarkCyan
+                        if "DEF EFF" in opp_data.columns:
+                            val = round(opp_data["DEF EFF"].iloc[0], 2)
+                            opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))   # Firebrick
+
+                        # Render key stats in same bubble layout
+                        st.markdown("""
+                        <div style="margin-top:10px;">
+                            <h5 style="border-bottom:1px solid #eee; padding-bottom:4px;">KEY STATS</h5>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                        """, unsafe_allow_html=True)
+
+                        for stat_name, stat_value, color in opp_key_stats:
+                            st.markdown(f"""
+                                <div style="text-align:center; width:80px;">
+                                    <div style="width:50px; height:50px; border-radius:50%; background-color:{color}; 
+                                                color:white; display:flex; align-items:center; justify-content:center; 
+                                                font-weight:bold; margin:0 auto;">
+                                        {stat_value}
+                                    </div>
+                                    <div style="font-size:12px; margin-top:5px;">{stat_name}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("</div></div>", unsafe_allow_html=True)
 
                     with colH2H2:
                         # Combined radar chart for the opponent (or both teams if you wish)
@@ -2633,19 +2666,22 @@ with tab_team_reports:
 
                         # 1) Define metrics to show
                         h2h_metrics = [
-                            "KP_Rank", "KP_AdjEM", "KP_SOS_AdjEM",
-                            "BPI_25",
+                            "SEED_25",
+                            "BPI_25", "KP_AdjEM",
+                            
+                            "BPI_Rk_25", "KP_Rank", "KP_SOS_AdjEM",
+                            "KP_AdjO", "KP_AdjO",
                             "OFF EFF", "DEF EFF",
                             "WIN% ALL GM", #"WIN% CLOSE GM",
                             "AVG MARGIN", #"PTS/GM", "OPP PTS/GM",
                             "eFG%", "OPP eFG%",
-                            "TS%", "OPP TS%", 
-                            "OFF REB/GM", "DEF REB/GM",
-                            "AST/GM", "TO/GM",
+                            #"TS%", "OPP TS%", 
+                            #"OFF REB/GM", "DEF REB/GM",
+                            #"AST/GM", "TO/GM",
                             "AST/TO%",
-                            
                             #"BLKS/GM", "STL/GM", 
-                            "STOCKS/GM", "STOCKS-TOV/GM"
+                            #"STOCKS/GM",
+                            "STOCKS-TOV/GM"
                         ]
 
                         # 2) Grab data rows
@@ -2671,11 +2707,15 @@ with tab_team_reports:
                         # 5) Mark which metrics are "lower is better"
                         lower_is_better = {
                             "KP_Rank": True,
+                            "KP_SOS_AdjEM":True,
+                            "BPI_Rk_25":True,
                             "DEF EFF": True,
                             "OPP PTS/GM": True,
                             "OPP eFG%": True,
                             "OPP TS%": True,
                             "TO/GM": True,
+                            
+
                         }
 
                         # 6) Compute ADVANTAGE for each row
@@ -2777,7 +2817,7 @@ with tab_team_reports:
                                     ratio = 0.5
                                 else:
                                     ratio = (cell_val - vmin) / (vmax - vmin)
-                                cmap = matplotlib.cm.get_cmap("RdYlGn")
+                                cmap = matplotlib.cm["RdYlGn"]
                                 rgba = cmap(ratio)
                                 color_hex = mcolors.to_hex(rgba)
                                 styles.append(f"background-color: {color_hex}; text-align: center;")
