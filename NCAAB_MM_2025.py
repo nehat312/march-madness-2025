@@ -2298,8 +2298,7 @@ with tab_team_reports:
     }
     .stats-table td {
         padding: 10px 12px;
-        border-bottom: 1px dashed #ccc; /* lighter dashed line for row separation */
-        border-right: 1px dashed #eee;  /* dashed lines for internal column dividers */
+        border-bottom: 1px solid #eaeaea;
     }
 
     /* Insights section */
@@ -2400,440 +2399,471 @@ with tab_team_reports:
         key="select_opponent_reports"
     )
 
-    # ------------------------------
-    # HELPER FUNCTION for Team Block
-    # ------------------------------
-    def render_team_block(team_name):
-        """
-        Renders the entire "team card" layout, performance badge, radar chart, 
-        and single bullet-list of key insights for the given team_name.
-        """
-        tdata = df_main[df_main["TM_KP"] == team_name].copy()
-        if tdata.empty:
-            # Just display a warning if no data
-            st.warning(f"No data found for {team_name}.")
-            return
-
-        # --- Performance badge function (unchanged from your code) ---
-        def compute_performance_badge(row, df_all):
-            t_avgs, t_stdevs = compute_tournament_stats(df_all)
-            metrics = get_default_metrics()
-            z_vals = []
-            for m in metrics:
-                if m in row and m in t_avgs and m in t_stdevs:
-                    std = t_stdevs[m] if t_stdevs[m] > 1e-12 else 1e-6
-                    val = row[m]
-                    mean_ = t_avgs[m]
-                    z = (val - mean_) / std
-                    # Invert if lower-is-better
-                    if m in ["DEF EFF", "KP_AdjD", "TO/GM", "KP_SOS_AdjEM"]:
-                        z = -z
-                    z_vals.append(z)
-            if not z_vals:
-                return {"text": "NO DATA", "class": "badge-mid"}
-            avg_z = sum(z_vals) / len(z_vals)
-            # Adjust thresholds as you see fit
-            if avg_z >= 0.75:
-                return {"text": "ELITE", "class": "badge-elite"}
-            elif avg_z >= 0.25:
-                return {"text": "SOLID", "class": "badge-solid"}
-            elif avg_z >= -0.25:
-                return {"text": "MID", "class": "badge-mid"}
-            elif avg_z >= -0.75:
-                return {"text": "SUBPAR", "class": "badge-subpar"}
-            else:
-                return {"text": "WEAK", "class": "badge-weak"}
-
-        # Basic info
-        conf = tdata["CONFERENCE"].iloc[0] if "CONFERENCE" in tdata.columns else "N/A"
-        record = "N/A"
-        if "WIN_25" in tdata.columns and "LOSS_25" in tdata.columns:
-            w = int(tdata["WIN_25"].iloc[0])
-            l = int(tdata["LOSS_25"].iloc[0])
-            record = f"{w}-{l}"
-
-        seed_info = ""
-        if "SEED_25" in tdata.columns and not pd.isna(tdata["SEED_25"].iloc[0]):
-            seed_num = int(tdata["SEED_25"].iloc[0])
-            seed_color = "#" + ["DC3545", "FD7E14", "28A745", "007BFF"][min(seed_num//5, 3)]
-            seed_info = (
-                f'<span style="background-color:{seed_color}; color:white; '
-                f'padding:3px 8px; border-radius:4px; font-weight:bold;">Seed {seed_num}</span>'
-            )
-
-        # Rankings
-        rankings = []
-        if "KP_Rank" in tdata.columns and not pd.isna(tdata["KP_Rank"].iloc[0]):
-            kp_rank = int(tdata["KP_Rank"].iloc[0])
-            rankings.append(f'KenPom: #{kp_rank}')
-        if "NET_25" in tdata.columns and not pd.isna(tdata["NET_25"].iloc[0]):
-            net_rank = int(tdata["NET_25"].iloc[0])
-            rankings.append(f'NET: #{net_rank}')
-        rankings_html = " | ".join(rankings)
-
-        # Team initial
-        team_initial = team_name[0].upper()
-
-        # Open card container
-        st.markdown(f"""
-        <div class="team-card">
-            <div style="display:flex; align-items:center; margin-bottom:15px;">
-                <div style="width:60px; height:60px; background-color:#0039A6; color:white; 
-                            border-radius:50%; display:flex; align-items:center; justify-content:center; 
-                            font-size:24px; font-weight:bold; margin-right:15px;">
-                    {team_initial}
-                </div>
-                <div>
-                    <h2 style="margin:0; color:#0039A6;">{team_name}</h2>
-                    <p style="margin:0; color:#666;">{conf}</p>
-                </div>
-            </div>
-
-            <div class="team-info">
-                <p style="font-size:18px; margin-bottom:10px;">
-                    <strong>Record:</strong>
-                    <span style="font-weight:bold;">{record}</span> {seed_info}
-                </p>
-                <p style="margin-bottom:10px;">
-                    <strong>Rankings:</strong> {rankings_html}
-                </p>
-
-                <h4 style="border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h4>
-                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Key stats
-        key_stats = []
-        if "WIN% ALL GM" in tdata.columns:
-            val = round(tdata["WIN% ALL GM"].iloc[0]*100, 1)
-            key_stats.append(("WIN% ALL GM", f"{val}%", "#333333"))
-        if "KP_AdjEM" in tdata.columns:
-            val = round(tdata["KP_AdjEM"].iloc[0], 1)
-            key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
-        if "BPI_25" in tdata.columns:
-            val = round(tdata["BPI_25"].iloc[0], 1)
-            key_stats.append(("ESPN BPI", val, "#6A5ACD"))
-        if "KP_AdjO" in tdata.columns:
-            val = round(tdata["KP_AdjO"].iloc[0], 1)
-            key_stats.append(("KenPom AdjO", val, "#1E90FF"))
-        if "KP_AdjD" in tdata.columns:
-            val = round(tdata["KP_AdjD"].iloc[0], 1)
-            key_stats.append(("KenPom AdjD", val, "#DC143C"))
-        if "OFF EFF" in tdata.columns:
-            val = round(tdata["OFF EFF"].iloc[0], 2)
-            key_stats.append(("TeamRankings OEff", val, "#008B8B"))
-        if "DEF EFF" in tdata.columns:
-            val = round(tdata["DEF EFF"].iloc[0], 2)
-            key_stats.append(("TeamRankings DEff", val, "#B22222"))
-
-        for stat_name, stat_value, color in key_stats:
-            st.markdown(f"""
-                <div style="text-align:center; width:80px;">
-                    <div style="width:50px; height:50px; border-radius:50%; background-color:{color}; 
-                                color:white; display:flex; align-items:center; justify-content:center; 
-                                font-weight:bold; margin:0 auto;">
-                        {stat_value}
-                    </div>
-                    <div style="font-size:12px; margin-top:5px;">{stat_name}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Close the flex container + team-info + card
-        st.markdown("""
-                </div><!-- close flex container -->
-            </div><!-- close team-info -->
-        </div><!-- close team-card -->
-        """, unsafe_allow_html=True)
-
-        # Performance badge
-        if all(m in tdata.columns for m in get_default_metrics()):
-            badge_data = compute_performance_badge(tdata.iloc[0], df_main)
-            st.markdown(f"""
-            <div style='text-align: center; margin: 20px 0;'>
-                <span class='{badge_data["class"]}' style='font-size: 18px; padding: 8px 16px;'>
-                    Overall Rating: {badge_data["text"]}
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # Radar chart
-        radar_fig = create_radar_chart([team_name], df_main)
-        if radar_fig:
-            st.plotly_chart(radar_fig, use_container_width=True)
-
-        # Key insights
-        def get_insights(row):
-            lines = []
-            t_avgs, t_stdevs = compute_tournament_stats(df_main)
-            for metric in get_default_metrics():
-                if metric in row:
-                    mean_val = t_avgs.get(metric, 0)
-                    std_val = max(t_stdevs.get(metric, 1), 1e-6)
-                    val = row[metric]
-                    z = (val - mean_val) / std_val
-                    if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
-                        z = -z
-                    if abs(z) < 0.3:
-                        lines.append(f"**{metric}** | Near NCAA average.")
-                    elif z >= 1.0:
-                        lines.append(f"**{metric}** | Clear strength.")
-                    elif 0.3 <= z < 1.0:
-                        lines.append(f"**{metric}** | Above NCAA average.")
-                    elif -1.0 < z <= -0.3:
-                        lines.append(f"**{metric}** | Below NCAA average.")
-                    else:
-                        lines.append(f"**{metric}** | Notable weakness.")
-            return lines
-
-        lines = get_insights(tdata.iloc[0])
-        if lines:
-            st.markdown("""
-            <div class="insights-container">
-                <h4 style="margin-top:0; color:#0039A6;">Key Insights</h4>
-                <ul class="insights-list">
-            """, unsafe_allow_html=True)
-            for ln in lines:
-                metric, comment = ln.split(" | ")
-                st.markdown(f"<li><strong>{metric}:</strong> {comment}</li>", unsafe_allow_html=True)
-            st.markdown("</ul></div>", unsafe_allow_html=True)
-
-    # -----------
-    # RENDER MAIN
-    # -----------
-    # If user picked a team, show that block
     if selected_team_reports:
+        # ------------------------------------------------------
+        # TEAM OVERVIEW & INSIGHTS
+        # ------------------------------------------------------
         team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
         if team_data.empty:
             st.warning("No data found for the selected team.")
         else:
+            # Title container
             st.markdown("""
             <div class="team-report-container">
-                <h2 class="header-with-line">TEAM OVERVIEW</h2>
+                <h2 class="header-with-line">Team Overview</h2>
             </div>
             """, unsafe_allow_html=True)
-            # Just call our function
-            render_team_block(selected_team_reports)
 
-    # If user also picked an opponent, show side-by-side columns
+            # Helper to compute performance badge with revised thresholds
+            def compute_performance_badge(row, df_all):
+                t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                metrics = get_default_metrics()
+                z_vals = []
+                for m in metrics:
+                    if m in row and m in t_avgs and m in t_stdevs:
+                        std = t_stdevs[m] if t_stdevs[m] > 1e-12 else 1e-6
+                        val = row[m]
+                        mean_ = t_avgs[m]
+                        z = (val - mean_) / std
+                        # Invert if lower-is-better
+                        if m in ["DEF EFF", "KP_AdjD", "TO/GM", "KP_SOS_AdjEM"]:
+                            z = -z
+                        z_vals.append(z)
+                if not z_vals:
+                    return {"text": "NO DATA", "class": "badge-mid"}
+                avg_z = sum(z_vals) / len(z_vals)
+                # Adjust thresholds as you see fit
+                if avg_z >= 0.75:
+                    return {"text": "ELITE", "class": "badge-elite"}
+                elif avg_z >= 0.25:
+                    return {"text": "SOLID", "class": "badge-solid"}
+                elif avg_z >= -0.25:
+                    return {"text": "MID", "class": "badge-mid"}
+                elif avg_z >= -0.75:
+                    return {"text": "SUBPAR", "class": "badge-subpar"}
+                else:
+                    return {"text": "WEAK", "class": "badge-weak"}
+
+            # Layout columns for the overview
+            colA, colB = st.columns(2)
+            with colA:
+                # Basic team info
+                conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+                record = "N/A"
+                if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
+                    w = int(team_data["WIN_25"].iloc[0])
+                    l = int(team_data["LOSS_25"].iloc[0])
+                    record = f"{w}-{l}"
+
+                seed_info = ""
+                if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
+                    seed_num = int(team_data["SEED_25"].iloc[0])
+                    # color from your existing approach
+                    seed_color = "#" + ["DC3545", "FD7E14", "28A745", "007BFF"][min(seed_num//5, 3)]
+                    seed_info = (
+                        f'<span style="background-color:{seed_color}; color:white; '
+                        f'padding:3px 8px; border-radius:4px; font-weight:bold;">Seed {seed_num}</span>'
+                    )
+
+                # Rankings
+                rankings = []
+                if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
+                    kp_rank = int(team_data["KP_Rank"].iloc[0])
+                    rankings.append(f'KenPom: #{kp_rank}')
+                if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
+                    net_rank = int(team_data["NET_25"].iloc[0])
+                    rankings.append(f'NET: #{net_rank}')
+                rankings_html = " | ".join(rankings)
+
+                team_initial = selected_team_reports[0].upper()
+
+                # Open the card container and the "team-info" block
+                st.markdown(f"""
+                <div class="team-card">
+                    <div style="display:flex; align-items:center; margin-bottom:15px;">
+                        <div style="width:60px; height:60px; background-color:#0039A6; color:white; 
+                                    border-radius:50%; display:flex; align-items:center; justify-content:center; 
+                                    font-size:24px; font-weight:bold; margin-right:15px;">
+                            {team_initial}
+                        </div>
+                        <div>
+                            <h2 style="margin:0; color:#0039A6;">{selected_team_reports}</h2>
+                            <p style="margin:0; color:#666;">{conf}</p>
+                        </div>
+                    </div>
+
+                    <div class="team-info">
+                        <p style="font-size:18px; margin-bottom:10px;">
+                            <strong>Record:</strong>
+                            <span style="font-weight:bold;">16-15</span> 
+                            <span style="background-color:#28A745; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">Seed 16</span>
+                        </p>
+                        <p style="margin-bottom:10px;">
+                            <strong>Rankings:</strong> KenPom: #59 | NET: #58
+                        </p>
+                        <h4 style="border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h4>
+                        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                            </div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # Now insert the "stat bubbles" in a loop
+                key_stats = []
+                # Example: if "WIN% ALL GM" is present
+                if "WIN% ALL GM" in team_data.columns:
+                    win_pct = round(team_data["WIN% ALL GM"].iloc[0], 2)
+                    key_stats.append(("WIN% ALL GM", f"{win_pct*100:.0f}%", "#333333"))
+                if "KP_AdjEM" in team_data.columns:
+                    kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
+                    key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))
+                if "BPI_25" in team_data.columns:
+                    bpi_val = round(team_data["BPI_25"].iloc[0], 1)
+                    key_stats.append(("ESPN BPI", bpi_val, "#6A5ACD"))
+                if "KP_AdjO" in team_data.columns:
+                    kp_adjO = round(team_data["KP_AdjO"].iloc[0], 1)
+                    key_stats.append(("KenPom AdjO", kp_adjO, "#1E90FF"))
+                if "KP_AdjD" in team_data.columns:
+                    kp_adjD = round(team_data["KP_AdjD"].iloc[0], 1)
+                    key_stats.append(("KenPom AdjD", kp_adjD, "#DC143C"))
+                if "OFF EFF" in team_data.columns:
+                    off_eff = round(team_data["OFF EFF"].iloc[0], 2)
+                    key_stats.append(("TeamRankings OEff", off_eff, "#008B8B"))
+                if "DEF EFF" in team_data.columns:
+                    def_eff = round(team_data["DEF EFF"].iloc[0], 2)
+                    key_stats.append(("TeamRankings DEff", def_eff, "#B22222"))
+
+                # Render each stat bubble
+                for stat_name, stat_value, color in key_stats:
+                    st.markdown(f"""
+                        <div style="text-align:center; width:80px;">
+                            <div style="width:50px; height:50px; border-radius:50%; background-color:{color}; 
+                                        color:white; display:flex; align-items:center; justify-content:center; 
+                                        font-weight:bold; margin:0 auto;">
+                                {stat_value}
+                            </div>
+                            <div style="font-size:12px; margin-top:5px;">{stat_name}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                # Now close the stat flex container, the team-info block, and the card
+                st.markdown("""
+                        </div><!-- close flex container -->
+                    </div><!-- close team-info -->
+                </div><!-- close team-card -->
+                """, unsafe_allow_html=True)
+
+                # Performance Badge
+                if all(m in team_data.columns for m in get_default_metrics()):
+                    badge = compute_performance_badge(team_data.iloc[0], df_main)
+                    st.markdown(f"""
+                    <div style='text-align: center; margin: 20px 0;'>
+                        <span class='{badge["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                            Overall Rating: {badge["text"]}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            with colB:
+                # Single-team Radar Chart
+                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
+                if single_radar_fig:
+                    st.plotly_chart(single_radar_fig, use_container_width=True)
+
+                # Interpretive insights
+                def get_interpretive_insights(row, df_all):
+                    lines = []
+                    t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                    for metric in get_default_metrics():
+                        if metric in row:
+                            mean_val = t_avgs.get(metric, 0)
+                            std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                            team_val = row[metric]
+                            z = (team_val - mean_val) / std_val
+                            if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
+                                z = -z
+                            if abs(z) < 0.3:
+                                lines.append(f"**{metric}** | Near NCAA average.")
+                            elif z >= 1.0:
+                                lines.append(f"**{metric}** | Clear strength.")
+                            elif 0.3 <= z < 1.0:
+                                lines.append(f"**{metric}** | Above NCAA average.")
+                            elif -1.0 < z <= -0.3:
+                                lines.append(f"**{metric}** | Below NCAA average.")
+                            else:
+                                lines.append(f"**{metric}** | Notable weakness.")
+                    return lines
+
+                team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
+                if team_insights:
+                    st.markdown("""
+                    <div class="insights-container">
+                        <h4 style="margin-top:0; color:#0039A6;">Team Insights</h4>
+                        <ul class="insights-list">
+                    """, unsafe_allow_html=True)
+                    for insight in team_insights:
+                        metric, comment = insight.split(" | ")
+                        st.markdown(f"<li><strong>{metric}:</strong> {comment}</li>", unsafe_allow_html=True)
+                    st.markdown("</ul></div>", unsafe_allow_html=True)
+
+    # ------------------------------------------------------
+    # HEAD-TO-HEAD COMPARISON
+    # ------------------------------------------------------
     if selected_opponent and selected_opponent != selected_team_reports:
-        # We'll do a new container for the side-by-side
-        st.markdown("---")
-        st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
-
         opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
         if opp_data.empty:
             st.warning("No data available for the selected opponent.")
         else:
-            colLeft, colRight = st.columns(2)
-            with colLeft:
-                st.markdown(f"### {selected_team_reports}")
-                render_team_block(selected_team_reports)
-            with colRight:
-                st.markdown(f"### {selected_opponent}")
-                render_team_block(selected_opponent)
+            st.markdown("---")
+            st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
 
-            # After both teams are rendered, do the head-to-head table
-            st.markdown("### Head-to-Head Stats Comparison")
-            h2h_metrics = [
-                "SEED_25", "BPI_25", "KP_AdjEM", "KP_Rank", "KP_SOS_AdjEM",
-                "KP_AdjO", "KP_AdjD", "OFF EFF", "DEF EFF", "WIN% ALL GM",
-                "AVG MARGIN", "eFG%", "OPP eFG%", "AST/TO%", "STOCKS-TOV/GM"
-            ]
-            row_team = team_data.iloc[0]
-            row_opp = opp_data.iloc[0]
-            valid_df = df_main.dropna(subset=h2h_metrics, how="all")
-            ncaa_avg = valid_df[h2h_metrics].mean(numeric_only=True)
-            tourney_df = valid_df[valid_df["SEED_25"].notna()]
-            if not tourney_df.empty:
-                tourney_avg = tourney_df[h2h_metrics].mean(numeric_only=True)
-            else:
-                tourney_avg = pd.Series([np.nan]*len(h2h_metrics), index=h2h_metrics)
+            colH2H1, colH2H2 = st.columns(2)
+            with colH2H1:
+                st.markdown(f"#### {selected_opponent}")
+                opp_key_stats = []
+                if "KP_AdjEM" in opp_data.columns:
+                    val = round(opp_data["KP_AdjEM"].iloc[0], 1)
+                    opp_key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
+                if "BPI_25" in opp_data.columns:
+                    val = round(opp_data["BPI_25"].iloc[0], 1)
+                    opp_key_stats.append(("ESPN BPI", val, "#6A5ACD"))
+                if "KP_AdjO" in opp_data.columns:
+                    val = round(opp_data["KP_AdjO"].iloc[0], 1)
+                    opp_key_stats.append(("KenPom AdjO", val, "#1E90FF"))
+                if "KP_AdjD" in opp_data.columns:
+                    val = round(opp_data["KP_AdjD"].iloc[0], 1)
+                    opp_key_stats.append(("KenPom AdjD", val, "#DC143C"))
+                if "OFF EFF" in opp_data.columns:
+                    val = round(opp_data["OFF EFF"].iloc[0], 2)
+                    opp_key_stats.append(("TeamRankings OEff", val, "#008B8B"))
+                if "DEF EFF" in opp_data.columns:
+                    val = round(opp_data["DEF EFF"].iloc[0], 2)
+                    opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))
 
-            final_df = pd.DataFrame({"METRIC": h2h_metrics})
-            final_df[selected_team_reports] = [row_team[m] if m in row_team else np.nan for m in h2h_metrics]
-            final_df[selected_opponent] = [row_opp[m] if m in row_opp else np.nan for m in h2h_metrics]
-            final_df["NCAA AVG"] = [ncaa_avg[m] for m in h2h_metrics]
-            final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
+                st.markdown("""
+                <div style="margin-top:10px;">
+                    <h5 style="border-bottom:1px solid #eee; padding-bottom:4px;">KEY STATS</h5>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                """, unsafe_allow_html=True)
+                for stat_name, stat_value, color in opp_key_stats:
+                    st.markdown(f"""
+                        <div style="text-align:center; width:80px;">
+                            <div style="width:50px; height:50px; border-radius:50%; background-color:{color}; 
+                                        color:white; display:flex; align-items:center; justify-content:center; 
+                                        font-weight:bold; margin:0 auto;">
+                                {stat_value}
+                            </div>
+                            <div style="font-size:12px; margin-top:5px;">{stat_name}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                st.markdown("</div></div>", unsafe_allow_html=True)
 
-            lower_is_better = {
-                "KP_Rank": True,
-                "KP_SOS_AdjEM": True,
-                "DEF EFF": True,
-                "OPP PTS/GM": True,
-                "OPP eFG%": True,
-                "OPP TS%": True,
-                "TO/GM": True,
-            }
+            with colH2H2:
+                compare_radar_fig = create_radar_chart([selected_opponent], df_main)
+                if compare_radar_fig:
+                    st.plotly_chart(compare_radar_fig, use_container_width=True)
 
-            advantage_list = []
-            for idx, row_ in final_df.iterrows():
-                metric = row_["METRIC"]
-                valA = row_[selected_team_reports]
-                valB = row_[selected_opponent]
-                if pd.isna(valA) or pd.isna(valB):
-                    advantage_list.append("N/A")
-                    continue
-                invert = lower_is_better.get(metric, False)
-                if invert:
-                    if valA < valB:
-                        advantage_list.append(selected_team_reports)
-                    elif valB < valA:
-                        advantage_list.append(selected_opponent)
-                    else:
-                        advantage_list.append("Tie")
+            # Opponent insights
+            def get_interpretive_insights_opp(row, df_all):
+                lines = []
+                t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                for metric in get_default_metrics():
+                    if metric in row:
+                        mean_val = t_avgs.get(metric, 0)
+                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                        val = row[metric]
+                        z = (val - mean_val) / std_val
+                        if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
+                            z = -z
+                        if abs(z) < 0.3:
+                            lines.append(f"**{metric}** | Near NCAA average.")
+                        elif z >= 1.0:
+                            lines.append(f"**{metric}** | Clear strength.")
+                        elif 0.3 <= z < 1.0:
+                            lines.append(f"**{metric}** | Above NCAA average.")
+                        elif -1.0 < z <= -0.3:
+                            lines.append(f"**{metric}** | Below NCAA average.")
+                        else:
+                            lines.append(f"**{metric}** | Notable weakness.")
+                return lines
+
+            opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
+
+            # Head-to-head stats table
+            with st.expander("Head-to-Head Stats Comparison"):
+                h2h_metrics = [
+                    "SEED_25", "BPI_25", "KP_AdjEM", "KP_Rank", "KP_SOS_AdjEM",
+                    "KP_AdjO", "KP_AdjD", "OFF EFF", "DEF EFF", "WIN% ALL GM",
+                    "AVG MARGIN", "eFG%", "OPP eFG%", "AST/TO%", "STOCKS-TOV/GM"
+                ]
+                row_team = team_data.iloc[0]
+                row_opp = opp_data.iloc[0]
+                valid_df = df_main.dropna(subset=h2h_metrics, how="all")
+                ncaa_avg = valid_df[h2h_metrics].mean(numeric_only=True)
+                tourney_df = valid_df[valid_df["SEED_25"].notna()]
+                if not tourney_df.empty:
+                    tourney_avg = tourney_df[h2h_metrics].mean(numeric_only=True)
                 else:
-                    if valA > valB:
-                        advantage_list.append(selected_team_reports)
-                    elif valB > valA:
-                        advantage_list.append(selected_opponent)
-                    else:
-                        advantage_list.append("Tie")
-            final_df["ADVANTAGE"] = advantage_list
+                    tourney_avg = pd.Series([np.nan]*len(h2h_metrics), index=h2h_metrics)
 
-            adv_team = sum(1 for x in advantage_list if x == selected_team_reports)
-            adv_opp = sum(1 for x in advantage_list if x == selected_opponent)
+                final_df = pd.DataFrame({"METRIC": h2h_metrics})
+                final_df[selected_team_reports] = [row_team[m] if m in row_team else np.nan for m in h2h_metrics]
+                final_df[selected_opponent] = [row_opp[m] if m in row_opp else np.nan for m in h2h_metrics]
+                final_df["NCAA AVG"] = [ncaa_avg[m] for m in h2h_metrics]
+                final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
 
-            numeric_cols = [selected_team_reports, selected_opponent, "NCAA AVG", "TOURNEY AVG"]
-            for col in numeric_cols:
-                final_df[col] = final_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
-
-            import matplotlib
-            import matplotlib.colors as mcolors
-
-            def colorize_row(row_):
-                metric = row_["METRIC"]
-                invert = lower_is_better.get(metric, False)
-                styles = []
-                for c in final_df.columns:
-                    if c in ["METRIC", "ADVANTAGE"]:
-                        styles.append("")
-                        continue
-                    cell_val_str = row_[c]
-                    try:
-                        cell_val = float(cell_val_str)
-                    except:
-                        styles.append("")
-                        continue
-                    row_vals = []
-                    for nc in numeric_cols:
-                        try:
-                            v = float(row_[nc])
-                        except:
-                            v = np.nan
-                        if invert and not np.isnan(v):
-                            v = -v
-                        row_vals.append(v)
-                    valid_vals = [v for v in row_vals if not np.isnan(v)]
-                    if not valid_vals:
-                        styles.append("")
-                        continue
-                    vmin, vmax = min(valid_vals), max(valid_vals)
-                    if invert:
-                        cell_val = -cell_val
-                    ratio = 0.5 if vmax == vmin else (cell_val - vmin) / (vmax - vmin)
-                    cmap = matplotlib.cm.RdYlGn
-                    rgba = cmap(ratio)
-                    color_hex = mcolors.to_hex(rgba)
-                    styles.append(f"background-color: {color_hex}; text-align: center;")
-                return styles
-
-            styled_h2h = final_df.style.apply(colorize_row, axis=1).set_properties(**{"text-align": "center"})
-
-            # Additional advanced table styles for dashed lines
-            advanced_table_styles = [
-                {
-                    "selector": "table",
-                    "props": [
-                        ("border-collapse", "collapse"),
-                        ("border", "2px solid #222"),
-                        ("border-radius", "8px"),
-                        ("overflow", "hidden"),
-                        ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.05)")
-                    ]
-                },
-                {
-                    "selector": "th",
-                    "props": [
-                        ("background-color", "#0039A6"),
-                        ("color", "white"),
-                        ("padding", "12px"),
-                        ("font-weight", "600"),
-                        ("position", "sticky"),
-                        ("top", "0"),
-                        ("z-index", "10"),
-                        ("border-right", "1px dashed #eee"),
-                        ("border-bottom", "1px solid #222")
-                    ]
-                },
-                {
-                    "selector": "td",
-                    "props": [
-                        ("padding", "10px 12px"),
-                        ("border-bottom", "1px dashed #ccc"),
-                        ("border-right", "1px dashed #eee")
-                    ]
+                lower_is_better = {
+                    "KP_Rank": True,
+                    "KP_SOS_AdjEM": True,
+                    "DEF EFF": True,
+                    "OPP PTS/GM": True,
+                    "OPP eFG%": True,
+                    "OPP TS%": True,
+                    "TO/GM": True,
                 }
-            ]
 
-            styled_h2h = styled_h2h.set_table_styles(advanced_table_styles)
-            st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
+                advantage_list = []
+                for idx, row_ in final_df.iterrows():
+                    metric = row_["METRIC"]
+                    valA = row_[selected_team_reports]
+                    valB = row_[selected_opponent]
+                    if pd.isna(valA) or pd.isna(valB):
+                        advantage_list.append("N/A")
+                        continue
+                    invert = lower_is_better.get(metric, False)
+                    if invert:
+                        if valA < valB:
+                            advantage_list.append(selected_team_reports)
+                        elif valB < valA:
+                            advantage_list.append(selected_opponent)
+                        else:
+                            advantage_list.append("Tie")
+                    else:
+                        if valA > valB:
+                            advantage_list.append(selected_team_reports)
+                        elif valB > valA:
+                            advantage_list.append(selected_opponent)
+                        else:
+                            advantage_list.append("Tie")
+                final_df["ADVANTAGE"] = advantage_list
 
-            # Single-game win probability
-            row_team = team_data.iloc[0]
-            row_opp = opp_data.iloc[0]
-            team_dict = {
-                "team": selected_team_reports,
-                "seed": row_team.get("SEED_25", 99),
-                "KP_AdjEM": row_team.get("KP_AdjEM", 0),
-                "BPI_25": row_team.get("BPI_25", 0),
-                "OFF EFF": row_team.get("OFF EFF", 1.00),
-                "DEF EFF": row_team.get("DEF EFF", 1.00),
-                "WIN% ALL GM": row_team.get("WIN% ALL GM", 0.5),
-                "WIN% CLOSE GM": row_team.get("WIN% CLOSE GM", 0.5),
-                "AVG MARGIN": row_team.get("AVG MARGIN", 0),
-                "KP_SOS_AdjEM": row_team.get("KP_SOS_AdjEM", 0),
-                "KP_AdjO": row_team.get("KP_AdjO", 0),
-                "KP_AdjD": row_team.get("KP_AdjD", 0),
-            }
-            opp_dict = {
-                "team": selected_opponent,
-                "seed": row_opp.get("SEED_25", 99),
-                "KP_AdjEM": row_opp.get("KP_AdjEM", 0),
-                "BPI_25": row_opp.get("BPI_25", 0),
-                "OFF EFF": row_opp.get("OFF EFF", 1.00),
-                "DEF EFF": row_opp.get("DEF EFF", 1.00),
-                "WIN% ALL GM": row_opp.get("WIN% ALL GM", 0.5),
-                "WIN% CLOSE GM": row_opp.get("WIN% CLOSE GM", 0.5),
-                "AVG MARGIN": row_opp.get("AVG MARGIN", 0),
-                "KP_SOS_AdjEM": row_opp.get("KP_SOS_AdjEM", 0),
-                "KP_AdjO": row_opp.get("KP_AdjO", 0),
-                "KP_AdjD": row_opp.get("KP_AdjD", 0),
-            }
-            pA = calculate_win_probability(team_dict, opp_dict)
+                adv_team = sum(1 for x in advantage_list if x == selected_team_reports)
+                adv_opp = sum(1 for x in advantage_list if x == selected_opponent)
 
-            if adv_team > adv_opp:
-                summary_text = (
-                    f"{selected_team_reports} leads in {adv_team} metrics while {selected_opponent} leads in {adv_opp}. "
-                    f"{selected_team_reports} appears favored overall."
+                numeric_cols = [selected_team_reports, selected_opponent, "NCAA AVG", "TOURNEY AVG"]
+                for col in numeric_cols:
+                    final_df[col] = final_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
+
+                import matplotlib
+                import matplotlib.colors as mcolors
+
+                def colorize_row(row_):
+                    metric = row_["METRIC"]
+                    invert = lower_is_better.get(metric, False)
+                    styles = []
+                    for c in final_df.columns:
+                        if c in ["METRIC", "ADVANTAGE"]:
+                            styles.append("")
+                            continue
+                        cell_val_str = row_[c]
+                        try:
+                            cell_val = float(cell_val_str)
+                        except:
+                            styles.append("")
+                            continue
+                        row_vals = []
+                        for nc in numeric_cols:
+                            try:
+                                v = float(row_[nc])
+                            except:
+                                v = np.nan
+                            if invert and not np.isnan(v):
+                                v = -v
+                            row_vals.append(v)
+                        valid_vals = [v for v in row_vals if not np.isnan(v)]
+                        if not valid_vals:
+                            styles.append("")
+                            continue
+                        vmin, vmax = min(valid_vals), max(valid_vals)
+                        if invert:
+                            cell_val = -cell_val
+                        ratio = 0.5 if vmax == vmin else (cell_val - vmin) / (vmax - vmin)
+                        cmap = matplotlib.cm.RdYlGn
+                        rgba = cmap(ratio)
+                        color_hex = mcolors.to_hex(rgba)
+                        styles.append(f"background-color: {color_hex}; text-align: center;")
+                    return styles
+
+                styled_h2h = final_df.style.apply(colorize_row, axis=1)
+                styled_h2h = styled_h2h.set_properties(**{"text-align": "center"})
+                st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
+
+                # Single-game win probability
+                team_dict = {
+                    "team": selected_team_reports,
+                    "seed": row_team.get("SEED_25", 99),
+                    "KP_AdjEM": row_team.get("KP_AdjEM", 0),
+                    "BPI_25": row_team.get("BPI_25", 0),
+                    "OFF EFF": row_team.get("OFF EFF", 1.00),
+                    "DEF EFF": row_team.get("DEF EFF", 1.00),
+                    "WIN% ALL GM": row_team.get("WIN% ALL GM", 0.5),
+                    "WIN% CLOSE GM": row_team.get("WIN% CLOSE GM", 0.5),
+                    "AVG MARGIN": row_team.get("AVG MARGIN", 0),
+                    "KP_SOS_AdjEM": row_team.get("KP_SOS_AdjEM", 0),
+                    "KP_AdjO": row_team.get("KP_AdjO", 0),
+                    "KP_AdjD": row_team.get("KP_AdjD", 0),
+                }
+                opp_dict = {
+                    "team": selected_opponent,
+                    "seed": row_opp.get("SEED_25", 99),
+                    "KP_AdjEM": row_opp.get("KP_AdjEM", 0),
+                    "BPI_25": row_opp.get("BPI_25", 0),
+                    "OFF EFF": row_opp.get("OFF EFF", 1.00),
+                    "DEF EFF": row_opp.get("DEF EFF", 1.00),
+                    "WIN% ALL GM": row_opp.get("WIN% ALL GM", 0.5),
+                    "WIN% CLOSE GM": row_opp.get("WIN% CLOSE GM", 0.5),
+                    "AVG MARGIN": row_opp.get("AVG MARGIN", 0),
+                    "KP_SOS_AdjEM": row_opp.get("KP_SOS_AdjEM", 0),
+                    "KP_AdjO": row_opp.get("KP_AdjO", 0),
+                    "KP_AdjD": row_opp.get("KP_AdjD", 0),
+                }
+                pA = calculate_win_probability(team_dict, opp_dict)
+
+                if adv_team > adv_opp:
+                    summary_text = (
+                        f"{selected_team_reports} leads in {adv_team} metrics while {selected_opponent} leads in {adv_opp}. "
+                        f"{selected_team_reports} appears favored overall."
+                    )
+                elif adv_opp > adv_team:
+                    summary_text = (
+                        f"{selected_opponent} leads in {adv_opp} metrics while {selected_team_reports} leads in {adv_team}. "
+                        f"{selected_opponent} appears favored overall."
+                    )
+                else:
+                    summary_text = (
+                        f"Both teams are evenly matched with {adv_team} metrics each. This could be a close contest!"
+                    )
+
+                # Combine interpretive insights
+                # (We can reuse get_interpretive_insights for the team row, or define anew.)
+                team_insights_str = "".join(
+                    f"<li>{ins}</li>" for ins in get_interpretive_insights(row_team, df_main)
                 )
-            elif adv_opp > adv_team:
-                summary_text = (
-                    f"{selected_opponent} leads in {adv_opp} metrics while {selected_team_reports} leads in {adv_team}. "
-                    f"{selected_opponent} appears favored overall."
-                )
-            else:
-                summary_text = (
-                    f"Both teams are evenly matched with {adv_team} metrics each. This could be a close contest!"
-                )
+                opp_insights_str = "".join(f"<li>{ins}</li>" for ins in opp_insights)
 
-            st.markdown(f"""
-            <div style='margin-top:15px;'>
-                <p><strong>Win Probability</strong>: {selected_team_reports} has a {pA*100:.1f}% chance to beat {selected_opponent}.</p>
-                <p><strong>Summary</strong>: {summary_text}</p>
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style='margin-top:15px;'>
+                    <p><strong>Win Probability</strong>: {selected_team_reports} has a {pA*100:.1f}% chance to beat {selected_opponent}.</p>
+                    <p><strong>Summary</strong>: {summary_text}</p>
+                    <p><strong>{selected_team_reports} Interpretive Insights</strong>:</p>
+                    <ul>
+                        {team_insights_str}
+                    </ul>
+                    <p><strong>{selected_opponent} Interpretive Insights</strong>:</p>
+                    <ul>
+                        {opp_insights_str}
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
 
 
 # --- Radar Charts Tab ---
