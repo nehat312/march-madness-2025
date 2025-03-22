@@ -2502,8 +2502,8 @@ with tab_team_reports:
                 # Key stats circular indicators (using the exact mm_2025_database columns)
                 key_stats = []
                 if "WIN% ALL GM" in team_data.columns:
-                    kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
-                    key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))
+                    win_pct = round(team_data["WIN% ALL GM"].iloc[0], 1)
+                    key_stats.append(("WIN% ALL GM", win_pct, "#FFFFFF"))
                 if "KP_AdjEM" in team_data.columns:
                     kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
                     key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))
@@ -2779,7 +2779,7 @@ with tab_team_reports:
                         if invert:
                             cell_val = -cell_val
                         ratio = 0.5 if vmax == vmin else (cell_val - vmin) / (vmax - vmin)
-                        cmap = matplotlib.cm["RdYlGn"]
+                        cmap = matplotlib.cm.RdYlGn
                         rgba = cmap(ratio)
                         color_hex = mcolors.to_hex(rgba)
                         styles.append(f"background-color: {color_hex}; text-align: center;")
