@@ -2454,13 +2454,13 @@ with tab_team_reports:
                     w = int(team_data["WIN_25"].iloc[0])
                     l = int(team_data["LOSS_25"].iloc[0])
                     record = f"{w}-{l}"
-                
+
                 seed_info = ""
                 if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
                     seed_num = int(team_data["SEED_25"].iloc[0])
                     seed_color = "#" + ["DC3545", "FD7E14", "28A745", "007BFF"][min(seed_num//5, 3)]
                     seed_info = f'<span style="background-color:{seed_color}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">Seed {seed_num}</span>'
-                
+
                 # Rankings with styled indicators
                 rankings = []
                 if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
@@ -2470,9 +2470,9 @@ with tab_team_reports:
                     net_rank = int(team_data["NET_25"].iloc[0])
                     rankings.append(f'NET: #{net_rank}')
                 rankings_html = " | ".join(rankings)
-                
+
                 team_initial = selected_team_reports[0].upper()
-                
+
                 st.markdown(f"""
                 <div class="team-card">
                     <div style="display:flex; align-items:center; margin-bottom:15px;">
@@ -2486,7 +2486,7 @@ with tab_team_reports:
                             <p style="margin:0; color:#666;">{conf}</p>
                         </div>
                     </div>
-                    
+
                     <div class="team-info">
                         <p style="font-size:18px; margin-bottom:10px;">
                             <strong>Record:</strong> <span style="font-weight:bold;">{record}</span> {seed_info}
@@ -2494,16 +2494,21 @@ with tab_team_reports:
                         <p style="margin-bottom:10px;">
                             <strong>Rankings:</strong> {rankings_html}
                         </p>
-                        
+
                         <h4 style="border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h4>
                         <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+                            <!-- Here is where you'd insert the stat bubbles or more HTML -->
+                        </div><!-- close the flex container -->
+                    </div><!-- close team-info -->
+                </div><!-- close team-card -->
                 """, unsafe_allow_html=True)
+
                 
                 # Key stats circular indicators (using the exact mm_2025_database columns)
                 key_stats = []
                 if "WIN% ALL GM" in team_data.columns:
                     win_pct = round(team_data["WIN% ALL GM"].iloc[0], 1)
-                    key_stats.append(("WIN% ALL GM", win_pct, "#FFFFFF"))
+                    key_stats.append(("WIN% ALL GM", win_pct, "#000000"))
                 if "KP_AdjEM" in team_data.columns:
                     kp_adjEM = round(team_data["KP_AdjEM"].iloc[0], 1)
                     key_stats.append(("KenPom AdjEM", kp_adjEM, "#2E8B57"))
