@@ -13,6 +13,7 @@ from PIL import Image
 
 import os, math, logging, random
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import seaborn as sns
 
 # --- Streamlit Setup ---
