@@ -1885,39 +1885,42 @@ with tab_home:
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
     
-    # --- Top Upset Candidates Table in Round of 64 ---
-    st.markdown("### :primary[TOP UPSET CANDIDATES -- ROUND OF 64]")
+
+    # --- Top Upset Candidates Table for Sweet 16 ---
+    st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
     bracket = prepare_tournament_data(df_main)
+
+    # Actual Sweet 16 matchups
+    sweet_16_matchups = [
+        ("Alabama", 2, "BYU", 6),
+        ("Florida", 1, "Maryland", 4),
+        ("Duke", 1, "Arizona", 4),
+        ("Texas Tech", 3, "Arkansas", 10),
+        ("Michigan State", 2, "Ole Miss", 6),
+        ("Tennessee", 2, "Kentucky", 3),
+        ("Auburn", 1, "Michigan", 5),
+        ("Houston", 1, "Purdue", 4)
+    ]
+
     if bracket is not None:
-        # Define the standard Round of 64 pairings (using seeding conventions)
-        round_64_pairings = [(1,16), (8,9), (5,12), (4,13), (6,11), (3,14), (7,10), (2,15)]
         upset_candidates = []
-        for region, teams in bracket.items():
-            # Create a mapping from seed to team for the region
-            team_by_seed = {team['seed']: team for team in teams}
-            for pairing in round_64_pairings:
-                seed_a, seed_b = pairing
-                if seed_a in team_by_seed and seed_b in team_by_seed:
-                    team_a = team_by_seed[seed_a]
-                    team_b = team_by_seed[seed_b]
-                    # The favorite is the team with the lower seed number
-                    if seed_a < seed_b:
-                        favorite = team_a
-                        underdog = team_b
-                    else:
-                        favorite = team_b
-                        underdog = team_a
-                    # Calculate the upset probability: chance that the underdog beats the favorite
-                    upset_prob = calculate_win_probability(underdog, favorite)
-                    upset_candidates.append({
-                        "MATCHUP": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
-                        "REGION": region,
-                        "FAV": favorite['team'],
-                        "FAV SEED": favorite['seed'],
-                        "DOG": underdog['team'],
-                        "DOG SEED": underdog['seed'],
-                        "UPSET PROB (%)": round(upset_prob * 100, 1)
-                    })
+
+        for fav_team, fav_seed, dog_team, dog_seed in sweet_16_matchups:
+            # Fetch teams from the bracket data
+            fav_data = next((team for region in bracket.values() for team in region if team['team'] == fav_team and team['seed'] == fav_seed), None)
+            dog_data = next((team for region in bracket.values() for team in region if team['team'] == dog_team and team['seed'] == dog_seed), None)
+
+            if fav_data and dog_data:
+                upset_prob = calculate_win_probability(dog_data, fav_data)
+                upset_candidates.append({
+                    "MATCHUP": f"{fav_team} ({fav_seed}) vs {dog_team} ({dog_seed})",
+                    "FAV": fav_team,
+                    "FAV SEED": fav_seed,
+                    "DOG": dog_team,
+                    "DOG SEED": dog_seed,
+                    "UPSET PROB (%)": round(upset_prob * 100, 1)
+                })
+
         if upset_candidates:
             df_upsets = pd.DataFrame(upset_candidates)
             df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
@@ -1925,11 +1928,60 @@ with tab_home:
                 .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
                 .set_table_styles(detailed_table_styles)\
                 .set_properties(**{"text-align": "center"})
+
             st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
         else:
-            st.info("No upset candidates found for Round of 64.")
+            st.info("No upset candidates found for Sweet 16.")
     else:
         st.error("Bracket data not available.")
+    
+    # # --- Top Upset Candidates Table in Round of 64 ---
+    # st.markdown("### :primary[TOP UPSET CANDIDATES -- ROUND OF 64]")
+    # bracket = prepare_tournament_data(df_main)
+    # if bracket is not None:
+    #     # Define the standard Round of 64 pairings (using seeding conventions)
+    #     round_64_pairings = [(1,16), (8,9), (5,12), (4,13), (6,11), (3,14), (7,10), (2,15)]
+    #     upset_candidates = []
+    #     for region, teams in bracket.items():
+    #         # Create a mapping from seed to team for the region
+    #         team_by_seed = {team['seed']: team for team in teams}
+    #         for pairing in round_64_pairings:
+    #             seed_a, seed_b = pairing
+    #             if seed_a in team_by_seed and seed_b in team_by_seed:
+    #                 team_a = team_by_seed[seed_a]
+    #                 team_b = team_by_seed[seed_b]
+    #                 # The favorite is the team with the lower seed number
+    #                 if seed_a < seed_b:
+    #                     favorite = team_a
+    #                     underdog = team_b
+    #                 else:
+    #                     favorite = team_b
+    #                     underdog = team_a
+    #                 # Calculate the upset probability: chance that the underdog beats the favorite
+    #                 upset_prob = calculate_win_probability(underdog, favorite)
+    #                 upset_candidates.append({
+    #                     "MATCHUP": f"{team_a['team']} ({seed_a}) vs {team_b['team']} ({seed_b})",
+    #                     "REGION": region,
+    #                     "FAV": favorite['team'],
+    #                     "FAV SEED": favorite['seed'],
+    #                     "DOG": underdog['team'],
+    #                     "DOG SEED": underdog['seed'],
+    #                     "UPSET PROB (%)": round(upset_prob * 100, 1)
+    #                 })
+    #     if upset_candidates:
+    #         df_upsets = pd.DataFrame(upset_candidates)
+    #         df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
+    #         upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
+    #             .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
+    #             .set_table_styles(detailed_table_styles)\
+    #             .set_properties(**{"text-align": "center"})
+    #         st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
+    #     else:
+    #         st.info("No upset candidates found for Round of 64.")
+    # else:
+    #     st.error("Bracket data not available.")
+
+
 
 #     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
