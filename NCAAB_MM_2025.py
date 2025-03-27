@@ -406,15 +406,15 @@ completed_results_2025 = {
     ]
 }
 
-def apply_completed_results(bracket, completed_results): # Load completed bracket results into global state for consistent simulation logic
-    completed_games = {}
-    for round_name, results in completed_results.items():
-        for winner, loser, win_score, lose_score in results:
-            completed_games[loser] = False
-            completed_games[winner] = True
-            
-    for region, teams in bracket.items():
-        bracket[region] = [team for team in teams if completed_games.get(team['team'], True)]
+def apply_completed_results(bracket, completed_results):
+    """Remove teams eliminated in completed rounds from the bracket, ensuring seed integrity."""
+    eliminated_teams = set()
+    for round_results in completed_results.values():
+        for winner, loser, _, _ in round_results:
+            eliminated_teams.add(loser)
+
+    for region in bracket:
+        bracket[region] = [team for team in bracket[region] if team['team'] not in eliminated_teams]
 
 def compute_tournament_stats(df):
     """Compute overall averages and standard deviations for radar metrics."""
@@ -1966,7 +1966,7 @@ def display_simulation_results(single_run_logs):
 # --- App Header & Tabs ---
 st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.caption(":blue[_Cure your 📋🧠BRACKET BRAIN🧠📋 and propel yourself up the 📈leaderboards📈_]")
+st.caption(":blue[_Cure your 🧠BRACKET BRAIN🧠 and propel yourself up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 TEAM REPORTS", 
