@@ -343,6 +343,78 @@ def get_default_metrics():
         'STOCKS-TOV/GM',
 
     ]
+# --- 2025 NCAA TOURNAMENT UPDATED RESULTS (SWEET 16)---
+
+completed_results_2025 = {
+    'First Four': [
+        ('Alabama State', 'Saint Francis', 70, 68),
+        ('North Carolina', 'San Diego State', 95, 68),
+        ('Mount St. Mary\'s', 'American University', 83, 72),
+        ('Xavier', 'Texas', 86, 80)
+    ],
+    'Round of 64': [
+        ('Creighton', 'Louisville', 89, 75),
+        ('Purdue', 'High Point', 75, 63),
+        ('Wisconsin', 'Montana', 85, 66),
+        ('Houston', 'SIU Edwardsville', 78, 40),
+        ('Auburn', 'Alabama State', 83, 63),
+        ('McNeese', 'Clemson', 69, 67),
+        ('BYU', 'VCU', 80, 71),
+        ('Gonzaga', 'Georgia', 89, 68),
+        ('Tennessee', 'Wofford', 77, 62),
+        ('Arkansas', 'Kansas', 79, 72),
+        ('Texas A&M', 'Yale', 80, 71),
+        ('Drake', 'Missouri', 67, 57),
+        ('UCLA', 'Utah State', 72, 47),
+        ('St. John\'s', 'Omaha', 83, 53),
+        ('Michigan', 'UC San Diego', 68, 65),
+        ('Texas Tech', 'UNC Wilmington', 82, 72),
+        ('Baylor', 'Mississippi State', 75, 72),
+        ('Alabama', 'Robert Morris', 90, 81),
+        ('Iowa State', 'Lipscomb', 82, 55),
+        ('Colorado State', 'Memphis', 78, 70),
+        ('Duke', 'Mount St. Mary\'s', 93, 49),
+        ('Saint Mary\'s', 'Vanderbilt', 59, 56),
+        ('Ole Miss', 'North Carolina', 71, 64),
+        ('Maryland', 'Grand Canyon', 81, 49),
+        ('Florida', 'Norfolk State', 95, 69),
+        ('Kentucky', 'Troy', 76, 57),
+        ('New Mexico', 'Marquette', 75, 66),
+        ('Arizona', 'Akron', 93, 65),
+        ('UConn', 'Oklahoma', 67, 59),
+        ('Illinois', 'Xavier', 86, 73),
+        ('Michigan State', 'Bryant', 87, 62),
+        ('Oregon', 'Liberty', 81, 52)
+    ],
+    'Round of 32': [
+        ('Purdue', 'McNeese', 76, 62),
+        ('Arkansas', 'St. John\'s', 75, 66),
+        ('Michigan', 'Texas A&M', 91, 79),
+        ('Texas Tech', 'Drake', 77, 64),
+        ('Auburn', 'Creighton', 82, 70),
+        ('BYU', 'Wisconsin', 91, 89),
+        ('Houston', 'Gonzaga', 81, 76),
+        ('Tennessee', 'UCLA', 67, 58),
+        ('Florida', 'UConn', 77, 75),
+        ('Duke', 'Baylor', 89, 66),
+        ('Kentucky', 'Illinois', 84, 75),
+        ('Alabama', 'Saint Mary\'s', 80, 66),
+        ('Maryland', 'Colorado State', 72, 71),
+        ('Ole Miss', 'Iowa State', 91, 78),
+        ('Michigan State', 'New Mexico', 71, 63),
+        ('Arizona', 'Oregon', 87, 83)
+    ]
+}
+
+def apply_completed_results(bracket, completed_results): # Load completed bracket results into global state for consistent simulation logic
+    completed_games = {}
+    for round_name, results in completed_results.items():
+        for winner, loser, win_score, lose_score in results:
+            completed_games[loser] = False
+            completed_games[winner] = True
+            
+    for region, teams in bracket.items():
+        bracket[region] = [team for team in teams if completed_games.get(team['team'], True)]
 
 def compute_tournament_stats(df):
     """Compute overall averages and standard deviations for radar metrics."""
@@ -1583,7 +1655,7 @@ def run_simulation(use_analytics=True, simulations=1):
         all_sim_results.append(sim_result)
     return all_sim_results
 
-def run_tournament_simulation(num_sims=100):
+def run_tournament_simulation(num_sims=1000):
     """
     Wrapper that:
       1) Prepares the bracket from df_main
@@ -1591,6 +1663,7 @@ def run_tournament_simulation(num_sims=100):
       3) Returns aggregated results by round (as percentages), including "Region" champion data
     """
     bracket = prepare_tournament_data(df_main)
+    apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return {}
     # Now that simulate_tournament includes region-champion logic, we'll get a "Region" key back
@@ -1638,6 +1711,7 @@ def run_simulation_once(df):
     """
     r64, r32, s16, e8, f4, champ = get_bracket_matchups()
     bracket = prepare_tournament_data(df)
+    apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return []
     game_logs = []
@@ -1916,6 +1990,7 @@ with tab_home:
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
     bracket = prepare_tournament_data(df_main)
+    apply_completed_results(bracket, completed_results_2025)
 
     # Actual Sweet 16 matchups
     sweet_16_matchups = [
