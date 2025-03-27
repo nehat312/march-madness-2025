@@ -3473,9 +3473,9 @@ with tab_team:
             selected_teams = st.multiselect(
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
-                default=['Duke', 'Kansas', 'Auburn', 'Houston',
+                default=['Duke', 'Texas Tech', 'Florida', 'Auburn', 'Houston',
                          'Tennessee', 'Alabama', 'Michigan St.',  'Iowa St.', 
-                         #'Texas Tech', 'Florida',
+                         # 'Kansas', 
                          ]
             )
         with col2:
@@ -3685,8 +3685,8 @@ with tab_pred:
                 bracket = st.session_state['bracket']
             
             # (1) Aggregated results from your multi-run simulation
-            #aggregated = run_tournament_simulation(num_sims=1000)
-            aggregated = run_tournament_simulation(bracket, num_sims=1000)
+            aggregated = run_tournament_simulation(num_sims=1000)
+            #aggregated = run_tournament_simulation(bracket, num_sims=1000)
 
             # (2) Single-run logs (a single bracket outcome)
             #single_run = run_simulation_once(df_main)
