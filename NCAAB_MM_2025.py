@@ -1710,7 +1710,7 @@ def get_bracket_matchups():
 
 def run_simulation_once(bracket):
     r64, r32, s16, e8, f4, champ = get_bracket_matchups()
-    bracket = prepare_tournament_data(bracket)
+    #bracket = prepare_tournament_data(bracket)
     #apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return []
@@ -1967,7 +1967,7 @@ def display_simulation_results(single_run_logs):
 # --- App Header & Tabs ---
 st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.subheader(":blue[_Cure your 🧠BRACKET BRAIN🧠 and propel yourself up the leaderboards by exploring the tabs below:_]")
+st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards:_]")
 
 tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 TEAM REPORTS", 
@@ -3462,10 +3462,11 @@ with tab_team:
             selected_df = df_main[df_main["TM_KP"].isin(selected_teams)].copy()
             if view_option == "HEATMAP":
                 metrics_to_display = [
-                    "KP_Rank", "BPI_Rk_25", "NET_25", "SEED_25", 
-                    #"WIN_25", "LOSS_25",
+                    "SEED_25",
                     "WIN% ALL GM", #"WIN% CLOSE GM",
                     "AVG MARGIN",
+                    "KP_Rank", "BPI_Rk_25", "NET_25", 
+                    #"WIN_25", "LOSS_25",
                     "KP_AdjEM", "BPI_25", #"KP_SOS_AdjEM",
                     "KP_AdjO", "KP_AdjD", 
                     "OFF EFF", "DEF EFF", 
@@ -3485,18 +3486,22 @@ with tab_team:
                     "WIN% ALL GM": "{:.1%}",
                     #"WIN% CLOSE GM": "{:.1%}",
                     "KP_AdjEM": "{:.1f}",
+                    "KP_AdjO": "{:.1f}",
+                    "KP_AdjD": "{:.1f}",
                     "BPI_25": "{:.1f}",
                     "NET_25": "{:.0f}",
+                    "SEED_25": "{:.0f}",
                     #"KP_SOS_AdjEM": "{:.1f}",
                     "OFF EFF": "{:.2f}", 
                     "DEF EFF": "{:.2f}",
                     #"TS%": "{:.1f}%", 
                     #"OPP TS%": "{:.1f}%",
-                    #"eFG%": "{:.1f}%", 
-                    #"OPP eFG%": "{:.1f}%",
+                    "eFG%": "{:.1f}%", 
+                    "OPP eFG%": "{:.1f}%",
                     "AST/TO%": "{:.2f}",
                     "STOCKS/GM": "{:.1f}",
-                    "AVG MARGIN": "{:.1f}"
+                    "STOCKS-TOV/GM": "{:.2f}",
+                    "AVG MARGIN": "{:.1f}",
                 }
                 color_scales = {
                     "KP_Rank": "RdYlGn_r",
@@ -3506,6 +3511,11 @@ with tab_team:
                     "WIN% ALL GM": "RdYlGn",
                     "WIN% CLOSE GM": "RdYlGn",
                     "KP_AdjEM": "RdYlGn",
+                    "KP_AdjO": "RdYlGn",
+                    "KP_AdjD": "RdYlGn_r",
+                    "BPI_25": "RdYlGn",
+                    "NET_25": "RdYlGn_r",
+                    "SEED_25": "RdYlGn_r",
                     "KP_SOS_AdjEM": "RdYlGn_r",
                     "OFF EFF": "RdYlGn", 
                     "DEF EFF": "RdYlGn_r",
@@ -3514,7 +3524,8 @@ with tab_team:
                     "eFG%": "RdYlGn", 
                     "OPP eFG%": "RdYlGn_r",
                     "AST/TO%": "RdYlGn",
-                    "STOCKS/GM": "RdYlGn", 
+                    "STOCKS/GM": "RdYlGn",
+                    "STOCKS-TOV/GM": "RdYlGn",
                 }
                 styled_table = display_df.style.format({col: fmt for col, fmt in format_dict.items() if col in display_df.columns})
                 for col, cmap in color_scales.items():
