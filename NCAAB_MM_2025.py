@@ -1655,18 +1655,10 @@ def run_simulation(use_analytics=True, simulations=1):
         all_sim_results.append(sim_result)
     return all_sim_results
 
-def run_tournament_simulation(num_sims=100):
-    """
-    Wrapper that:
-      1) Prepares the bracket from df_main
-      2) Runs num_sims simulations
-      3) Returns aggregated results by round (as percentages), including "Region" champion data
-    """
-    bracket = prepare_tournament_data(df_main)
-    #apply_completed_results(bracket, completed_results_2025)
+def run_tournament_simulation(bracket, num_sims=100):
     if not bracket:
         return {}
-    aggregated_results = simulate_tournament(bracket, num_simulations=num_sims) # simulate_tournament region-champion logic returns a "Region" key
+    aggregated_results = simulate_tournament(bracket, num_simulations=num_sims)
     return aggregated_results
 
 
@@ -1703,20 +1695,22 @@ def get_bracket_matchups():
     championship = [(0,1)]
     return round_64, round_32, sweet_16, elite_8, final_four, championship
 
-def run_simulation_once(df):
-    """
-    Run a single tournament simulation (one complete bracket) and return a list
-    of detailed game logs.
-    """
-    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
-    bracket = prepare_tournament_data(df)
-    #apply_completed_results(bracket, completed_results_2025)
-    if not bracket:
-        return []
-    current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
-    #current = copy.deepcopy(bracket)  # use bracket directly, not df_main
-    game_logs = []
+# def run_simulation_once(df):
+#     """
+#     Run a single tournament simulation (one complete bracket) and return a list of detailed game logs.
+#     """
+#     r64, r32, s16, e8, f4, champ = get_bracket_matchups()
+#     bracket = prepare_tournament_data(df)
+#     #apply_completed_results(bracket, completed_results_2025)
+#     if not bracket:
+#         return []
+#     current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
+#     #current = copy.deepcopy(bracket)  # use bracket directly, not df_main
+#     game_logs = []
 
+def run_simulation_once(bracket):
+    current = copy.deepcopy(bracket)
+    game_logs = []
     
     def record_game(rnd_name, region, tA, tB, w):
         upset = "UPSET" if w['seed'] > min(tA['seed'], tB['seed']) else ""
@@ -1990,10 +1984,18 @@ with tab_home:
 
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
-    bracket = prepare_tournament_data(df_main)
+    
+    #bracket = prepare_tournament_data(df_main)
     #apply_completed_results(bracket, completed_results_2025)
+    #st.session_state['bracket'] = bracket
 
-    st.session_state['bracket'] = bracket
+    # Initialize bracket exactly once globally (if not yet initialized)
+    if 'bracket' not in st.session_state:
+        bracket = prepare_tournament_data(df_main)
+        apply_completed_results(bracket, completed_results_2025)
+        st.session_state['bracket'] = bracket
+    else:
+        bracket = st.session_state['bracket']    
 
     # Actual Sweet 16 matchups
     sweet_16_matchups = [
@@ -3101,79 +3103,31 @@ with tab_regions:
     #df_heat_T = df_heat_T[core_cols]
 
     east_teams_2025 = [
-    "Duke",
-    "Alabama",
-    "Wisconsin",
-    "Arizona",
-    "Oregon",
-    "BYU",
-    "Saint Mary's",
-    "Mississippi St",
-    "Baylor",
-    "Vanderbilt",
-    "VCU",
-    "Liberty",
-    "Akron",
-    "Montana",
-    "Robert Morris",
-    "American",
+    "Duke", "Alabama", "Wisconsin", "Arizona",
+    "Oregon", "BYU", "Saint Mary's", "Mississippi St",
+    "Baylor", "Vanderbilt", "VCU", "Liberty",
+    "Akron", "Montana", "Robert Morris", "American",
     "TOURNEY AVG",
     ]
     west_teams_2025 = [
-    "Florida",
-    "St John's",
-    "Texas Tech",
-    "Maryland",
-    "Memphis",
-    "Missouri",
-    "Kansas",
-    "UConn",
-    "Oklahoma",
-    "Arkansas",
-    "Drake",
-    "Colorado St",
-    "Grand Canyon",
-    "NC Wilmington",
-    "Omaha",
-    "Norfolk St",
+    "Florida", "St John's", "Texas Tech", "Maryland",
+    "Memphis", "Missouri", "Kansas", "UConn",
+    "Oklahoma", "Arkansas", "Drake", "Colorado St",
+    "Grand Canyon", "NC Wilmington", "Omaha", "Norfolk St",
     "TOURNEY AVG",
     ]
     south_teams_2025 = [
-    "Auburn",
-    "Michigan St.",
-    "Iowa St",
-    "Texas A&M",
-    "Michigan",
-    "Mississippi",
-    "Marquette",
-    "Louisville",
-    "Creighton",
-    "New Mexico",
-    "North Carolina",
-    "UCSD",
-    "Yale",
-    "Lipscomb",
-    "Bryant",
-    "Alabama St.",
+    "Auburn", "Michigan St.", "Iowa St", "Texas A&M",
+    "Michigan", "Mississippi", "Marquette", "Louisville",
+    "Creighton", "New Mexico", "North Carolina", "UCSD",
+    "Yale", "Lipscomb", "Bryant", "Alabama St.",
     "TOURNEY AVG",
     ]
     midwest_teams_2025 = [
-    "Houston",
-    "Tennessee",
-    "Kentucky",
-    "Purdue",
-    "Clemson",
-    "Illinois",
-    "UCLA",
-    "Gonzaga",
-    "Georgia",
-    "Utah St",
-    "Texas",
-    "McNeese",
-    "High Point",
-    "Troy",
-    "Wofford",
-    "SIUE",
+    "Houston", "Tennessee", "Kentucky", "Purdue",
+    "Clemson", "Illinois", "UCLA", "Gonzaga",
+    "Georgia", "Utah St", "Texas", "McNeese",
+    "High Point", "Troy", "Wofford", "SIUE",
     "TOURNEY AVG",
     ]
     regions = {
@@ -3473,11 +3427,12 @@ with tab_team:
             selected_teams = st.multiselect(
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
-                default=['Duke', 'Texas Tech', 'Florida', 'Auburn', 'Houston',
-                         'Tennessee', 'Alabama', 'Michigan St.',  'Iowa St.', 
-                         # 'Kansas', 
-                         ]
-            )
+                default=['Duke', 'Arizona', 'Maryland', 'Florida',
+                         'Texas Tech', 'Arkansas', 'Auburn', 'Michigan',
+                         'Houston', 'Purdue', 'Tennessee', 'Kentucky',
+                         'Alabama', 'BYU', 'Michigan St.', 'Ole Miss',
+                         # 'Kansas',  'Iowa St.',
+                         ])
         with col2:
             view_option = st.radio(
                 "PERSPECTIVE:",
@@ -3674,27 +3629,24 @@ with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
 
     show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
+
     if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
         with st.spinner(":green[RUNNING SIMULATIONS ...]"):
-            
+
+            # --- Bracket initialization occurs exactly once ---
             if 'bracket' not in st.session_state:
                 bracket = prepare_tournament_data(df_main)
                 apply_completed_results(bracket, completed_results_2025)
                 st.session_state['bracket'] = bracket
             else:
                 bracket = st.session_state['bracket']
-            
-            # (1) Aggregated results from your multi-run simulation
-            aggregated = run_tournament_simulation(num_sims=1000)
-            #aggregated = run_tournament_simulation(bracket, num_sims=1000)
 
-            # (2) Single-run logs (a single bracket outcome)
-            #single_run = run_simulation_once(df_main)
-            #single_run = run_simulation_once(st.session_state['bracket'])
+            # Ensure your functions now directly use this bracket:
+            aggregated = run_tournament_simulation(bracket, num_sims=1000)
             single_run = run_simulation_once(bracket)
+            
+            st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED")
 
-
-        st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN PROCLAIMED ... ")
 
         # 1) If requested, show single-run logs first
         if show_logs and single_run:
