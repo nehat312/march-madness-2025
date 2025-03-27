@@ -1709,6 +1709,11 @@ def get_bracket_matchups():
 #     game_logs = []
 
 def run_simulation_once(bracket):
+    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
+    bracket = prepare_tournament_data(bracket)
+    #apply_completed_results(bracket, completed_results_2025)
+    if not bracket:
+        return []
     current = copy.deepcopy(bracket)
     game_logs = []
     
@@ -1992,7 +1997,7 @@ with tab_home:
     # Initialize bracket exactly once globally (if not yet initialized)
     if 'bracket' not in st.session_state:
         bracket = prepare_tournament_data(df_main)
-        apply_completed_results(bracket, completed_results_2025)
+        #apply_completed_results(bracket, completed_results_2025)
         st.session_state['bracket'] = bracket
     else:
         bracket = st.session_state['bracket']    
@@ -3643,7 +3648,9 @@ with tab_pred:
 
             # Ensure your functions now directly use this bracket:
             aggregated = run_tournament_simulation(bracket, num_sims=1000)
-            single_run = run_simulation_once(bracket)
+            #single_run = run_simulation_once(bracket)
+            single_run = run_simulation_once(st.session_state['bracket'])
+
             
             st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED")
 
