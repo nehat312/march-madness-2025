@@ -2498,7 +2498,7 @@ with tab_team_reports:
         if team_data.empty:
             st.warning("No data found for the selected team.")
         else:
-            # Title container
+            st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
             st.markdown("""
             <h2>Team Overview</h2>
             """, unsafe_allow_html=True)
@@ -2549,6 +2549,9 @@ with tab_team_reports:
             if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
                 kp_rank = int(team_data["KP_Rank"].iloc[0])
                 rankings.append(f"KenPom: #{kp_rank}")
+            if "BPI_Rk_25" in team_data.columns and not pd.isna(team_data["BPI_Rk_25"].iloc[0]):
+                bpi_rank = int(team_data["BPI_Rk_25"].iloc[0])
+                rankings.append(f"BPI Rank: #{bpi_rank}")            
             if "NET_25" in team_data.columns and not pd.isna(team_data["NET_25"].iloc[0]):
                 net_rank = int(team_data["NET_25"].iloc[0])
                 rankings.append(f"NET: #{net_rank}")
@@ -2588,10 +2591,10 @@ with tab_team_reports:
                   <p style="margin:2px 0;"><strong>Conference:</strong> {conf}</p>
                   <p style="margin:2px 0;"><strong>Record:</strong> {record} &nbsp; {seed_info}</p>
                   <p style="margin:2px 0;"><strong>Rankings:</strong> {rankings_html}</p>
-                  <h4 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h4>
+                  <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
 
                   <!-- 3x3 bubble grid -->
-                  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;">
+                  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12.5px; margin-top:12.5px;">
                 """, unsafe_allow_html=True)
 
                 # Render each stat bubble in a 3x3 grid
@@ -2602,7 +2605,7 @@ with tab_team_reports:
                              margin:auto; 
                              background-color:{color}; 
                              border-radius:50%; 
-                             width:60px; height:60px; 
+                             width:55px; height:55px; 
                              display:flex; 
                              align-items:center; 
                              justify-content:center;
@@ -2624,15 +2627,12 @@ with tab_team_reports:
                     badge = compute_performance_badge(team_data.iloc[0], df_main)
                     st.markdown(f"""
                     <div style="margin-top:10px;">
-                      <strong>Overall Rating:</strong> <span>{badge["text"]}</span>
+                      <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
                     </div>
                     """, unsafe_allow_html=True)
 
             with colB:
-                # Single-team Radar Chart
-                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
-                if single_radar_fig:
-                    st.plotly_chart(single_radar_fig, use_container_width=True)
+
 
             # Only show the single team's interpretive insights here if NO opponent is selected
             # (Prevents duplication once we show a 2-team comparison below.)
@@ -2653,7 +2653,7 @@ with tab_team_reports:
                 st.warning("No data available for the selected opponent.")
             else:
                 st.markdown("---")
-                st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
+
 
                 # --- Opponent Basic Info & Stat Bubbles ---
                 colH2H1, colH2H2 = st.columns(2)
@@ -2679,10 +2679,39 @@ with tab_team_reports:
                     if "DEF EFF" in opp_data.columns:
                         val = round(opp_data["DEF EFF"].iloc[0], 2)
                         opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))
+                    
+                    opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
+                    #opp_record = "N/A"
+                    if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
+                        w = int(opp_data["WIN_25"].iloc[0])
+                        l = int(opp_data["LOSS_25"].iloc[0])
+                    opp_record = f"{w}-{l}"
+                    opp_seed_info = ""
+                    if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
+                        seed_num = int(opp_data["SEED_25"].iloc[0])
+                        seed_info = f"Seed {seed_num}"
+                    # Rankings
+                    opp_rankings = []
+                    if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
+                        opp_kp_rank = int(opp_data["KP_Rank"].iloc[0])
+                        opp_rankings.append(f"KenPom Rank: #{opp_kp_rank}")
+                    if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
+                        opp_bpi_rank = int(opp_data["BPI_Rk_25"].iloc[0])
+                        opp_rankings.append(f"BPI Rank: #{opp_bpi_rank}")
+                    if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
+                        opp_net_rank = int(opp_data["NET_25"].iloc[0])
+                        opp_rankings.append(f"NET: #{opp_net_rank}")
+                    opp_rankings_html = " | ".join(opp_rankings) if opp_rankings else "N/A"
 
                     st.markdown("""
-                    <h5>KEY STATS</h5>
-                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;">
+                                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
+                                <h3 style="margin-bottom:5px;">{selected_opponent}</h3>
+                                <p style="margin:2px 0;"><strong>Conference:</strong> {opp_conf}</p>
+                                <p style="margin:2px 0;"><strong>Record:</strong> {opp_record} &nbsp; {opp_seed_info}</p>
+                                <p style="margin:2px 0;"><strong>Rankings:</strong> {opp_rankings_html}</p>
+                                <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+                                <!-- 3x3 bubble grid -->
+                                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12.5px; margin-top:12.5px;">
                     """, unsafe_allow_html=True)
                     for stat_name, stat_value, color in opp_key_stats:
                         st.markdown(f"""
@@ -2705,6 +2734,12 @@ with tab_team_reports:
 
                 # --- Opponent Radar Chart ---
                 with colH2H2:
+                    # TEAM Radar Chart
+                    single_radar_fig = create_radar_chart([selected_team_reports], df_main)
+                    if single_radar_fig:
+                        st.plotly_chart(single_radar_fig, use_container_width=True)
+                    
+                    # OPPONENT Radar Chart
                     compare_radar_fig = create_radar_chart([selected_opponent], df_main)
                     if compare_radar_fig:
                         st.plotly_chart(compare_radar_fig, use_container_width=True)
@@ -3553,7 +3588,7 @@ with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
 
     show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
-    if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀",):
+    if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
         with st.spinner(":green[RUNNING SIMULATIONS ...]"):
             # (1) Aggregated results from your multi-run simulation
             aggregated = run_tournament_simulation(num_sims=1000)
