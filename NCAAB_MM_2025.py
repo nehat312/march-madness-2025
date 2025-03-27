@@ -2556,8 +2556,226 @@ with tab_home:
 with tab_team_reports:
     # Advanced CSS styling for the tab and table elements
     st.markdown("""
-    
-    """, unsafe_allow_html=True)
+                <style>
+                /* Main container styling */
+                .team-report-container {
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                border-radius: 12px;
+                padding: 24px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+                margin-bottom: 25px;
+                border: 1px solid rgba(0, 60, 200, 0.1);
+            }
+
+            /* Header styling with animated gradient line */
+            .header-with-line {
+                position: relative;
+                padding-bottom: 12px;
+                margin-bottom: 22px;
+                font-weight: 600;
+            }
+            .header-with-line:after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 120px;
+                height: 4px;
+                background: linear-gradient(90deg, #0039A6, #87CEEB);
+                border-radius: 2px;
+                animation: gradient-flow 3s ease infinite;
+                background-size: 200% 200%;
+            }
+            @keyframes gradient-flow {
+                0% {background-position: 0% 50%;}
+                50% {background-position: 100% 50%;}
+                100% {background-position: 0% 50%;}
+            }
+
+            /* Team cards styling */
+            .team-card {
+                background: white;
+                border-radius: 10px;
+                padding: 16px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                height: 100%;
+            }
+            .team-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            }
+
+            /* Team info section */
+            .team-info {
+                border-left: 4px solid #0039A6;
+                padding-left: 15px;
+                margin: 15px 0;
+            }
+
+            /* Performance badges with improved visuals */
+            .badge-elite { 
+                background: linear-gradient(135deg, #FFD700, #FFA500);
+                color: #000; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                padding: 5px 14px; 
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+                text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
+            }
+            .badge-solid { 
+                background: linear-gradient(135deg, #4CAF50, #388E3C); 
+                color: white; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                padding: 5px 14px; 
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            }
+            .badge-mid { 
+                background: linear-gradient(135deg, #2196F3, #1976D2); 
+                color: white; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                padding: 5px 14px; 
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            }
+            .badge-subpar { 
+                background: linear-gradient(135deg, #FF9800, #F57C00); 
+                color: white; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                padding: 5px 14px; 
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            }
+            .badge-weak { 
+                background: linear-gradient(135deg, #F44336, #D32F2F); 
+                color: white; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                padding: 5px 14px; 
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            }
+
+            /* Head-to-head comparison container */
+            .h2h-container {
+                background: linear-gradient(135deg, #f0f4f8, #e6eef5);
+                border-radius: 10px;
+                padding: 20px;
+                margin-top: 25px;
+                margin-bottom: 25px;
+                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+                border: 1px solid rgba(0, 60, 200, 0.08);
+            }
+
+            /* Stats table styling */
+            .stats-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            }
+            .stats-table thead th {
+                background-color: #0039A6;
+                color: white;
+                padding: 12px;
+                font-weight: 600;
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .stats-table tbody tr:nth-child(even) {
+                background-color: rgba(0, 0, 0, 0.02);
+            }
+            .stats-table tbody tr:hover {
+                background-color: rgba(33, 150, 243, 0.08);
+            }
+            .stats-table td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #eaeaea;
+            }
+
+            /* Insights section */
+            .insights-container {
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                padding: 18px;
+                margin-top: 20px;
+                border-left: 4px solid #0039A6;
+            }
+            .insights-list li {
+                margin-bottom: 8px;
+                padding-left: 10px;
+                position: relative;
+            }
+            .insights-list li:before {
+                content: "•";
+                color: #0039A6;
+                font-weight: bold;
+                position: absolute;
+                left: -10px;
+            }
+
+            /* Win probability indicator */
+            .win-prob-container {
+                margin: 20px 0;
+                padding: 15px;
+                border-radius: 8px;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+            }
+            .prob-meter {
+                height: 24px;
+                background: linear-gradient(to right, #F44336, #FFEB3B, #4CAF50);
+                border-radius: 12px;
+                position: relative;
+                overflow: hidden;
+                margin: 10px 0;
+            }
+            .prob-indicator {
+                position: absolute;
+                top: 0;
+                width: 5px;
+                height: 100%;
+                background-color: black;
+                z-index: 1;
+            }
+            .prob-text {
+                text-align: center;
+                font-weight: bold;
+                font-size: 16px;
+                margin-top: 5px;
+            }
+
+            /* Metric comparison indicators */
+            .metric-advantage {
+                font-weight: bold;
+            }
+            .team1-advantage {
+                color: #0039A6;
+            }
+            .team2-advantage {
+                color: #D32F2F;
+            }
+            .no-advantage {
+                color: #757575;
+            }
+
+            /* Responsive adjustments */
+            @media screen and (max-width: 768px) {
+                .team-card {
+                    margin-bottom: 15px;
+                }
+                .stats-table {
+                    font-size: 14px;
+                }
+                .header-with-line:after {
+                    width: 80px;
+                }
+            }
+            </style>
+            """, unsafe_allow_html=True)
     st.header(":blue[TEAM REPORTS]")
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
