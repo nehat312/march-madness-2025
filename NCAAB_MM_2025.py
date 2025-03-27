@@ -279,6 +279,30 @@ def get_conf_logo_html(conf_name):  # Return HTML <img> + conference name for ta
             return f'<img src="data:image/png;base64,{encoded}" width="40" style="vertical-align: middle;" /> {conf_name}'
     return conf_name
 
+def get_interpretive_insights(row, df_all):
+                    lines = []
+                    t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                    for metric in get_default_metrics():
+                        if metric in row:
+                            mean_val = t_avgs.get(metric, 0)
+                            std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                            team_val = row[metric]
+                            z = (team_val - mean_val) / std_val
+                            if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
+                                z = -z
+                            if abs(z) < 0.3:
+                                lines.append(f"**{metric}** | Near NCAA average.")
+                            elif z >= 1.0:
+                                lines.append(f"**{metric}** | Clear strength.")
+                            elif 0.3 <= z < 1.0:
+                                lines.append(f"**{metric}** | Above NCAA average.")
+                            elif -1.0 < z <= -0.3:
+                                lines.append(f"**{metric}** | Below NCAA average.")
+                            else:
+                                lines.append(f"**{metric}** | Notable weakness.")
+                    return lines
+
+
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
 viz_bg_color = '#0360CE'
@@ -1240,6 +1264,9 @@ def calculate_win_probability(t1, t2):
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
+    efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
+    ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
+
     
     # --- Historical threshold constants (from KP metrics) --- #
     KP_AdjEM_Rk_THRESHOLD = 25 # actual=5.7; no outliers=3.3    
@@ -1254,19 +1281,21 @@ def calculate_win_probability(t1, t2):
 
     # --- FACTOR WEIGHTING --- #
     factor = 0
-    factor += 0.35 * kp_diff            # KP_AdjEM difference
-    factor += 0.20 * bpi_diff           # ESPN BPI_25 difference
-    factor += 0.01 * net_diff           # NCAA NET_25 difference
-    factor += 0.1 * off_advantage    
-    factor += 0.1 * (-def_advantage) 
-    factor += 0.05 * adjO_diff       
-    factor += 0.05 * adjD_diff       
-    factor += 0.00 * win_pct_diff    
+    factor += 0.25 * kp_diff            # KP_AdjEM difference
+    factor += 0.25 * bpi_diff           # ESPN BPI_25 difference
+    factor += 0.00 * net_diff           # NCAA NET_25 difference
+    factor += 0.10 * off_advantage    
+    factor += 0.10 * (-def_advantage) 
+    factor += 0.10 * adjO_diff       
+    factor += 0.10 * adjD_diff       
+    factor += 0.01 * win_pct_diff * 100    
     factor += 0.00 * close_pct_diff  
-    factor += 0.35 * margin_diff      # AVG MARGIN difference
+    factor += 0.25 * margin_diff      # AVG MARGIN difference
     factor += 0.00 * sos_diff        
     factor += 0.00 * exp_diff
-    factor += 0.00 * success_diff    
+    factor += 0.00 * success_diff
+    factor += 0.05 * efg_diff * 100  
+    factor += 0.10 * ast_to_diff * 100
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
     def threshold_evaluation(team):
@@ -1304,33 +1333,37 @@ def calculate_win_probability(t1, t2):
     threshold_diff = t1_threshold_score - t2_threshold_score
     factor += 0.10 * threshold_diff
 
-    # --- ENHANCED ANALYTICS --- #
-    efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
-    ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
-    factor += 0.03 * efg_diff * 100  
-    factor += 0.02 * ast_to_diff * 100
     # def_eff_diff = t2_def - t1_def  
     # factor += 0.05 * def_eff_diff
 
-    # --- HISTORICAL SEED-BASED BASE PROBABILITY (reduced bias) ---
-    seed1_raw = t1.get('seed', 0)
-    seed2_raw = t2.get('seed', 0)
-    if pd.isna(seed1_raw): seed1_raw = 99
-    if pd.isna(seed2_raw): seed2_raw = 99
-    seed1 = int(seed1_raw)
-    seed2 = int(seed2_raw)
-    if seed1 < seed2:
-        base_seed_prob = 0.51
-    else:
-        base_seed_prob = 0.49
+    # --- HISTORICAL SEED-BASED BASE PROBABILITY ---
+    # seed1_raw = t1.get('seed', 0)
+    # seed2_raw = t2.get('seed', 0)
+    # if pd.isna(seed1_raw): seed1_raw = 99
+    # if pd.isna(seed2_raw): seed2_raw = 99
+    # seed1 = int(seed1_raw)
+    # seed2 = int(seed2_raw)
+    # if seed1 < seed2:
+    #     base_seed_prob = 0.51
+    # else:
+    #     base_seed_prob = 0.49
+
+    seed1 = int(t1.get('seed', 99))
+    seed2 = int(t2.get('seed', 99))
+    seed_diff = seed2 - seed1
+    base_seed_prob = 0.5 + 0.005 * seed_diff
 
     # --- APPLYING LOGISTIC TRANSFORMATION ---
-    adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
-    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
-    adjusted_t1 = base_seed_prob * adjustment_t1
-    adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
-    total = adjusted_t1 + adjusted_t2
-    final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
+    # adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
+    # adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
+    # adjusted_t1 = base_seed_prob * adjustment_t1
+    # adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
+    # total = adjusted_t1 + adjusted_t2
+    # final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
+
+    # --- LOGISTIC TRANSFORMATION ---
+    adjustment = 1.0 / (1.0 + np.exp(-factor))
+    final_prob = base_seed_prob * adjustment + (1 - base_seed_prob) * (1 - adjustment)
 
     # --- SEED-BASED HISTORICAL UPSET PATTERNS (RELAXED & WEIGHTED) ---
     seed_diff = seed2 - seed1
@@ -1373,7 +1406,7 @@ def calculate_win_probability(t1, t2):
         final_prob = max(final_prob - 0.03, 0.30)
 
     # Return final probability clamped to a slightly wider range for increased randomness.
-    final_prob = max(0.02, min(0.98, final_prob))
+    final_prob = max(0.05, min(0.95, final_prob))
     return final_prob
 
 def run_games(team_list, pairing_list, round_name, region_name, use_analytics=True):
@@ -2610,29 +2643,6 @@ with tab_team_reports:
             # Only show the single team's interpretive insights here if NO opponent is selected
             # (Prevents duplication once we show a 2-team comparison below.)
             if not selected_opponent or selected_opponent == selected_team_reports:
-                def get_interpretive_insights(row, df_all):
-                    lines = []
-                    t_avgs, t_stdevs = compute_tournament_stats(df_all)
-                    for metric in get_default_metrics():
-                        if metric in row:
-                            mean_val = t_avgs.get(metric, 0)
-                            std_val = max(t_stdevs.get(metric, 1), 1e-6)
-                            team_val = row[metric]
-                            z = (team_val - mean_val) / std_val
-                            if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
-                                z = -z
-                            if abs(z) < 0.3:
-                                lines.append(f"**{metric}** | Near NCAA average.")
-                            elif z >= 1.0:
-                                lines.append(f"**{metric}** | Clear strength.")
-                            elif 0.3 <= z < 1.0:
-                                lines.append(f"**{metric}** | Above NCAA average.")
-                            elif -1.0 < z <= -0.3:
-                                lines.append(f"**{metric}** | Below NCAA average.")
-                            else:
-                                lines.append(f"**{metric}** | Notable weakness.")
-                    return lines
-
                 team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
                 if team_insights:
                     st.markdown("""<h4>Team Insights</h4>""", unsafe_allow_html=True)
