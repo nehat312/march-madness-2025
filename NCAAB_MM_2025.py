@@ -2636,13 +2636,13 @@ with tab_team_reports:
 
             # Only show the single team's interpretive insights here if NO opponent is selected
             # (Prevents duplication once we show a 2-team comparison below.)
-            if not selected_opponent or selected_opponent == selected_team_reports:
-                team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
-                if team_insights:
-                    st.markdown("""<h4>Team Insights</h4>""", unsafe_allow_html=True)
-                    for insight in team_insights:
-                        metric, comment = insight.split(" | ")
-                        st.markdown(f"**{metric}**: {comment}")
+                if not selected_opponent or selected_opponent == selected_team_reports:
+                    team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
+                    if team_insights:
+                        st.markdown("""<h4>Team Insights</h4>""", unsafe_allow_html=True)
+                        for insight in team_insights:
+                            metric, comment = insight.split(" | ")
+                            st.markdown(f"**{metric}**: {comment}")
 
         # ------------------------------------------------------
         # HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
