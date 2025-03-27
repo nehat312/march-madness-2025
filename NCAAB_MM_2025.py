@@ -2784,15 +2784,13 @@ with tab_team_reports:
     selected_team_reports = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        #default="Duke",
-        index=65,
+        index=62, #"Duke"
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        #default="Arizona",
-        index=10,
+        index=10, #"Arizona",
         key="select_opponent_reports"
     )
 
