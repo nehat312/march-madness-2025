@@ -2554,7 +2554,7 @@ with tab_home:
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
 #######################################
 with tab_team_reports:
-    # Advanced CSS styling for the tab and table elements
+    # Advanced CSS styling for  tab and table elements
     st.markdown("""
                 <style>
                 /* Main container styling */
@@ -2776,6 +2776,7 @@ with tab_team_reports:
             }
             </style>
             """, unsafe_allow_html=True)
+    
     st.header(":blue[TEAM REPORTS]")
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
@@ -2784,14 +2785,14 @@ with tab_team_reports:
         ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
         #default="Duke",
-        index=0,
+        index=65,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
         #default="Arizona",
-        index=1,
+        index=10,
         key="select_opponent_reports"
     )
 
@@ -2841,6 +2842,7 @@ with tab_team_reports:
 
             # Extract basic team info
             conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+            conf['CONFERENCE'] = conf['CONFERENCE'].apply(get_conf_logo_html)
             record = "N/A"
             if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
                 w = int(team_data["WIN_25"].iloc[0])
@@ -2914,6 +2916,7 @@ with tab_team_reports:
                 opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))
             
             opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
+            opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
             #opp_record = "N/A"
             if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
                 w = int(opp_data["WIN_25"].iloc[0])
@@ -2992,54 +2995,10 @@ with tab_team_reports:
                     </div>
                     """, unsafe_allow_html=True)
 
-#     /* Performance badges with improved visuals */
-#     .badge-elite { 
-#         background: linear-gradient(135deg, #FFD700, #FFA500);
-#         color: #000; 
-#         border-radius: 20px; 
-#         font-weight: bold; 
-#         padding: 5px 14px; 
-#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-#         text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
-#     }
-#     .badge-solid { 
-#         background: linear-gradient(135deg, #4CAF50, #388E3C); 
-#         color: white; 
-#         border-radius: 20px; 
-#         font-weight: bold; 
-#         padding: 5px 14px; 
-#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-#     }
-#     .badge-mid { 
-#         background: linear-gradient(135deg, #2196F3, #1976D2); 
-#         color: white; 
-#         border-radius: 20px; 
-#         font-weight: bold; 
-#         padding: 5px 14px; 
-#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-#     }
-#     .badge-subpar { 
-#         background: linear-gradient(135deg, #FF9800, #F57C00); 
-#         color: white; 
-#         border-radius: 20px; 
-#         font-weight: bold; 
-#         padding: 5px 14px; 
-#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-#     }
-#     .badge-weak { 
-#         background: linear-gradient(135deg, #F44336, #D32F2F); 
-#         color: white; 
-#         border-radius: 20px; 
-#         font-weight: bold; 
-#         padding: 5px 14px; 
-#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-#     }
-
+# ------------------------------------------------------
+# HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
+# ------------------------------------------------------
             with colB:
-
-                # ------------------------------------------------------
-                # HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
-                # ------------------------------------------------------
                 if selected_opponent and selected_opponent != selected_team_reports:
                     if opp_data.empty:
                         st.warning("No data available for the selected opponent.")
