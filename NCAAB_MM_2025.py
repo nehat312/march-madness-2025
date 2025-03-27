@@ -3448,7 +3448,7 @@ with tab_team:
                 default=['Duke', 'Arizona', 'Maryland', 'Florida',
                          'Texas Tech', 'Arkansas', 'Auburn', 'Michigan',
                          'Houston', 'Purdue', 'Tennessee', 'Kentucky',
-                         'Alabama', 'BYU', 'Michigan St.', 'Ole Miss',
+                         'Alabama', 'BYU', 'Michigan St.', 'Mississippi',
                          # 'Kansas',  'Iowa St.',
                          ])
         with col2:
