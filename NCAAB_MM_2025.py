@@ -1284,21 +1284,21 @@ def calculate_win_probability(t1, t2):
     # --- FACTOR WEIGHTING --- #
     factor = 0
     factor += 0.25 * kp_diff            # KP_AdjEM difference
-    factor += 0.25 * bpi_diff           # ESPN BPI_25 difference
+    factor += 0.15 * bpi_diff           # ESPN BPI_25 difference
     factor += 0.00 * net_diff           # NCAA NET_25 difference
-    factor += 0.05 * off_advantage    
-    factor += 0.05 * (-def_advantage) 
-    factor += 0.05 * adjO_diff       
-    factor += 0.05 * adjD_diff       
+    factor += 0.10 * off_advantage    
+    factor += 0.10 * (-def_advantage) 
+    factor += 0.00 * adjO_diff       
+    factor += 0.00 * adjD_diff       
     factor += 0.00 * win_pct_diff * 100    
     factor += 0.00 * close_pct_diff * 100  
-    factor += 0.15 * margin_diff      # AVG MARGIN difference
+    factor += 0.20 * margin_diff      # AVG MARGIN difference
     factor += 0.00 * sos_diff        
     factor += 0.00 * exp_diff
     factor += 0.00 * success_diff
     factor += 0.05 * efg_diff * 100  
-    factor += 0.00 * ast_to_diff * 100
-    factor += 0.05 * net_ast_to_ratio_diff * 100
+    factor += 0.05 * ast_to_diff * 100
+    factor += 0.00 * net_ast_to_ratio_diff * 100
     factor += 0.05 * stocks_to_diff * 100
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
@@ -1325,7 +1325,7 @@ def calculate_win_probability(t1, t2):
         if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
             score += 2
         elif kp_adjEM_rk <= 20:
-            score += 2
+            score += 3
         if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
             score += 1
         if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
@@ -1352,22 +1352,13 @@ def calculate_win_probability(t1, t2):
     else:
         base_seed_prob = 0.49
 
-    # seed1 = int(t1.get('seed', 99))
-    # seed2 = int(t2.get('seed', 99))
-    # seed_diff = seed2 - seed1
-    # base_seed_prob = 0.5 + 0.005 * seed_diff
-
     # --- APPLYING LOGISTIC TRANSFORMATION ---
-    # adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
-    # adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
-    # adjusted_t1 = base_seed_prob * adjustment_t1
-    # adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
-    # total = adjusted_t1 + adjusted_t2
-    # final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
-
-    # --- LOGISTIC TRANSFORMATION ---
-    adjustment = 1.0 / (1.0 + np.exp(-factor))
-    final_prob = base_seed_prob * adjustment + (1 - base_seed_prob) * (1 - adjustment)
+    adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
+    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
+    adjusted_t1 = base_seed_prob * adjustment_t1
+    adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
+    total = adjusted_t1 + adjusted_t2
+    final_prob = adjusted_t1 / total if total > 0 else base_seed_prob
 
     # --- SEED-BASED HISTORICAL UPSET PATTERNS (RELAXED & WEIGHTED) ---
     seed_diff = seed2 - seed1
