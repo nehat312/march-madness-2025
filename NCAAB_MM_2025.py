@@ -1341,21 +1341,21 @@ def calculate_win_probability(t1, t2):
     # factor += 0.05 * def_eff_diff
 
     # --- HISTORICAL SEED-BASED BASE PROBABILITY ---
-    # seed1_raw = t1.get('seed', 0)
-    # seed2_raw = t2.get('seed', 0)
-    # if pd.isna(seed1_raw): seed1_raw = 99
-    # if pd.isna(seed2_raw): seed2_raw = 99
-    # seed1 = int(seed1_raw)
-    # seed2 = int(seed2_raw)
-    # if seed1 < seed2:
-    #     base_seed_prob = 0.51
-    # else:
-    #     base_seed_prob = 0.49
+    seed1_raw = t1.get('seed', 0)
+    seed2_raw = t2.get('seed', 0)
+    if pd.isna(seed1_raw): seed1_raw = 99
+    if pd.isna(seed2_raw): seed2_raw = 99
+    seed1 = int(seed1_raw)
+    seed2 = int(seed2_raw)
+    if seed1 < seed2:
+        base_seed_prob = 0.51
+    else:
+        base_seed_prob = 0.49
 
-    seed1 = int(t1.get('seed', 99))
-    seed2 = int(t2.get('seed', 99))
-    seed_diff = seed2 - seed1
-    base_seed_prob = 0.5 + 0.005 * seed_diff
+    # seed1 = int(t1.get('seed', 99))
+    # seed2 = int(t2.get('seed', 99))
+    # seed_diff = seed2 - seed1
+    # base_seed_prob = 0.5 + 0.005 * seed_diff
 
     # --- APPLYING LOGISTIC TRANSFORMATION ---
     # adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
