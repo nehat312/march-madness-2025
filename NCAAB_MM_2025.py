@@ -2565,12 +2565,14 @@ with tab_team_reports:
     selected_team_reports = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
+        default="Duke",
         index=0,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
+        default="Arizona",
         index=1,
         key="select_opponent_reports"
     )
@@ -3449,9 +3451,16 @@ with tab_team:
             selected_df = df_main[df_main["TM_KP"].isin(selected_teams)].copy()
             if view_option == "HEATMAP":
                 metrics_to_display = [
-                    "KP_Rank", "WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-                    "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF", 
-                    "TS%", "OPP TS%", "AST/TO%", "STOCKS/GM", "AVG MARGIN"
+                    "KP_Rank", "BPI_Rk_25", "NET_25", "SEED_25", 
+                    #"WIN_25", "LOSS_25",
+                    "WIN% ALL GM", #"WIN% CLOSE GM",
+                    "AVG MARGIN",
+                    "KP_AdjEM", "BPI_25", #"KP_SOS_AdjEM",
+                    "KP_AdjO", "KP_AdjD", 
+                    "OFF EFF", "DEF EFF", 
+                    #"TS%", "OPP TS%",
+                    "eFG%", "OPP eFG%",
+                    "AST/TO%", "STOCKS/GM", 
                 ]
                 metrics_to_display = [m for m in metrics_to_display if m in selected_df.columns]
                 display_df = selected_df[metrics_to_display].copy()
@@ -3460,16 +3469,20 @@ with tab_team:
                 display_df = pd.concat([display_df, ncaa_avg])
                 format_dict = {
                     "KP_Rank": "{:.0f}",
-                    "WIN_25": "{:.0f}", 
-                    "LOSS_25": "{:.0f}",
+                    #"WIN_25": "{:.0f}", 
+                    #"LOSS_25": "{:.0f}",
                     "WIN% ALL GM": "{:.1%}",
-                    "WIN% CLOSE GM": "{:.1%}",
+                    #"WIN% CLOSE GM": "{:.1%}",
                     "KP_AdjEM": "{:.1f}",
-                    "KP_SOS_AdjEM": "{:.1f}",
-                    "OFF EFF": "{:.1f}", 
-                    "DEF EFF": "{:.1f}",
-                    "TS%": "{:.1f}%", 
-                    "OPP TS%": "{:.1f}%",
+                    "BPI_25": "{:.1f}",
+                    "NET_25": "{:.0f}",
+                    #"KP_SOS_AdjEM": "{:.1f}",
+                    "OFF EFF": "{:.2f}", 
+                    "DEF EFF": "{:.2f}",
+                    #"TS%": "{:.1f}%", 
+                    #"OPP TS%": "{:.1f}%",
+                    #"eFG%": "{:.1f}%", 
+                    #"OPP eFG%": "{:.1f}%",
                     "AST/TO%": "{:.2f}",
                     "STOCKS/GM": "{:.1f}",
                     "AVG MARGIN": "{:.1f}"
@@ -3487,6 +3500,8 @@ with tab_team:
                     "DEF EFF": "RdYlGn_r",
                     "TS%": "RdYlGn", 
                     "OPP TS%": "RdYlGn_r",
+                    "eFG%": "RdYlGn", 
+                    "OPP eFG%": "RdYlGn_r",
                     "AST/TO%": "RdYlGn",
                     "STOCKS/GM": "RdYlGn", 
                 }
