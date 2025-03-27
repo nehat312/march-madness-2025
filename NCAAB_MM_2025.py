@@ -1967,7 +1967,7 @@ def display_simulation_results(single_run_logs):
 # --- App Header & Tabs ---
 st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards:_]")
+st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards_]")
 
 tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 TEAM REPORTS", 
@@ -2759,14 +2759,63 @@ with tab_team_reports:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Compute and show performance badge
+                # Compute and show team performance badge
                 if all(m in team_data.columns for m in get_default_metrics()):
                     badge = compute_performance_badge(team_data.iloc[0], df_main)
                     st.markdown(f"""
                     <div style="margin-top:10px;">
                       <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
+                      background: linear-gradient(135deg, #FFD700, #FFA500);
+                      border-radius: 20px; 
+                      font-weight: bold; 
+                      padding: 5px 14px; 
+                      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+                      text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
                     </div>
                     """, unsafe_allow_html=True)
+
+#     /* Performance badges with improved visuals */
+#     .badge-elite { 
+#         background: linear-gradient(135deg, #FFD700, #FFA500);
+#         color: #000; 
+#         border-radius: 20px; 
+#         font-weight: bold; 
+#         padding: 5px 14px; 
+#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#         text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
+#     }
+#     .badge-solid { 
+#         background: linear-gradient(135deg, #4CAF50, #388E3C); 
+#         color: white; 
+#         border-radius: 20px; 
+#         font-weight: bold; 
+#         padding: 5px 14px; 
+#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#     }
+#     .badge-mid { 
+#         background: linear-gradient(135deg, #2196F3, #1976D2); 
+#         color: white; 
+#         border-radius: 20px; 
+#         font-weight: bold; 
+#         padding: 5px 14px; 
+#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#     }
+#     .badge-subpar { 
+#         background: linear-gradient(135deg, #FF9800, #F57C00); 
+#         color: white; 
+#         border-radius: 20px; 
+#         font-weight: bold; 
+#         padding: 5px 14px; 
+#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#     }
+#     .badge-weak { 
+#         background: linear-gradient(135deg, #F44336, #D32F2F); 
+#         color: white; 
+#         border-radius: 20px; 
+#         font-weight: bold; 
+#         padding: 5px 14px; 
+#         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#     }
 
             with colB:
 
@@ -2777,15 +2826,9 @@ with tab_team_reports:
                     if opp_data.empty:
                         st.warning("No data available for the selected opponent.")
                     else:
-                        st.markdown("---")                    
-
-
+                        st.markdown("---")
+                                            
                     st.markdown(f"#### {selected_opponent}")
-
-
-
-                        
-
                     st.markdown(f"""
                                 <div class="opp-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
                                 <h3 style="margin-bottom:5px;">{selected_opponent}</h3>
@@ -2814,63 +2857,27 @@ with tab_team_reports:
                         </div>
                         """, unsafe_allow_html=True)
                     #st.markdown("</div>", unsafe_allow_html=True)
+                    
                     # Close the grid and team-info
                     st.markdown("""
-                    </div>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    
 
-            # --- Opponent Basic Info & Stat Bubbles ---
-            colH2H1, colH2H2 = st.columns(2)
-            with colH2H1:
-                # TEAM Radar Chart
-                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
-                if single_radar_fig:
-                    st.plotly_chart(single_radar_fig, use_container_width=True)
-            # --- Opponent Radar Chart ---
-            with colH2H2:
-                # OPPONENT Radar Chart
-                compare_radar_fig = create_radar_chart([selected_opponent], df_main)
-                if compare_radar_fig:
-                    st.plotly_chart(compare_radar_fig, use_container_width=True)
-
-            # --- Compute Opponent Interpretive Insights ---
-            def get_interpretive_insights_opp(row, df_all):
-                lines = []
-                t_avgs, t_stdevs = compute_tournament_stats(df_all)
-                for metric in get_default_metrics():
-                    if metric in row:
-                        mean_val = t_avgs.get(metric, 0)
-                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
-                        val = row[metric]
-                        z = (val - mean_val) / std_val
-                        if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
-                            z = -z
-                        if abs(z) < 0.3:
-                            lines.append(f"**{metric}** | Near NCAA average.")
-                        elif z >= 1.0:
-                            lines.append(f"**{metric}** | Clear strength.")
-                        elif 0.3 <= z < 1.0:
-                            lines.append(f"**{metric}** | Above NCAA average.")
-                        elif -1.0 < z <= -0.3:
-                            lines.append(f"**{metric}** | Below NCAA average.")
-                        else:
-                            lines.append(f"**{metric}** | Notable weakness.")
-                return lines
-            opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
-
-                
-
-            # Only show the single team's interpretive insights here if NO opponent is selected
-            # (Prevents duplication once we show a 2-team comparison below.)
-            if not selected_opponent or selected_opponent == selected_team_reports:
-                team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
-                if team_insights:
-                    st.markdown("""<h4>TEAM INSIGHTS</h4>""", unsafe_allow_html=True)
-                    for insight in team_insights:
-                        metric, comment = insight.split(" | ")
-                        st.markdown(f"**{metric}**: {comment}")
+                    # Compute and show performance badge
+                    if all(m in opp_data.columns for m in get_default_metrics()):
+                        badge = compute_performance_badge(opp_data.iloc[0], df_main)
+                        st.markdown(f"""
+                        <div style="margin-top:10px;">
+                        <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
+                        background: linear-gradient(135deg, #FFD700, #FFA500);
+                        border-radius: 20px; 
+                        font-weight: bold; 
+                        padding: 5px 14px; 
+                        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+                        text-shadow: 0px 1px 1px rgba(0,0,0,0.4);                        
+                        </div>
+                        """, unsafe_allow_html=True)
 
         # --- Head-to-Head Stats Table ---
         with st.expander("H2H STATISTICAL COMPARISON"):
@@ -2980,6 +2987,7 @@ with tab_team_reports:
 
             styled_h2h = final_df.style.apply(colorize_row, axis=1)
             styled_h2h = styled_h2h.set_properties(**{"text-align": "center"})
+            styled_h2h = styled_h2h.set_table_styles(detailed_table_styles)
             st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
 
             # --- Single-game Win Probability ---
@@ -3036,6 +3044,46 @@ with tab_team_reports:
             <p><strong>Summary:</strong> {summary_text}</p>
             """, unsafe_allow_html=True)
 
+            # --- Opponent Basic Info & Stat Bubbles ---
+            colH2H1, colH2H2 = st.columns(2)
+            with colH2H1:
+                # TEAM Radar Chart
+                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
+                if single_radar_fig:
+                    st.plotly_chart(single_radar_fig, use_container_width=True)
+            # --- Opponent Radar Chart ---
+            with colH2H2:
+                # OPPONENT Radar Chart
+                compare_radar_fig = create_radar_chart([selected_opponent], df_main)
+                if compare_radar_fig:
+                    st.plotly_chart(compare_radar_fig, use_container_width=True)
+
+            # --- Compute Opponent Interpretive Insights ---
+            def get_interpretive_insights_opp(row, df_all):
+                lines = []
+                t_avgs, t_stdevs = compute_tournament_stats(df_all)
+                for metric in get_default_metrics():
+                    if metric in row:
+                        mean_val = t_avgs.get(metric, 0)
+                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
+                        val = row[metric]
+                        z = (val - mean_val) / std_val
+                        if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
+                            z = -z
+                        if abs(z) < 0.3:
+                            lines.append(f"**{metric}** | Near NCAA average.")
+                        elif z >= 1.0:
+                            lines.append(f"**{metric}** | Clear strength.")
+                        elif 0.3 <= z < 1.0:
+                            lines.append(f"**{metric}** | Above NCAA average.")
+                        elif -1.0 < z <= -0.3:
+                            lines.append(f"**{metric}** | Below NCAA average.")
+                        else:
+                            lines.append(f"**{metric}** | Notable weakness.")
+                return lines
+            opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
+
+
             # Now show BOTH teams' interpretive insights side by side, only once
             colI1, colI2 = st.columns(2)
             with colI1:
@@ -3050,6 +3098,17 @@ with tab_team_reports:
                 for ins in opp_insights:
                     metric, comment = ins.split(" | ")
                     st.markdown(f"**{metric}**: {comment}")
+                
+
+            # Only show the single team's interpretive insights here if NO opponent is selected
+            # (Prevents duplication once we show a 2-team comparison below.)
+            if not selected_opponent or selected_opponent == selected_team_reports:
+                team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
+                if team_insights:
+                    st.markdown("""<h4>TEAM INSIGHTS</h4>""", unsafe_allow_html=True)
+                    for insight in team_insights:
+                        metric, comment = insight.split(" | ")
+                        st.markdown(f"**{metric}**: {comment}")
 
 
 # --- Radar Charts Tab ---
