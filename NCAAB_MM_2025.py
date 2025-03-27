@@ -1663,7 +1663,7 @@ def run_tournament_simulation(num_sims=100):
       3) Returns aggregated results by round (as percentages), including "Region" champion data
     """
     bracket = prepare_tournament_data(df_main)
-    apply_completed_results(bracket, completed_results_2025)
+    #apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return {}
     aggregated_results = simulate_tournament(bracket, num_simulations=num_sims) # simulate_tournament region-champion logic returns a "Region" key
@@ -1710,11 +1710,13 @@ def run_simulation_once(df):
     """
     r64, r32, s16, e8, f4, champ = get_bracket_matchups()
     bracket = prepare_tournament_data(df)
-    apply_completed_results(bracket, completed_results_2025)
+    #apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return []
+    #current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
+    current = copy.deepcopy(bracket)  # use bracket directly, not df_main
     game_logs = []
-    current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
+
     
     def record_game(rnd_name, region, tA, tB, w):
         upset = "UPSET" if w['seed'] > min(tA['seed'], tB['seed']) else ""
@@ -1989,7 +1991,9 @@ with tab_home:
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
     bracket = prepare_tournament_data(df_main)
-    apply_completed_results(bracket, completed_results_2025)
+    #apply_completed_results(bracket, completed_results_2025)
+
+    st.session_state['bracket'] = bracket
 
     # Actual Sweet 16 matchups
     sweet_16_matchups = [
@@ -3672,13 +3676,25 @@ with tab_pred:
     show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
     if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
         with st.spinner(":green[RUNNING SIMULATIONS ...]"):
+            
+            if 'bracket' not in st.session_state:
+                bracket = prepare_tournament_data(df_main)
+                apply_completed_results(bracket, completed_results_2025)
+                st.session_state['bracket'] = bracket
+            else:
+                bracket = st.session_state['bracket']
+            
             # (1) Aggregated results from your multi-run simulation
-            aggregated = run_tournament_simulation(num_sims=1000)
+            #aggregated = run_tournament_simulation(num_sims=1000)
+            aggregated = run_tournament_simulation(bracket, num_sims=1000)
 
             # (2) Single-run logs (a single bracket outcome)
-            single_run = run_simulation_once(df_main)
+            #single_run = run_simulation_once(df_main)
+            #single_run = run_simulation_once(st.session_state['bracket'])
+            single_run = run_simulation_once(bracket)
 
-        st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED ...")
+
+        st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN PROCLAIMED ... ")
 
         # 1) If requested, show single-run logs first
         if show_logs and single_run:
