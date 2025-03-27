@@ -3646,7 +3646,7 @@ with tab_pred:
 
         champion_df = pd.DataFrame(data_rows)
         champion_df["CHAMP%"] = champion_df["CHAMP%"].round(1)
-        champion_df.rename(columns={"CHAMP%": "CHAMPIONSHIP PROBABILITY (%)"}, inplace=True)
+        champion_df.rename(columns={"CHAMP%": "CHAMP PROBABILITY (%)"}, inplace=True)
 
         # Reorder columns
         champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25", "BPI_25"]]
