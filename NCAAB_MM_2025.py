@@ -1981,7 +1981,7 @@ tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred
 # --- Home Tab ---
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
-    st.caption(":green[_DATA AS OF: 3/19/2025_]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
     treemap = create_treemap(df_main_notnull)
     if treemap is not None:
         st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
@@ -2236,7 +2236,7 @@ with tab_home:
 
 # with tab_team_reports:
 #     st.header(":primary[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 3/19/2025_]")
+#     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 #     # Allow team selection – similar to the Home tab approach
 #     selected_team_reports = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
@@ -2548,7 +2548,7 @@ with tab_home:
 #     """, unsafe_allow_html=True)
 
 #     st.header(":blue[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 3/19/2025_]")
+#     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
@@ -2559,7 +2559,7 @@ with tab_team_reports:
     
     """, unsafe_allow_html=True)
     st.header(":blue[TEAM REPORTS]")
-    st.caption(":green[_DATA AS OF: 3/19/2025_]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
     # -- TEAM & OPPONENT SELECTION --
     selected_team_reports = st.selectbox(
@@ -2882,8 +2882,10 @@ with tab_team_reports:
         # --- Head-to-Head Stats Table ---
         with st.expander("H2H STATISTICAL COMPARISON"):
             h2h_metrics = [
-                "SEED_25", "BPI_25", "KP_AdjEM", "KP_Rank", "KP_SOS_AdjEM",
-                "KP_AdjO", "KP_AdjD", "OFF EFF", "DEF EFF",
+                #"SEED_25",
+                "BPI_25", "KP_AdjEM", #"KP_Rank", "KP_SOS_AdjEM",
+                "KP_AdjO", "KP_AdjD",
+                "OFF EFF", "DEF EFF",
                 #"WIN% ALL GM",
                 "AVG MARGIN",
                 "eFG%", "OPP eFG%",
@@ -3114,7 +3116,7 @@ with tab_team_reports:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header(":primary[REGIONAL RADAR CHARTS]")
-    st.caption(":green[_DATA AS OF: 3/19/2025_]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
     create_region_seeding_radar_grid(df_main) #, region_teams
     with st.expander("*About Radar Grid:*"):
         st.markdown("""
@@ -3169,7 +3171,7 @@ with tab_radar:
 # --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header(":primary[REGIONAL HEATMAPS]")
-    st.caption(":green[_DATA AS OF: 3/19/2025_]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
     df_heat = df_main.copy()
     numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
     mean_series = df_heat.mean(numeric_only=True)
@@ -3328,6 +3330,7 @@ with tab_regions:
 # --- Conference Comparison Tab ---
 with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
 
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
@@ -3496,6 +3499,7 @@ with tab_conf:
 # --- Team Metrics Comparison Tab ---
 with tab_team:
     st.header(":primary[TEAM METRICS COMPARISON]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     if "TM_KP" in df_main.columns:
         all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
@@ -3728,6 +3732,7 @@ def color_log_text(round_name, text):
 
 with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
     show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
 
