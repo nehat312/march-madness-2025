@@ -1713,8 +1713,8 @@ def run_simulation_once(df):
     #apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return []
-    #current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
-    current = copy.deepcopy(bracket)  # use bracket directly, not df_main
+    current = {r: [copy.deepcopy(t) for t in bracket[r]] for r in bracket}
+    #current = copy.deepcopy(bracket)  # use bracket directly, not df_main
     game_logs = []
 
     
@@ -1968,7 +1968,7 @@ def display_simulation_results(single_run_logs):
 # --- App Header & Tabs ---
 st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.caption(":blue[_Cure your 🧠BRACKET BRAIN🧠 and propel yourself up the leaderboards by exploring the tabs below:_]")
+st.subheader(":blue[_Cure your 🧠BRACKET BRAIN🧠 and propel yourself up the leaderboards by exploring the tabs below:_]")
 
 tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 TEAM REPORTS", 
