@@ -1266,36 +1266,40 @@ def calculate_win_probability(t1, t2):
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
     efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
     ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
+    net_ast_to_ratio_diff = float(t1.get('NET AST/TOV RATIO', 1.0)) - float(t2.get('NET AST/TOV RATIO', 1.0))
+    stocks_to_diff = float(t1.get('STOCKS-TOV/GM', 1.0)) - float(t2.get('STOCKS-TOV/GM', 1.0))
 
     
     # --- Historical threshold constants (from KP metrics) --- #
     KP_AdjEM_Rk_THRESHOLD = 25 # actual=5.7; no outliers=3.3    
     KP_AdjO_Rk_THRESHOLD = 50 # actual=39      
     KP_AdjD_Rk_THRESHOLD = 35 # actual=25
-    KP_AdjEM_champ_live = 21.5
-    KP_AdjEM_champ_avg = 27.9      
-    KP_AdjEM_champ_min = 19.1      
-    KP_AdjEM_champ_max = 35.7      
-    KP_AdjO_THRESHOLD = 115
-    KP_AdjD_THRESHOLD = 100
+    KP_AdjEM_champ_live =  # prior=21.5
+    KP_AdjEM_champ_avg = 27.9 # prior=27.9      
+    KP_AdjEM_champ_min = 20 # prior=19.1      
+    KP_AdjEM_champ_max = 99 # prior=35.7      
+    KP_AdjO_THRESHOLD = 112.5 # prior=115
+    KP_AdjD_THRESHOLD = 102.5 # prior=100
 
     # --- FACTOR WEIGHTING --- #
     factor = 0
-    factor += 0.25 * kp_diff            # KP_AdjEM difference
-    factor += 0.25 * bpi_diff           # ESPN BPI_25 difference
+    factor += 0.20 * kp_diff            # KP_AdjEM difference
+    factor += 0.20 * bpi_diff           # ESPN BPI_25 difference
     factor += 0.00 * net_diff           # NCAA NET_25 difference
-    factor += 0.10 * off_advantage    
-    factor += 0.10 * (-def_advantage) 
-    factor += 0.10 * adjO_diff       
+    factor += 0.05 * off_advantage    
+    factor += 0.05 * (-def_advantage) 
+    factor += 0.00 * adjO_diff       
     factor += 0.10 * adjD_diff       
-    factor += 0.01 * win_pct_diff * 100    
+    factor += 0.00 * win_pct_diff * 100    
     factor += 0.00 * close_pct_diff  
-    factor += 0.25 * margin_diff      # AVG MARGIN difference
+    factor += 0.10 * margin_diff      # AVG MARGIN difference
     factor += 0.00 * sos_diff        
     factor += 0.00 * exp_diff
     factor += 0.00 * success_diff
     factor += 0.05 * efg_diff * 100  
-    factor += 0.10 * ast_to_diff * 100
+    factor += 0.00 * ast_to_diff * 100
+    factor += 0.10 * net_ast_to_ratio_diff * 100
+    factor += 0.10 * stocks_to_diff * 100
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
     def threshold_evaluation(team):
@@ -1304,28 +1308,28 @@ def calculate_win_probability(t1, t2):
         kp_adjO = float(team.get('KP_AdjO', 0))
         kp_adjD = float(team.get('KP_AdjD', 0))
         if kp_adjEM >= KP_AdjEM_champ_min:
-            score += 3
+            score += 1
         if kp_adjEM >= KP_AdjEM_champ_live:
-            score += 2
+            score += 1
         if kp_adjO >= KP_AdjO_THRESHOLD:
-            score += 2
+            score += 1
         elif kp_adjO >= (KP_AdjO_THRESHOLD - 5):
             score += 1
         if kp_adjD <= KP_AdjD_THRESHOLD:
-            score += 2
+            score += 1
         elif kp_adjD <= (KP_AdjD_THRESHOLD + 5):
             score += 1
         kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999))
         kp_adjO_rk = float(team.get('KP_AdjO_Rk', 999))
         kp_adjD_rk = float(team.get('KP_AdjD_Rk', 999))
         if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
-            score += 2
+            score += 1
         elif kp_adjEM_rk <= 20:
             score += 1
         if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
             score += 1
         if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
-            score += 1.5
+            score += 1
         return score
 
     t1_threshold_score = threshold_evaluation(t1)
