@@ -2842,7 +2842,6 @@ with tab_team_reports:
 
             # Extract basic team info
             conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
-            conf['CONFERENCE'] = conf['CONFERENCE'].apply(get_conf_logo_html)
             record = "N/A"
             if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
                 w = int(team_data["WIN_25"].iloc[0])
@@ -2916,7 +2915,6 @@ with tab_team_reports:
                 opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))
             
             opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
-            opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
             #opp_record = "N/A"
             if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
                 w = int(opp_data["WIN_25"].iloc[0])
@@ -3068,6 +3066,7 @@ with tab_team_reports:
                 "eFG%", "OPP eFG%",
                 "AST/TO%", "STOCKS-TOV/GM"
             ]
+            #opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
             row_team = team_data.iloc[0]
             row_opp = opp_data.iloc[0]
             valid_df = df_main.dropna(subset=h2h_metrics, how="all")
@@ -3083,6 +3082,7 @@ with tab_team_reports:
             final_df[selected_opponent] = [row_opp[m] if m in row_opp else np.nan for m in h2h_metrics]
             final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
             final_df["NCAA AVG"] = [ncaa_avg[m] for m in h2h_metrics]
+            
 
             lower_is_better = {
                 "KP_Rank": True,
