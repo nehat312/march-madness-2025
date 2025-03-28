@@ -2876,9 +2876,12 @@ with tab_H2H:
 
             # Build list of key stats to display as bubbles
             key_stats = []
-            if "WIN% ALL GM" in team_data.columns:
-                val = round(team_data["WIN% ALL GM"].iloc[0], 2)
-                key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
+            # if "WIN% ALL GM" in team_data.columns:
+            #     val = round(team_data["WIN% ALL GM"].iloc[0], 1)
+            #     key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
+            if "AVG MARGIN" in team_data.columns:
+                val = round(team_data["AVG MARGIN"].iloc[0], 1)
+                key_stats.append(("AVG MARGIN", f"{val*100:.0f}%", "#333333"))                
             if "KP_AdjEM" in team_data.columns:
                 val = round(team_data["KP_AdjEM"].iloc[0], 1)
                 key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
@@ -2902,9 +2905,12 @@ with tab_H2H:
 
 
             opp_key_stats = []
-            if "WIN% ALL GM" in opp_data.columns:
-                val = round(opp_data["WIN% ALL GM"].iloc[0], 2)
-                opp_key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))                        
+            # if "WIN% ALL GM" in opp_data.columns:
+            #     val = round(opp_data["WIN% ALL GM"].iloc[0], 1)
+            #     opp_key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
+            if "AVG MARGIN" in opp_data.columns:
+                val = round(opp_data["AVG MARGIN"].iloc[0], 1)
+                opp_key_stats.append(("AVG MARGIN", f"{val*100:.0f}%", "#333333"))                                              
             if "KP_AdjEM" in opp_data.columns:
                 val = round(opp_data["KP_AdjEM"].iloc[0], 1)
                 opp_key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
