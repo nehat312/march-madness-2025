@@ -302,6 +302,29 @@ def get_interpretive_insights(row, df_all):
                                 lines.append(f"**{metric}** | Notable weakness.")
                     return lines
 
+def get_interpretive_insights_opp(row, df_all):
+    lines = []
+    t_avgs, t_stdevs = compute_tournament_stats(df_all)
+    for metric in get_default_metrics():
+        if metric in row:
+            mean_val = t_avgs.get(metric, 0)
+            std_val = max(t_stdevs.get(metric, 1), 1e-6)
+            val = row[metric]
+            z = (val - mean_val) / std_val
+            if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
+                z = -z
+            if abs(z) < 0.3:
+                lines.append(f"**{metric}** | Near NCAA average.")
+            elif z >= 1.0:
+                lines.append(f"**{metric}** | Clear strength.")
+            elif 0.3 <= z < 1.0:
+                lines.append(f"**{metric}** | Above NCAA average.")
+            elif -1.0 < z <= -0.3:
+                lines.append(f"**{metric}** | Below NCAA average.")
+            else:
+                lines.append(f"**{metric}** | Notable weakness.")
+    return lines
+
 
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
@@ -2752,45 +2775,151 @@ with tab_H2H:
                 border-bottom: 1px solid #eaeaea;
             }
 
-            /* Insights section */
+            /* Main Insights Styling */
             .insights-container {
-                background-color: #ffffff; /* Brighter background */
+                background: linear-gradient(to bottom, #ffffff, #f8f9fa);
                 border-radius: 12px;
-                padding: 20px;
+                padding: 24px;
                 margin-top: 20px;
-                border: 1px solid #e0e0e0; /* Lighter border */
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-                transition: all 0.3s ease; /* Smooth transition */
+                border: 1px solid #e0e0e0;
+                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+                transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+                position: relative;
+                overflow: hidden;
             }
+            
             .insights-container:hover {
-                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); /* Slightly stronger shadow on hover */
-                transform: translateY(-2px); /* Slight lift on hover */
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+                transform: translateY(-5px);
             }
+            
+            .insights-container:before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #0039A6, #00C6FF);
+            }
+            
+            .insights-header {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 18px;
+                color: #1E3A8A;
+                border-bottom: 2px solid #f0f0f0;
+                padding-bottom: 10px;
+                position: relative;
+            }
+            
+            .insights-header:after {
+                content: "";
+                position: absolute;
+                bottom: -2px;
+                left: 0;
+                width: 80px;
+                height: 2px;
+                background: linear-gradient(90deg, #0039A6, #00C6FF);
+            }
+            
             .insights-list {
-                list-style-type: none; /* Remove default bullets */
+                list-style-type: none;
                 padding-left: 0;
                 margin-bottom: 0;
             }
+            
             .insights-list li {
-                margin-bottom: 12px;
-                padding-left: 24px; /* Increased padding */
+                margin-bottom: 16px;
+                padding: 12px 12px 12px 28px;
                 position: relative;
-                font-size: 0.95rem; /* Slightly smaller font */
-                line-height: 1.4; /* Improved line height */
+                font-size: 0.95rem;
+                line-height: 1.5;
+                background-color: rgba(240, 242, 245, 0.5);
+                border-radius: 8px;
+                transition: all 0.2s ease;
+                border-left: 3px solid transparent;
             }
+            
+            .insights-list li:hover {
+                background-color: rgba(240, 242, 245, 0.9);
+                border-left: 3px solid #0039A6;
+                padding-left: 32px;
+            }
+            
             .insights-list li:before {
-                content: "➤"; /* Use a right arrow */
+                content: "↪";
                 color: #0039A6;
                 font-weight: bold;
                 position: absolute;
-                left: 0;
-                top: 2px; /* Adjust vertical alignment */
-                font-size: 0.8rem; /* Smaller arrow */
+                left: 8px;
+                top: 12px;
+                font-size: 1rem;
+                transition: all 0.2s ease;
             }
+            
+            .insights-list li:hover:before {
+                transform: rotate(90deg);
+                color: #00C6FF;
+            }
+            
             .insights-list li strong {
-                font-weight: 600; /* Slightly bolder metric */
-                color: #333; /* Darker metric */
+                font-weight: 600;
+                color: #1E3A8A;
+                display: block;
+                margin-bottom: 4px;
+                font-size: 1.05rem;
             }
+            
+            .insights-comment {
+                color: #4B5563;
+            }
+            
+            .insights-empty {
+                display: block;
+                padding: 20px;
+                text-align: center;
+                color: #6B7280;
+                border: 1px dashed #d1d5db;
+                border-radius: 8px;
+                margin-top: 10px;
+                background-color: rgba(249, 250, 251, 0.8);
+            }
+            
+            /* Animation for insights loading */
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .insights-list li {
+                animation: fadeIn 0.4s ease forwards;
+                opacity: 0;
+            }
+            
+            .insights-list li:nth-child(1) { animation-delay: 0.1s; }
+            .insights-list li:nth-child(2) { animation-delay: 0.2s; }
+            .insights-list li:nth-child(3) { animation-delay: 0.3s; }
+            .insights-list li:nth-child(4) { animation-delay: 0.4s; }
+            .insights-list li:nth-child(5) { animation-delay: 0.5s; }
+            .insights-list li:nth-child(6) { animation-delay: 0.6s; }
+            
+            /* Team-specific styles */
+            .team-insights:before {
+                background: linear-gradient(90deg, #0039A6, #4B7BEC);
+            }
+            
+            .opponent-insights:before {
+                background: linear-gradient(90deg, #B91C1C, #F87171);
+            }
+            
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .insights-container {
+                    padding: 16px;
+                }
+                .insights-list li {
+                    padding: 10px 10px 10px 24px;
 
             /* Win probability indicator */
             .win-prob-container {
@@ -3324,71 +3453,70 @@ with tab_H2H:
                     st.plotly_chart(compare_radar_fig, use_container_width=True)
 
             # --- Compute Opponent Interpretive Insights ---
-            def get_interpretive_insights_opp(row, df_all):
-                lines = []
-                t_avgs, t_stdevs = compute_tournament_stats(df_all)
-                for metric in get_default_metrics():
-                    if metric in row:
-                        mean_val = t_avgs.get(metric, 0)
-                        std_val = max(t_stdevs.get(metric, 1), 1e-6)
-                        val = row[metric]
-                        z = (val - mean_val) / std_val
-                        if metric in ["DEF EFF", "TO/GM", "KP_AdjD", "KP_SOS_AdjEM"]:
-                            z = -z
-                        if abs(z) < 0.3:
-                            lines.append(f"**{metric}** | Near NCAA average.")
-                        elif z >= 1.0:
-                            lines.append(f"**{metric}** | Clear strength.")
-                        elif 0.3 <= z < 1.0:
-                            lines.append(f"**{metric}** | Above NCAA average.")
-                        elif -1.0 < z <= -0.3:
-                            lines.append(f"**{metric}** | Below NCAA average.")
-                        else:
-                            lines.append(f"**{metric}** | Notable weakness.")
-                return lines
-            opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
-
-
             # Display BOTH teams' interpretive insights side-by-side
             colI1, colI2 = st.columns(2)
+
             with colI1:
-                st.markdown(f"### {selected_team} Interpretive Insights:")
+                st.markdown(f"<div class='insights-header'>{selected_team} Insights</div>", unsafe_allow_html=True)
                 team_insights_str = get_interpretive_insights(row_team, df_main)
                 if team_insights_str:
-                    st.markdown("<div class='insights-container'>", unsafe_allow_html=True)
+                    st.markdown("<div class='insights-container team-insights'>", unsafe_allow_html=True)
                     st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
-                    for ins in team_insights_str:
+                    for i, ins in enumerate(team_insights_str):
                         metric, comment = ins.split(" | ")
-                        st.markdown(f"<li><strong>{metric}</strong>: {comment}</li>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"<li style='animation-delay: {0.1 * (i+1)}s'><strong>{metric}</strong> <span class='insights-comment'>{comment}</span></li>", 
+                            unsafe_allow_html=True
+                        )
                     st.markdown("</ul>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    st.info("No interpretive insights available for this team.")
+                    st.markdown(
+                        "<div class='insights-empty'><i class='fas fa-info-circle'></i> No interpretive insights available for this team.</div>", 
+                        unsafe_allow_html=True
+                    )
 
             with colI2:
-                st.markdown(f"### {selected_opponent} Interpretive Insights:")
+                st.markdown(f"<div class='insights-header'>{selected_opponent} Insights</div>", unsafe_allow_html=True)
                 opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
                 if opp_insights:
-                    st.markdown("<div class='insights-container'>", unsafe_allow_html=True)
+                    st.markdown("<div class='insights-container opponent-insights'>", unsafe_allow_html=True)
                     st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
-                    for ins in opp_insights:
+                    for i, ins in enumerate(opp_insights):
                         metric, comment = ins.split(" | ")
-                        st.markdown(f"<li><strong>{metric}</strong>: {comment}</li>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"<li style='animation-delay: {0.1 * (i+1)}s'><strong>{metric}</strong> <span class='insights-comment'>{comment}</span></li>", 
+                            unsafe_allow_html=True
+                        )
                     st.markdown("</ul>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    st.info("No interpretive insights available for this opponent.")
-                
+                    st.markdown(
+                        "<div class='insights-empty'><i class='fas fa-info-circle'></i> No interpretive insights available for this opponent.</div>", 
+                        unsafe_allow_html=True
+                    )
 
             # Only show the single team's interpretive insights here if NO opponent is selected
             # (Prevents duplication once we show a 2-team comparison below.)
             if not selected_opponent or selected_opponent == selected_team:
-                team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
-                if team_insights:
-                    st.markdown("""<h4>TEAM INSIGHTS</h4>""", unsafe_allow_html=True)
-                    for insight in team_insights:
-                        metric, comment = insight.split(" | ")
-                        st.markdown(f"**{metric}**: {comment}")
+                st.markdown(f"<div class='insights-header'>{selected_team} Insights</div>", unsafe_allow_html=True)
+                team_insights_str = get_interpretive_insights(row_team, df_main)
+                if team_insights_str:
+                    st.markdown("<div class='insights-container team-insights'>", unsafe_allow_html=True)
+                    st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
+                    for i, ins in enumerate(team_insights_str):
+                        metric, comment = ins.split(" | ")
+                        st.markdown(
+                            f"<li style='animation-delay: {0.1 * (i+1)}s'><strong>{metric}</strong> <span class='insights-comment'>{comment}</span></li>", 
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</ul>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        "<div class='insights-empty'><i class='fas fa-info-circle'></i> No interpretive insights available for this team.</div>", 
+                        unsafe_allow_html=True
+                    )
 
 with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
