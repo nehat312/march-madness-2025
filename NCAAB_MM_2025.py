@@ -1709,14 +1709,15 @@ def get_bracket_matchups():
 #     game_logs = []
 
 def run_simulation_once(bracket):
+    """
+    Run a single tournament simulation (one complete bracket) and return a list of detailed game logs.
+    """
     r64, r32, s16, e8, f4, champ = get_bracket_matchups()
-    #bracket = prepare_tournament_data(bracket)
-    #apply_completed_results(bracket, completed_results_2025)
     if not bracket:
         return []
     current = copy.deepcopy(bracket)
     game_logs = []
-    
+
     def record_game(rnd_name, region, tA, tB, w):
         upset = "UPSET" if w['seed'] > min(tA['seed'], tB['seed']) else ""
         return {
@@ -1726,14 +1727,18 @@ def run_simulation_once(bracket):
             "winner":  f"{w['team']} ({w['seed']})",
             "is_upset": upset
         }
-    
+
     # Round of 64
     r64_winners = {}
     for region, matchups in r64.items():
+        if region not in current:
+            continue
         winners = []
         for (s1, s2) in matchups:
-            tA = next(x for x in current[region] if x['seed'] == s1)
-            tB = next(x for x in current[region] if x['seed'] == s2)
+            tA = next((x for x in current[region] if x['seed'] == s1), None)  # Use next() with None default
+            tB = next((x for x in current[region] if x['seed'] == s2), None)
+            if not tA or not tB:
+                continue
             w = simulate_game(tA, tB)
             winners.append(w)
             game_logs.append(record_game("Round of 64", region, tA, tB, w))
@@ -1741,31 +1746,40 @@ def run_simulation_once(bracket):
     # Round of 32
     r32_winners = {}
     for region, pairs in r32.items():
+        if region not in r64_winners:
+            continue
         winners = []
         region_list = r64_winners[region]
         for (i, j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            winners.append(w)
-            game_logs.append(record_game("Round of 32", region, region_list[i], region_list[j], w))
+            if i < len(region_list) and j < len(region_list):
+                w = simulate_game(region_list[i], region_list[j])
+                winners.append(w)
+                game_logs.append(record_game("Round of 32", region, region_list[i], region_list[j], w))
         r32_winners[region] = winners
     # Sweet 16
     s16_winners = {}
     for region, pairs in s16.items():
+        if region not in r32_winners:
+            continue
         winners = []
         region_list = r32_winners[region]
         for (i, j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            winners.append(w)
-            game_logs.append(record_game("Sweet 16", region, region_list[i], region_list[j], w))
+            if i < len(region_list) and j < len(region_list):
+                w = simulate_game(region_list[i], region_list[j])
+                winners.append(w)
+                game_logs.append(record_game("Sweet 16", region, region_list[i], region_list[j], w))
         s16_winners[region] = winners
     # Elite 8
     e8_finalists = []
     for region, pairs in e8.items():
+        if region not in s16_winners:
+            continue
         region_list = s16_winners[region]
         for (i, j) in pairs:
-            w = simulate_game(region_list[i], region_list[j])
-            e8_finalists.append((region, w))
-            game_logs.append(record_game("Elite 8", region, region_list[i], region_list[j], w))
+            if i < len(region_list) and j < len(region_list):
+                w = simulate_game(region_list[i], region_list[j])
+                e8_finalists.append((region, w))
+                game_logs.append(record_game("Elite 8", region, region_list[i], region_list[j], w))
     # Region champions
     region_champs = {}
     region_order = ['West', 'East', 'South', 'Midwest']
@@ -1776,14 +1790,17 @@ def run_simulation_once(bracket):
     for (idxA, idxB) in f4:
         rA = region_order[idxA]
         rB = region_order[idxB]
+        if rA not in region_champs or rB not in region_champs:
+            continue
         w = simulate_game(region_champs[rA], region_champs[rB])
         ff_winners.append(w)
         game_logs.append(record_game("Final Four", "National Semifinal", region_champs[rA], region_champs[rB], w))
     # Championship
     champion = None
     for (i, j) in champ:
-        champion = simulate_game(ff_winners[i], ff_winners[j])
-        game_logs.append(record_game("Championship", "National Final", ff_winners[i], ff_winners[j], champion))
+        if i < len(ff_winners) and j < len(ff_winners):
+            champion = simulate_game(ff_winners[i], ff_winners[j])
+            game_logs.append(record_game("Championship", "National Final", ff_winners[i], ff_winners[j], champion))
     return game_logs
 
 def visualize_aggregated_results(aggregated_analysis):
@@ -1969,24 +1986,19 @@ st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
 st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards_]")
 
-tab_home, tab_team_reports, tab_radar, tab_regions, tab_team, tab_conf, tab_pred = st.tabs(["🏀 HOME",  #🌐
-                                                                          "📋 TEAM REPORTS", 
-                                                                          "🕸️ RADAR CHARTS", #📡🧭
-                                                                          "🔥 REGIONAL HEATMAPS", #🌡️📍
-                                                                          "📊 TEAM METRICS", #📈📋📜📰📅
-                                                                          "🏆 CONFERENCE STATS", #🏅
+tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tabs(["🏀 HOME",  #🌐
+                                                                          "📋 H2H MATCHUPS", 
                                                                           "🔮 PREDICTIONS",
+                                                                          "🔥 REGIONAL HEATMAPS", #🌡️📍
+                                                                          "🏆 CONFERENCE STATS", #🏅                                                                          
+                                                                          "📊 TEAM METRICS", #📈📋📜📰📅
+                                                                          "🕸️ RADAR CHARTS", #📡🧭
                                                                           ]) #🎱❓✅❌ ⚙️
 
 # --- Home Tab ---
 with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
-    treemap = create_treemap(df_main_notnull)
-    if treemap is not None:
-        st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-    
-
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
     
@@ -2234,7 +2246,7 @@ with tab_home:
 
 #                 st.markdown(detail_styler.to_html(), unsafe_allow_html=True)
 
-# with tab_team_reports:
+# with tab_H2H:
 #     st.header(":primary[TEAM REPORTS]")
 #     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 #     # Allow team selection – similar to the Home tab approach
@@ -2323,7 +2335,7 @@ with tab_home:
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
 #######################################
 
-# with tab_team_reports:
+# with tab_H2H:
 #     # Advanced CSS styling for the tab and table elements
 #     st.markdown("""
 #     <style>
@@ -2553,7 +2565,7 @@ with tab_home:
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
 #######################################
-with tab_team_reports:
+with tab_H2H:
     # Advanced CSS styling for  tab and table elements
     st.markdown("""
                 <style>
@@ -2784,13 +2796,13 @@ with tab_team_reports:
     selected_team_reports = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=62, #"Duke"
+        index=0,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=10, #"Arizona",
+        index=0,
         key="select_opponent_reports"
     )
 
@@ -3287,6 +3299,210 @@ with tab_team_reports:
                         metric, comment = insight.split(" | ")
                         st.markdown(f"**{metric}**: {comment}")
 
+with tab_pred:
+    st.header(":primary[BRACKET SIMULATION]")
+    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+
+    show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
+
+    if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
+        with st.spinner(":green[RUNNING SIMULATIONS ...]"):
+
+            # --- Bracket initialization and application of completed results ---
+            if 'bracket' not in st.session_state:
+                bracket = prepare_tournament_data(df_main)
+                if bracket is not None:  # Only apply if bracket data is valid
+                    apply_completed_results(bracket, completed_results_2025)
+                    st.session_state['bracket'] = bracket
+                else:
+                    st.error("Failed to prepare bracket data. Simulation cannot run.")
+                    st.stop()  # Stop further execution if bracket prep fails
+            else:
+                bracket = st.session_state['bracket']
+
+            # Ensure your functions now directly use this bracket:
+            aggregated = run_tournament_simulation(bracket, num_sims=1000)
+            #single_run = run_simulation_once(bracket)
+            single_run = run_simulation_once(bracket) # st.session_state['bracket'])
+
+            
+            st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED")
+
+
+        # 1) If requested, show single-run logs first
+        if show_logs and single_run:
+            st.subheader(":blue[_Detailed Round-by-Round (Single Simulation)_]")
+            display_simulation_results(single_run)
+        else:
+            st.info("Single-run logs hidden. Check box above to display them.")
+
+        # 2) Now show aggregated results
+        if not aggregated:
+            st.error(":yellow[Aggregated simulation results failed to compile.]")
+            st.stop()
+
+        st.subheader(":primary[AGGREGATED SIMULATION RESULTS]")
+
+        # A) Champion probabilities turned into a styled DataFrame
+        champ_probs = aggregated.get("Champion", {})
+        if not champ_probs:
+            st.warning("Championship probabilities failed to calculate.")
+            st.stop()
+
+        # Build a table with columns: [Team,CHAMP%,Seed,Region,Conference,KP_AdjEM,NET_25]
+        champion_items = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)
+        data_rows = []
+        for team, pct in champion_items:
+            row = {"TEAM": team, "CHAMP%": pct}
+            subset = df_main[df_main["TM_KP"] == team]
+            if not subset.empty:
+                row["CONFERENCE"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
+                row["REGION"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
+                row["SEED"] = int(subset["SEED_25"].iloc[0]) if ("SEED_25" in subset.columns and not pd.isna(subset["SEED_25"].iloc[0])) else ""
+                row["KP_AdjEM"] = subset["KP_AdjEM"].iloc[0] if "KP_AdjEM" in subset.columns else None
+                row["BPI_25"]   = subset["BPI_25"].iloc[0]   if "BPI_25" in subset.columns else None
+                row["NET_25"]   = subset["NET_25"].iloc[0]   if "NET_25" in subset.columns else None
+                row["AVG MARGIN"]   = subset["AVG MARGIN"].iloc[0]   if "AVG MARGIN" in subset.columns else None
+                row["AST/TO%"]   = subset["AST/TO%"].iloc[0]   if "AST/TO%" in subset.columns else None
+                row["STOCKS-TOV/GM"]   = subset["STOCKS-TOV/GM"].iloc[0]   if "STOCKS-TOV/GM" in subset.columns else None
+            data_rows.append(row)
+
+        champion_df = pd.DataFrame(data_rows)
+        champion_df["CHAMP%"] = champion_df["CHAMP%"].round(1)
+        champion_df.rename(columns={"CHAMP%": "CHAMP PROBABILITY (%)"}, inplace=True)
+
+        # Reorder columns
+        champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25", "BPI_25"]]
+        champion_df["CONFERENCE"] = champion_df["CONFERENCE"].apply(get_conf_logo_html)
+
+        # Create a Styler
+        champion_styler = (
+            champion_df.style
+            .format({
+                "CHAMP PROBABILITY (%)": "{:.2f}",
+                "KP_AdjEM": "{:.2f}",
+                "NET_25": "{:.0f}",
+                "BPI_25": "{:.1f}",
+            })
+            .background_gradient(
+                cmap="RdYlGn", 
+                subset=["CHAMP PROBABILITY (%)", "KP_AdjEM", "BPI_25"]
+            ).background_gradient(
+                cmap="RdYlGn_r", 
+                subset=["SEED", "NET_25"]
+            )
+            .set_properties(**{"text-align": "center"})
+            .set_table_styles([
+                {
+                    "selector": "table",
+                    "props": [
+                        ("border-collapse", "collapse"),
+                        ("border", "2px solid #222"),
+                        ("border-radius", "8px"),
+                        ("overflow", "hidden"),
+                        ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
+                    ]
+                },
+                {
+                    "selector": "th",
+                    "props": [
+                        ("background-color", "#0360CE"),
+                        ("color", "white"),
+                        ("font-weight", "bold"),
+                        ("text-align", "center"),
+                        ("padding", "8px 10px"),
+                        ("border", "1px solid #222"),
+                        ("font-size", "13px")
+                    ]
+                },
+                {
+                    "selector": "td",
+                    "props": [
+                        ("text-align", "center"),
+                        ("padding", "5px 10px"),
+                        ("border", "1px solid #ddd")
+                    ]
+                },
+            ])
+        )
+
+        st.markdown(":blue[_HIGHEST CHAMPIONSHIP PROBABILTIES_]")
+        st.markdown(champion_styler.to_html(), unsafe_allow_html=True)
+
+        # Optional --  raw text summary
+        # st.write("**Raw Summary**:")
+        # for row in data_rows[:15]:
+        #     st.write(f"{row['TEAM']}: {row['CHAMP%']:.1f}%")
+
+
+        # --- REGIONAL SUBPLOT (2×2) --- #
+        region_probs = aggregated.get("Region", None)
+        if not region_probs:
+            st.warning("No region champion data found.")
+        else:
+            st.markdown("##### REGIONAL CHAMPIONSHIP PROBAILITY (%)")
+            fig_region = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=["West", "East", "South", "Midwest"]
+            )
+            row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
+            for region_name in ["West", "East", "South", "Midwest"]:
+                if region_name not in region_probs:
+                    continue
+                # region_probs[region_name] is a dict: { "TEAM": <float prob> }
+                items = sorted(region_probs[region_name].items(),
+                            key=lambda x: x[1], reverse=True)[:8]
+                x_vals = [itm[0] for itm in items]
+                y_vals = [itm[1] for itm in items]
+                (r, c) = row_col_map[region_name]
+                fig_region.add_trace(
+                    go.Bar(
+                        x=x_vals, y=y_vals,
+                        name=region_name,
+                        text=[f"{v:.1f}%" for v in y_vals],
+                        textposition="outside",
+                        marker_color="steelblue"
+                    ),
+                    row=r, col=c
+                )
+                fig_region.update_xaxes(tickangle=-45, row=r, col=c)
+                if y_vals:
+                    fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
+
+            fig_region.update_layout(
+                template="plotly_dark",
+                height=600,
+                title="REGIONAL CHAMPION / FINAL FOUR ODDS",
+                showlegend=False,
+                margin=dict(l=50, r=50, t=60, b=60),
+            )
+            st.plotly_chart(fig_region, use_container_width=True)
+
+        # --- 1×1 CHAMPIONSHIP BAR CHART --- #
+        st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
+        top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
+        fig_champ = go.Figure()
+        fig_champ.add_trace(
+            go.Bar(
+                x=[tc[0] for tc in top_champs],
+                y=[tc[1] for tc in top_champs],
+                text=[f"{tc[1]:.1f}%" for tc in top_champs],
+                textposition="outside",
+                marker_color="tomato",
+            )
+        )
+        fig_champ.update_layout(
+            template="plotly_dark",
+            title="CHAMPIONSHIP PROBABILITIY (Top 12)",
+            xaxis=dict(tickangle=-45),
+            yaxis=dict(range=[0, max([tc[1] for tc in top_champs])*1.15]),
+            showlegend=False,
+            margin=dict(l=20, r=20, t=80, b=60),
+            height=450
+        )
+        st.plotly_chart(fig_champ, use_container_width=True)
+    else:
+        st.info("Run simulation to view results.")
 
 # --- Radar Charts Tab ---
 with tab_radar:
@@ -3507,7 +3723,6 @@ with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
-
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
     ### CONFERENCE POWER RANKINGS ###    
     # Style for the index (RANK)
@@ -3639,6 +3854,11 @@ with tab_conf:
 
         st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
 
+    treemap = create_treemap(df_main_notnull)
+    if treemap is not None:
+        st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+
+
     # if "CONFERENCE" in df_main.columns:
     #     conf_metric = st.selectbox(
     #         "Select Metric for Conference Comparison", numeric_cols,
@@ -3683,10 +3903,11 @@ with tab_team:
             selected_teams = st.multiselect(
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
-                default=['Duke', 'Arizona', 'Maryland', 'Florida',
-                         'Texas Tech', 'Arkansas', 'Auburn', 'Michigan',
-                         'Houston', 'Purdue', 'Tennessee', 'Kentucky',
-                         'Alabama', 'BYU', 'Michigan St.', 'Mississippi',
+                default=['Duke', 'Florida', # 'Arizona', 'Maryland',
+                         'Texas Tech', 'Alabama', #'Arkansas', 'BYU',
+                         'Auburn', 'Michigan', 'Houston', 'Purdue',
+                         'Tennessee', 'Kentucky',
+                          'Michigan St.', 'Mississippi',
                          # 'Kansas',  'Iowa St.',
                          ])
         with col2:
@@ -3904,207 +4125,6 @@ def color_log_text(round_name, text):
     }
     color_hex = round_html_colors.get(round_name, "#FFFFFF")
     return f"<span style='color:{color_hex}; font-weight:bold;'>{text}</span>"
-
-with tab_pred:
-    st.header(":primary[BRACKET SIMULATION]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
-
-    show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
-
-    if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
-        with st.spinner(":green[RUNNING SIMULATIONS ...]"):
-
-            # --- Bracket initialization occurs exactly once ---
-            if 'bracket' not in st.session_state:
-                bracket = prepare_tournament_data(df_main)
-                apply_completed_results(bracket, completed_results_2025)
-                st.session_state['bracket'] = bracket
-            else:
-                bracket = st.session_state['bracket']
-
-            # Ensure your functions now directly use this bracket:
-            aggregated = run_tournament_simulation(bracket, num_sims=1000)
-            #single_run = run_simulation_once(bracket)
-            single_run = run_simulation_once(st.session_state['bracket'])
-
-            
-            st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED")
-
-
-        # 1) If requested, show single-run logs first
-        if show_logs and single_run:
-            st.subheader(":blue[_Detailed Round-by-Round (Single Simulation)_]")
-            display_simulation_results(single_run)
-        else:
-            st.info("Single-run logs hidden. Check box above to display them.")
-
-        # 2) Now show aggregated results
-        if not aggregated:
-            st.error("Aggregated simulation results failed to compile.")
-            st.stop()
-
-        st.subheader(":primary[AGGREGATED SIMULATION RESULTS]")
-
-        # A) Champion probabilities turned into a styled DataFrame
-        champ_probs = aggregated.get("Champion", {})
-        if not champ_probs:
-            st.warning("Championship probabilities failed to calculate.")
-            st.stop()
-
-        # Build a table with columns: [Team,CHAMP%,Seed,Region,Conference,KP_AdjEM,NET_25]
-        champion_items = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)
-        data_rows = []
-        for team, pct in champion_items:
-            row = {"TEAM": team, "CHAMP%": pct}
-            subset = df_main[df_main["TM_KP"] == team]
-            if not subset.empty:
-                row["CONFERENCE"] = subset["CONFERENCE"].iloc[0] if "CONFERENCE" in subset.columns else ""
-                row["REGION"] = subset["REGION_25"].iloc[0] if "REGION_25" in subset.columns else ""
-                row["SEED"] = int(subset["SEED_25"].iloc[0]) if ("SEED_25" in subset.columns and not pd.isna(subset["SEED_25"].iloc[0])) else ""
-                row["KP_AdjEM"] = subset["KP_AdjEM"].iloc[0] if "KP_AdjEM" in subset.columns else None
-                row["BPI_25"]   = subset["BPI_25"].iloc[0]   if "BPI_25" in subset.columns else None
-                row["NET_25"]   = subset["NET_25"].iloc[0]   if "NET_25" in subset.columns else None
-                row["AVG MARGIN"]   = subset["AVG MARGIN"].iloc[0]   if "AVG MARGIN" in subset.columns else None
-                row["AST/TO%"]   = subset["AST/TO%"].iloc[0]   if "AST/TO%" in subset.columns else None
-                row["STOCKS-TOV/GM"]   = subset["STOCKS-TOV/GM"].iloc[0]   if "STOCKS-TOV/GM" in subset.columns else None
-            data_rows.append(row)
-
-        champion_df = pd.DataFrame(data_rows)
-        champion_df["CHAMP%"] = champion_df["CHAMP%"].round(1)
-        champion_df.rename(columns={"CHAMP%": "CHAMP PROBABILITY (%)"}, inplace=True)
-
-        # Reorder columns
-        champion_df = champion_df[["TEAM", "CHAMP PROBABILITY (%)", "SEED", "REGION", "CONFERENCE", "KP_AdjEM", "NET_25", "BPI_25"]]
-        champion_df["CONFERENCE"] = champion_df["CONFERENCE"].apply(get_conf_logo_html)
-
-        # Create a Styler
-        champion_styler = (
-            champion_df.style
-            .format({
-                "CHAMP PROBABILITY (%)": "{:.2f}",
-                "KP_AdjEM": "{:.2f}",
-                "NET_25": "{:.0f}",
-                "BPI_25": "{:.1f}",
-            })
-            .background_gradient(
-                cmap="RdYlGn", 
-                subset=["CHAMP PROBABILITY (%)", "KP_AdjEM", "BPI_25"]
-            ).background_gradient(
-                cmap="RdYlGn_r", 
-                subset=["SEED", "NET_25"]
-            )
-            .set_properties(**{"text-align": "center"})
-            .set_table_styles([
-                {
-                    "selector": "table",
-                    "props": [
-                        ("border-collapse", "collapse"),
-                        ("border", "2px solid #222"),
-                        ("border-radius", "8px"),
-                        ("overflow", "hidden"),
-                        ("box-shadow", "0 4px 12px rgba(0, 0, 0, 0.1)")
-                    ]
-                },
-                {
-                    "selector": "th",
-                    "props": [
-                        ("background-color", "#0360CE"),
-                        ("color", "white"),
-                        ("font-weight", "bold"),
-                        ("text-align", "center"),
-                        ("padding", "8px 10px"),
-                        ("border", "1px solid #222"),
-                        ("font-size", "13px")
-                    ]
-                },
-                {
-                    "selector": "td",
-                    "props": [
-                        ("text-align", "center"),
-                        ("padding", "5px 10px"),
-                        ("border", "1px solid #ddd")
-                    ]
-                },
-            ])
-        )
-
-        st.markdown(":blue[_HIGHEST CHAMPIONSHIP PROBABILTIES_]")
-        st.markdown(champion_styler.to_html(), unsafe_allow_html=True)
-
-        # Optional --  raw text summary
-        # st.write("**Raw Summary**:")
-        # for row in data_rows[:15]:
-        #     st.write(f"{row['TEAM']}: {row['CHAMP%']:.1f}%")
-
-
-        # --- REGIONAL SUBPLOT (2×2) --- #
-        region_probs = aggregated.get("Region", None)
-        if not region_probs:
-            st.warning("No region champion data found.")
-        else:
-            st.markdown("##### REGIONAL CHAMPIONSHIP PROBAILITY (%)")
-            fig_region = make_subplots(
-                rows=2, cols=2,
-                subplot_titles=["West", "East", "South", "Midwest"]
-            )
-            row_col_map = {"West": (1,1), "East": (1,2), "South": (2,1), "Midwest": (2,2)}
-            for region_name in ["West", "East", "South", "Midwest"]:
-                if region_name not in region_probs:
-                    continue
-                # region_probs[region_name] is a dict: { "TEAM": <float prob> }
-                items = sorted(region_probs[region_name].items(),
-                            key=lambda x: x[1], reverse=True)[:8]
-                x_vals = [itm[0] for itm in items]
-                y_vals = [itm[1] for itm in items]
-                (r, c) = row_col_map[region_name]
-                fig_region.add_trace(
-                    go.Bar(
-                        x=x_vals, y=y_vals,
-                        name=region_name,
-                        text=[f"{v:.1f}%" for v in y_vals],
-                        textposition="outside",
-                        marker_color="steelblue"
-                    ),
-                    row=r, col=c
-                )
-                fig_region.update_xaxes(tickangle=-45, row=r, col=c)
-                if y_vals:
-                    fig_region.update_yaxes(range=[0, max(y_vals)*1.2], row=r, col=c)
-
-            fig_region.update_layout(
-                template="plotly_dark",
-                height=600,
-                title="REGIONAL CHAMPION / FINAL FOUR ODDS",
-                showlegend=False,
-                margin=dict(l=50, r=50, t=60, b=60),
-            )
-            st.plotly_chart(fig_region, use_container_width=True)
-
-        # --- 1×1 CHAMPIONSHIP BAR CHART --- #
-        st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
-        top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
-        fig_champ = go.Figure()
-        fig_champ.add_trace(
-            go.Bar(
-                x=[tc[0] for tc in top_champs],
-                y=[tc[1] for tc in top_champs],
-                text=[f"{tc[1]:.1f}%" for tc in top_champs],
-                textposition="outside",
-                marker_color="tomato",
-            )
-        )
-        fig_champ.update_layout(
-            template="plotly_dark",
-            title="CHAMPIONSHIP PROBABILITIY (Top 12)",
-            xaxis=dict(tickangle=-45),
-            yaxis=dict(range=[0, max([tc[1] for tc in top_champs])*1.15]),
-            showlegend=False,
-            margin=dict(l=20, r=20, t=80, b=60),
-            height=450
-        )
-        st.plotly_chart(fig_champ, use_container_width=True)
-    else:
-        st.info("Run simulation to view results.")
 
 
 #if FinalFour25_logo:
