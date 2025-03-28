@@ -712,16 +712,17 @@ def create_radar_chart(selected_teams, full_df):
         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
             seed_str = f" | SEED #{int(row['SEED_25'])}"
         perf_data = compute_performance_text(row, t_avgs, t_stdevs)
-        subplot_titles.append(f"{team_name} | [{conf}]{seed_str}")
+        subplot_titles.append(f"{team_name} | {conf}{seed_str}")
     fig = make_subplots(
         rows=row_count, cols=col_count,
         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
         subplot_titles=subplot_titles,
-        horizontal_spacing=0.10,
-        vertical_spacing=0.15
+
+        horizontal_spacing=0.15,
+        vertical_spacing=0.2
     )
     fig.update_layout(
-        title=dict(x=0.5, y=0.95, xanchor='center', yanchor='top'),
+        #title=dict(title=subplot_titles, x=0.5, y=0.95, xanchor='center', yanchor='top'),
         height=fig_height,
         template='plotly_dark',
         font=dict(family="Arial, sans-serif", size=12, color='white'),
@@ -2779,18 +2780,18 @@ with tab_H2H:
             .insights-container {
                 background: linear-gradient(to bottom, #ffffff, #f8f9fa);
                 border-radius: 12px;
-                padding: 24px;
-                margin-top: 20px;
+                padding: 18px 20px;
+                margin-top: 15px;
                 border: 1px solid #e0e0e0;
-                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
                 transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
                 position: relative;
                 overflow: hidden;
             }
             
             .insights-container:hover {
-                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-                transform: translateY(-5px);
+                box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+                transform: translateY(-3px);
             }
             
             .insights-container:before {
@@ -2800,111 +2801,8 @@ with tab_H2H:
                 left: 0;
                 width: 100%;
                 height: 4px;
-                background: linear-gradient(90deg, #0039A6, #00C6FF);
             }
             
-            .insights-header {
-                font-size: 1.5rem;
-                font-weight: 700;
-                margin-bottom: 18px;
-                color: #1E3A8A;
-                border-bottom: 2px solid #f0f0f0;
-                padding-bottom: 10px;
-                position: relative;
-            }
-            
-            .insights-header:after {
-                content: "";
-                position: absolute;
-                bottom: -2px;
-                left: 0;
-                width: 80px;
-                height: 2px;
-                background: linear-gradient(90deg, #0039A6, #00C6FF);
-            }
-            
-            .insights-list {
-                list-style-type: none;
-                padding-left: 0;
-                margin-bottom: 0;
-            }
-            
-            .insights-list li {
-                margin-bottom: 16px;
-                padding: 12px 12px 12px 28px;
-                position: relative;
-                font-size: 0.95rem;
-                line-height: 1.5;
-                background-color: rgba(240, 242, 245, 0.5);
-                border-radius: 8px;
-                transition: all 0.2s ease;
-                border-left: 3px solid transparent;
-            }
-            
-            .insights-list li:hover {
-                background-color: rgba(240, 242, 245, 0.9);
-                border-left: 3px solid #0039A6;
-                padding-left: 32px;
-            }
-            
-            .insights-list li:before {
-                content: "↪";
-                color: #0039A6;
-                font-weight: bold;
-                position: absolute;
-                left: 8px;
-                top: 12px;
-                font-size: 1rem;
-                transition: all 0.2s ease;
-            }
-            
-            .insights-list li:hover:before {
-                transform: rotate(90deg);
-                color: #00C6FF;
-            }
-            
-            .insights-list li strong {
-                font-weight: 600;
-                color: #1E3A8A;
-                display: block;
-                margin-bottom: 4px;
-                font-size: 1.05rem;
-            }
-            
-            .insights-comment {
-                color: #4B5563;
-            }
-            
-            .insights-empty {
-                display: block;
-                padding: 20px;
-                text-align: center;
-                color: #6B7280;
-                border: 1px dashed #d1d5db;
-                border-radius: 8px;
-                margin-top: 10px;
-                background-color: rgba(249, 250, 251, 0.8);
-            }
-            
-            /* Animation for insights loading */
-            @keyframes fadeIn {
-                from { opacity: 0; transform: translateY(10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            
-            .insights-list li {
-                animation: fadeIn 0.4s ease forwards;
-                opacity: 0;
-            }
-            
-            .insights-list li:nth-child(1) { animation-delay: 0.1s; }
-            .insights-list li:nth-child(2) { animation-delay: 0.2s; }
-            .insights-list li:nth-child(3) { animation-delay: 0.3s; }
-            .insights-list li:nth-child(4) { animation-delay: 0.4s; }
-            .insights-list li:nth-child(5) { animation-delay: 0.5s; }
-            .insights-list li:nth-child(6) { animation-delay: 0.6s; }
-            
-            /* Team-specific styles */
             .team-insights:before {
                 background: linear-gradient(90deg, #0039A6, #4B7BEC);
             }
@@ -2913,13 +2811,141 @@ with tab_H2H:
                 background: linear-gradient(90deg, #B91C1C, #F87171);
             }
             
-            /* Responsive adjustments */
+            .insights-header {
+                font-size: 1.3rem;
+                font-weight: 600;
+                color: #1E3A8A;
+                padding-bottom: 8px;
+                margin-bottom: 15px;
+                border-bottom: 2px solid #eaecef;
+            }
+            
+            .insights-list {
+                list-style-type: none !important;
+                padding-left: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Style for each metric item */
+            .metric-item {
+                display: flex;
+                align-items: flex-start;
+                background-color: rgba(240, 247, 255, 0.5);
+                margin-bottom: 10px;
+                padding: 12px 14px;
+                border-radius: 8px;
+                transition: all 0.2s ease;
+                border-left: 3px solid #0039A6;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .metric-item:hover {
+                background-color: rgba(225, 239, 254, 0.8);
+                transform: translateX(4px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+            
+            .metric-icon {
+                flex-shrink: 0;
+                width: 28px;
+                height: 28px;
+                background-color: #0039A6;
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 12px;
+                font-size: 0.85rem;
+                font-weight: bold;
+            }
+            
+            .opponent-insights .metric-icon {
+                background-color: #B91C1C;
+            }
+            
+            .metric-name {
+                font-weight: 600;
+                color: #1E293B;
+                margin-bottom: 3px;
+                font-size: 0.95rem;
+                display: block;
+            }
+            
+            .metric-comment {
+                color: #475569;
+                font-size: 0.88rem;
+                line-height: 1.4;
+            }
+            
+            /* Different status colors */
+            .metric-strong {
+                border-left-color: #059669;
+            }
+            
+            .metric-strong .metric-icon {
+                background-color: #059669;
+            }
+            
+            .metric-average {
+                border-left-color: #D97706;
+            }
+            
+            .metric-average .metric-icon {
+                background-color: #D97706;
+            }
+            
+            .metric-weak {
+                border-left-color: #DC2626;
+            }
+            
+            .metric-weak .metric-icon {
+                background-color: #DC2626;
+            }
+            
+            /* Empty state styling */
+            .insights-empty {
+                display: block;
+                padding: 16px;
+                text-align: center;
+                color: #6B7280;
+                border: 1px dashed #d1d5db;
+                border-radius: 8px;
+                margin-top: 12px;
+                background-color: rgba(249, 250, 251, 0.8);
+            }
+            
+            /* Animation */
+            @keyframes slideInRight {
+                from { opacity: 0; transform: translateX(-15px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            
+            .metric-item {
+                animation: slideInRight 0.35s ease forwards;
+                opacity: 0;
+            }
+            
+            /* Staggered animations */
+            .metric-item:nth-child(1) { animation-delay: 0.05s; }
+            .metric-item:nth-child(2) { animation-delay: 0.1s; }
+            .metric-item:nth-child(3) { animation-delay: 0.15s; }
+            .metric-item:nth-child(4) { animation-delay: 0.2s; }
+            .metric-item:nth-child(5) { animation-delay: 0.25s; }
+            .metric-item:nth-child(6) { animation-delay: 0.3s; }
+            .metric-item:nth-child(7) { animation-delay: 0.35s; }
+            .metric-item:nth-child(8) { animation-delay: 0.4s; }
+            
+            /* Responsive */
             @media (max-width: 768px) {
                 .insights-container {
-                    padding: 16px;
+                    padding: 14px;
                 }
-                .insights-list li {
-                    padding: 10px 10px 10px 24px;
+                .metric-item {
+                    padding: 10px;
+                }
+            }
 
             /* Win probability indicator */
             .win-prob-container {
@@ -3456,23 +3482,61 @@ with tab_H2H:
             # Display BOTH teams' interpretive insights side-by-side
             colI1, colI2 = st.columns(2)
 
+            # Helper function to determine metric status
+            def get_metric_status(comment):
+                comment = comment.lower()
+                if any(term in comment for term in ["clear strength", "above ncaa", "excellent", "strong"]):
+                    return "strong"
+                elif any(term in comment for term in ["near ncaa", "average", "moderate"]):
+                    return "average"
+                else:
+                    return "weak"
+
+            # Helper function to get icon for metric
+            def get_metric_icon(metric_name):
+                icons = {
+                    "AVG MARGIN": "📌", #📊💯🏆🧱📈🔒⚡🛡️🔥
+                    "KP_AdjEM": "📌",
+                    "BPI_25": "📌",
+                    "KP_AdjO": "📌",
+                    "KP_AdjD": "📌",
+                    "OFF EFF": "📌",
+                    "DEF EFF": "📌",
+                    "AST/TO%": "📌",
+                    "STOCKS-TOV/GM": "📌"
+                }
+                
+                for key in icons:
+                    if key.lower() in metric_name.lower():
+                        return icons[key]
+                
+                # Default icon
+                return "📌"
+
             with colI1:
                 st.markdown(f"<div class='insights-header'>{selected_team} Insights</div>", unsafe_allow_html=True)
                 team_insights_str = get_interpretive_insights(row_team, df_main)
                 if team_insights_str:
                     st.markdown("<div class='insights-container team-insights'>", unsafe_allow_html=True)
-                    st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
                     for i, ins in enumerate(team_insights_str):
                         metric, comment = ins.split(" | ")
+                        status = get_metric_status(comment)
+                        icon = get_metric_icon(metric)
+                        
                         st.markdown(
-                            f"<li style='animation-delay: {0.1 * (i+1)}s'><strong>{metric}</strong> <span class='insights-comment'>{comment}</span></li>", 
+                            f"""<div class="metric-item metric-{status}">
+                                <div class="metric-icon">{icon}</div>
+                                <div class="metric-content">
+                                    <span class="metric-name">{metric}</span>
+                                    <span class="metric-comment">{comment}</span>
+                                </div>
+                            </div>""", 
                             unsafe_allow_html=True
                         )
-                    st.markdown("</ul>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(
-                        "<div class='insights-empty'><i class='fas fa-info-circle'></i> No interpretive insights available for this team.</div>", 
+                        "<div class='insights-empty'>No interpretive insights available for this team.</div>", 
                         unsafe_allow_html=True
                     )
 
@@ -3481,18 +3545,25 @@ with tab_H2H:
                 opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
                 if opp_insights:
                     st.markdown("<div class='insights-container opponent-insights'>", unsafe_allow_html=True)
-                    st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
                     for i, ins in enumerate(opp_insights):
                         metric, comment = ins.split(" | ")
+                        status = get_metric_status(comment)
+                        icon = get_metric_icon(metric)
+                        
                         st.markdown(
-                            f"<li style='animation-delay: {0.1 * (i+1)}s'><strong>{metric}</strong> <span class='insights-comment'>{comment}</span></li>", 
+                            f"""<div class="metric-item metric-{status}">
+                                <div class="metric-icon">{icon}</div>
+                                <div class="metric-content">
+                                    <span class="metric-name">{metric}</span>
+                                    <span class="metric-comment">{comment}</span>
+                                </div>
+                            </div>""", 
                             unsafe_allow_html=True
                         )
-                    st.markdown("</ul>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(
-                        "<div class='insights-empty'><i class='fas fa-info-circle'></i> No interpretive insights available for this opponent.</div>", 
+                        "<div class='insights-empty'>No interpretive insights available for this opponent.</div>", 
                         unsafe_allow_html=True
                     )
 
