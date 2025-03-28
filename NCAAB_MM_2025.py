@@ -326,6 +326,48 @@ header = {
 }
 detailed_table_styles = [header]
 
+# Advanced table styling to match TEAM METRICS tab
+advanced_table_styles = [
+    {'selector': 'table',
+        'props': [('border-collapse', 'collapse'),
+                ('border', '2px solid #222'),
+                ('border-radius', '8px'),
+                ('overflow', 'hidden'),
+                ('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.1)')]},
+    {'selector': 'th',
+        'props': [('background-color', '#0360CE'),
+                ('color', 'white'),
+                ('text-align', 'center'),
+                ('padding', '8px 10px'),
+                ('border', '1px solid #222'),
+                ('font-weight', 'bold'),
+                ('font-size', '13px')]},
+    {'selector': 'td',
+        'props': [('text-align', 'center'),
+                ('padding', '5px 10px'),
+                ('border', '1px solid #ddd')]}
+]
+
+index_style = {
+    'selector': '.row_heading.level0',
+    'props': [
+        ('background-color', '#0360CE'),
+        ('color', 'white'),
+        ('text-align', 'left'),
+        ('font-weight', 'bold'),
+        ('border-bottom', '2px dashed #000000'),
+        ('border-right', '1px solid #000000'),
+    ]
+}
+cell_style = {
+    'selector': 'tbody td',
+    'props': [
+        ('text-align', 'center'),
+        ('border', '1px solid #ddd'),
+        ('padding', '5px 10px'),
+    ]
+}
+
 # ----------------------------------------------------------------------------
 # Radar Chart Functions
 def get_default_metrics():
@@ -2050,7 +2092,7 @@ with tab_home:
             df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
             upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
                 .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
-                .set_table_styles(detailed_table_styles)\
+                .set_table_styles(advanced_table_styles + [index_style, cell_style, header])\
                 .set_properties(**{"text-align": "center"})
 
             st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
@@ -2250,18 +2292,18 @@ with tab_home:
 #     st.header(":primary[TEAM REPORTS]")
 #     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 #     # Allow team selection – similar to the Home tab approach
-#     selected_team_reports = st.selectbox(
+#     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
 #         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
 #         index=0,
 #         key="select_team_reports"  # unique key for this selectbox
 #     )
-#     if selected_team_reports:
-#         team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
+#     if selected_team:
+#         team_data = df_main[df_main["TM_KP"] == selected_team].copy()
 #         if not team_data.empty:
 #             col1, col2 = st.columns(2)
 #             with col1:
-#                 st.markdown(f"### {selected_team_reports}")
+#                 st.markdown(f"### {selected_team}")
 #                 conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
 #                 record = f"{int(team_data['WIN_25'].iloc[0])}-{int(team_data['LOSS_25'].iloc[0])}" if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns else "N/A"
 #                 seed_info = f"Seed: {int(team_data['SEED_25'].iloc[0])}" if "SEED_25" in team_data.columns and not pd.isna(team_data['SEED_25'].iloc[0]) else ""
@@ -2306,7 +2348,7 @@ with tab_home:
 #                     for line in insights:
 #                         st.write(f"- {line}")
 #             with col2:
-#                 radar_fig = create_radar_chart([selected_team_reports], df_main)
+#                 radar_fig = create_radar_chart([selected_team], df_main)
 #                 if radar_fig:
 #                     st.plotly_chart(radar_fig, use_container_width=True)
 #             with st.expander("View All Team Metrics"):
@@ -2793,29 +2835,29 @@ with tab_H2H:
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
     # -- TEAM & OPPONENT SELECTION --
-    selected_team_reports = st.selectbox(
+    selected_team = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=0,
+        index="Tennessee", #0,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index=0,
+        index="Kentucky", #0,
         key="select_opponent_reports"
     )
 
-    if selected_team_reports:
+    if selected_team:
         # ------------------------------------------------------
         # TEAM OVERVIEW & INSIGHTS (SINGLE-TEAM SECTION)
         # ------------------------------------------------------
-        team_data = df_main[df_main["TM_KP"] == selected_team_reports].copy()
+        team_data = df_main[df_main["TM_KP"] == selected_team].copy()
         if team_data.empty:
             st.warning("No data found for the selected team.")
         else:
-            st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team_reports} vs. {selected_opponent}]")
-            st.markdown(f"### :blue[_TEAM OVERVIEW:_]") # {selected_team_reports} vs. {selected_opponent}
+            st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team} vs. {selected_opponent}]")
+            st.markdown(f"### :blue[_TEAM OVERVIEW:_]") # {selected_team} vs. {selected_opponent}
             # st.markdown("""
             # <h2>Team Overview</h2>
             # """, unsafe_allow_html=True)
@@ -2901,6 +2943,8 @@ with tab_H2H:
                 val = round(team_data["DEF EFF"].iloc[0], 2)
                 key_stats.append(("TeamRankings DEff", val, "#B22222"))
             
+
+
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
 
 
@@ -2959,8 +3003,8 @@ with tab_H2H:
                 # Card‐like container with corrected "team-info" div
                 st.markdown(f"""
                 <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
-                  <h3 style="margin-bottom:5px;">{selected_team_reports}</h3>
-                  <p style="margin:2px 0;"><strong>Conference:</strong> {conf}</p>
+                  <h3 style="margin-bottom:5px;">{selected_team}</h3>
+                  <p style="margin:2px 0; background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;"><strong>Conference:</strong> {conf}</p>
                   <p style="margin:2px 0;"><strong>Record:</strong> {record} &nbsp; {seed_info}</p>
                   <p style="margin:2px 0;"><strong>Rankings:</strong> {rankings_html}</p>
                   <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
@@ -2998,28 +3042,35 @@ with tab_H2H:
                 if all(m in team_data.columns for m in get_default_metrics()):
                     badge = compute_performance_badge(team_data.iloc[0], df_main)
                     st.markdown(f"""
-                    <div style="margin-top:10px;">
-                      <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
-                      background: linear-gradient(135deg, #FFD700, #FFA500);
-                      border-radius: 20px; 
-                      font-weight: bold; 
-                      padding: 5px 14px; 
-                      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-                      text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
-                    </div>
-                    """, unsafe_allow_html=True)
+                                <div style='text-align: center; margin: 20px 0;'>
+                                <span class='{badge["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                                OVERALL RATING: {badge["text"]}
+                                </span>
+                                </div>                                                    
+                                """, unsafe_allow_html=True)
+
+
+# <div style="margin-top:10px;">
+#                       <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
+#                       background: linear-gradient(135deg, #FFD700, #FFA500);
+#                       border-radius: 20px; 
+#                       font-weight: bold; 
+#                       padding: 5px 14px; 
+#                       box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+#                       text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
+#                     </div>
 
 # ------------------------------------------------------
 # HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
 # ------------------------------------------------------
             with colB:
-                if selected_opponent and selected_opponent != selected_team_reports:
+                if selected_opponent and selected_opponent != selected_team:
                     if opp_data.empty:
                         st.warning("No data available for the selected opponent.")
                     else:
                         st.markdown("---")
                                             
-                    st.markdown(f"#### {selected_opponent}")
+                    #st.markdown(f"#### {selected_opponent}")
                     st.markdown(f"""
                                 <div class="opp-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
                                 <h3 style="margin-bottom:5px;">{selected_opponent}</h3>
@@ -3057,18 +3108,14 @@ with tab_H2H:
 
                     # Compute and show performance badge
                     if all(m in opp_data.columns for m in get_default_metrics()):
-                        badge = compute_performance_badge(opp_data.iloc[0], df_main)
+                        opp_badge = compute_performance_badge(opp_data.iloc[0], df_main)
                         st.markdown(f"""
-                        <div style="margin-top:10px;">
-                        <strong>OVERALL RATING:</strong> <span>{badge["text"]}</span>
-                        background: linear-gradient(135deg, #FFD700, #FFA500);
-                        border-radius: 20px; 
-                        font-weight: bold; 
-                        padding: 5px 14px; 
-                        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-                        text-shadow: 0px 1px 1px rgba(0,0,0,0.4);                        
-                        </div>
-                        """, unsafe_allow_html=True)
+                                    <div style='text-align: center; margin: 20px 0;'>
+                                    <span class='{opp_badge["class"]}' style='font-size: 18px; padding: 8px 16px;'>
+                                    OVERALL RATING: {opp_badge["text"]}
+                                    </span>
+                                    </div>                                                    
+                            """, unsafe_allow_html=True)
 
         # --- Head-to-Head Stats Table ---
         with st.expander("H2H STATISTICAL COMPARISON"):
@@ -3094,7 +3141,7 @@ with tab_H2H:
                 tourney_avg = pd.Series([np.nan]*len(h2h_metrics), index=h2h_metrics)
 
             final_df = pd.DataFrame({"METRIC": h2h_metrics})
-            final_df[selected_team_reports] = [row_team[m] if m in row_team else np.nan for m in h2h_metrics]
+            final_df[selected_team] = [row_team[m] if m in row_team else np.nan for m in h2h_metrics]
             final_df[selected_opponent] = [row_opp[m] if m in row_opp else np.nan for m in h2h_metrics]
             final_df["TOURNEY AVG"] = [tourney_avg[m] for m in h2h_metrics]
             final_df["NCAA AVG"] = [ncaa_avg[m] for m in h2h_metrics]
@@ -3114,7 +3161,7 @@ with tab_H2H:
             advantage_list = []
             for idx, row_ in final_df.iterrows():
                 metric = row_["METRIC"]
-                valA = row_[selected_team_reports]
+                valA = row_[selected_team]
                 valB = row_[selected_opponent]
                 if pd.isna(valA) or pd.isna(valB):
                     advantage_list.append("N/A")
@@ -3122,24 +3169,24 @@ with tab_H2H:
                 invert = lower_is_better.get(metric, False)
                 if invert:
                     if valA < valB:
-                        advantage_list.append(selected_team_reports)
+                        advantage_list.append(selected_team)
                     elif valB < valA:
                         advantage_list.append(selected_opponent)
                     else:
                         advantage_list.append("TIE")
                 else:
                     if valA > valB:
-                        advantage_list.append(selected_team_reports)
+                        advantage_list.append(selected_team)
                     elif valB > valA:
                         advantage_list.append(selected_opponent)
                     else:
                         advantage_list.append("TIE")
             final_df["ADVANTAGE"] = advantage_list
 
-            adv_team = sum(1 for x in advantage_list if x == selected_team_reports)
+            adv_team = sum(1 for x in advantage_list if x == selected_team)
             adv_opp = sum(1 for x in advantage_list if x == selected_opponent)
 
-            numeric_cols = [selected_team_reports, selected_opponent, "TOURNEY AVG", "NCAA AVG"]
+            numeric_cols = [selected_team, selected_opponent, "TOURNEY AVG", "NCAA AVG"]
             for col in numeric_cols:
                 final_df[col] = final_df[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
 
@@ -3182,12 +3229,13 @@ with tab_H2H:
 
             styled_h2h = final_df.style.apply(colorize_row, axis=1)
             styled_h2h = styled_h2h.set_properties(**{"text-align": "center"})
-            styled_h2h = styled_h2h.set_table_styles(detailed_table_styles)
+            #styled_h2h = styled_h2h.set_table_styles(detailed_table_styles)
+            styled_h2h = styled_h2h.set_table_styles(advanced_table_styles + [index_style, cell_style, header])
             st.markdown(styled_h2h.to_html(), unsafe_allow_html=True)
 
             # --- Single-game Win Probability ---
             team_dict = {
-                "team": selected_team_reports,
+                "team": selected_team,
                 "seed": row_team.get("SEED_25", 99),
                 "KP_AdjEM": row_team.get("KP_AdjEM", 0),
                 "BPI_25": row_team.get("BPI_25", 0),
@@ -3218,14 +3266,14 @@ with tab_H2H:
 
             if adv_team > adv_opp:
                 summary_text = (
-                    f"{selected_team_reports} leads in {adv_team} metrics while "
+                    f"{selected_team} leads in {adv_team} metrics while "
                     f"{selected_opponent} leads in {adv_opp}. "
-                    f"{selected_team_reports} appears favored overall."
+                    f"{selected_team} appears favored overall."
                 )
             elif adv_opp > adv_team:
                 summary_text = (
                     f"{selected_opponent} leads in {adv_opp} metrics while "
-                    f"{selected_team_reports} leads in {adv_team}. "
+                    f"{selected_team} leads in {adv_team}. "
                     f"{selected_opponent} appears favored overall."
                 )
             else:
@@ -3235,7 +3283,7 @@ with tab_H2H:
                 )
 
             st.markdown(f"""
-            <p><strong>Win Probability:</strong> {selected_team_reports} has a {pA*100:.1f}% chance to beat {selected_opponent}.</p>
+            <p><strong>Win Probability:</strong> {selected_team} has a {pA*100:.1f}% chance to beat {selected_opponent}.</p>
             <p><strong>Summary:</strong> {summary_text}</p>
             """, unsafe_allow_html=True)
 
@@ -3243,7 +3291,7 @@ with tab_H2H:
             colH2H1, colH2H2 = st.columns(2)
             with colH2H1:
                 # TEAM Radar Chart
-                single_radar_fig = create_radar_chart([selected_team_reports], df_main)
+                single_radar_fig = create_radar_chart([selected_team], df_main)
                 if single_radar_fig:
                     st.plotly_chart(single_radar_fig, use_container_width=True)
             # --- Opponent Radar Chart ---
@@ -3282,7 +3330,7 @@ with tab_H2H:
             # Now show BOTH teams' interpretive insights side by side, only once
             colI1, colI2 = st.columns(2)
             with colI1:
-                st.markdown(f"### {selected_team_reports} Interpretive Insights")
+                st.markdown(f"### {selected_team} Interpretive Insights")
                 team_insights_str = get_interpretive_insights(row_team, df_main)
                 for ins in team_insights_str:
                     metric, comment = ins.split(" | ")
@@ -3297,7 +3345,7 @@ with tab_H2H:
 
             # Only show the single team's interpretive insights here if NO opponent is selected
             # (Prevents duplication once we show a 2-team comparison below.)
-            if not selected_opponent or selected_opponent == selected_team_reports:
+            if not selected_opponent or selected_opponent == selected_team:
                 team_insights = get_interpretive_insights(team_data.iloc[0], df_main)
                 if team_insights:
                     st.markdown("""<h4>TEAM INSIGHTS</h4>""", unsafe_allow_html=True)
@@ -3446,7 +3494,7 @@ with tab_pred:
         if not region_probs:
             st.warning("No region champion data found.")
         else:
-            st.markdown("##### REGIONAL CHAMPIONSHIP PROBAILITY (%)")
+            st.markdown(f"### :primary[REGIONAL CHAMPION / FINAL FOUR PROBABILITY (%)]")
             fig_region = make_subplots(
                 rows=2, cols=2,
                 subplot_titles=["West", "East", "South", "Midwest"]
@@ -3467,7 +3515,10 @@ with tab_pred:
                         name=region_name,
                         text=[f"{v:.1f}%" for v in y_vals],
                         textposition="outside",
-                        marker_color="steelblue"
+                        color='CONFERENCE',
+                        marker_color='CONFERENCE',
+                        #marker_color="steelblue",
+
                     ),
                     row=r, col=c
                 )
@@ -3478,14 +3529,14 @@ with tab_pred:
             fig_region.update_layout(
                 template="plotly_dark",
                 height=600,
-                title="REGIONAL CHAMPION / FINAL FOUR ODDS",
+                #title="REGIONAL CHAMPION / FINAL FOUR ODDS",
                 showlegend=False,
                 margin=dict(l=50, r=50, t=60, b=60),
             )
             st.plotly_chart(fig_region, use_container_width=True)
 
         # --- 1×1 CHAMPIONSHIP BAR CHART --- #
-        st.markdown(":primary[##### CHAMPIONSHIP PROBABILITIES]")
+        st.markdown(f"### :primary[CHAMPIONSHIP PROBABILITY (%)]")
         top_champs = sorted(champ_probs.items(), key=lambda x: x[1], reverse=True)[:12]
         fig_champ = go.Figure()
         fig_champ.add_trace(
@@ -3494,12 +3545,14 @@ with tab_pred:
                 y=[tc[1] for tc in top_champs],
                 text=[f"{tc[1]:.1f}%" for tc in top_champs],
                 textposition="outside",
-                marker_color="tomato",
+                color='CONFERENCE',
+                marker_color='CONFERENCE',                
+                #marker_color="tomato",
             )
         )
         fig_champ.update_layout(
             template="plotly_dark",
-            title="CHAMPIONSHIP PROBABILITIY (Top 12)",
+            #title="CHAMPIONSHIP PROBABILITY (TOP 12 TEAMS)",
             xaxis=dict(tickangle=-45),
             yaxis=dict(range=[0, max([tc[1] for tc in top_champs])*1.15]),
             showlegend=False,
@@ -3654,48 +3707,6 @@ with tab_regions:
         "AST/GM": "RdYlGn",
         "TO/GM": "RdYlGn_r",
 
-    }
-
-    # Advanced table styling to match TEAM METRICS tab
-    advanced_table_styles = [
-        {'selector': 'table',
-         'props': [('border-collapse', 'collapse'),
-                   ('border', '2px solid #222'),
-                   ('border-radius', '8px'),
-                   ('overflow', 'hidden'),
-                   ('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.1)')]},
-        {'selector': 'th',
-         'props': [('background-color', '#0360CE'),
-                   ('color', 'white'),
-                   ('text-align', 'center'),
-                   ('padding', '8px 10px'),
-                   ('border', '1px solid #222'),
-                   ('font-weight', 'bold'),
-                   ('font-size', '13px')]},
-        {'selector': 'td',
-         'props': [('text-align', 'center'),
-                   ('padding', '5px 10px'),
-                   ('border', '1px solid #ddd')]}
-    ]
-
-    index_style = {
-        'selector': '.row_heading.level0',
-        'props': [
-            ('background-color', '#0360CE'),
-            ('color', 'white'),
-            ('text-align', 'left'),
-            ('font-weight', 'bold'),
-            ('border-bottom', '2px dashed #000000'),
-            ('border-right', '1px solid #000000'),
-        ]
-    }
-    cell_style = {
-        'selector': 'tbody td',
-        'props': [
-            ('text-align', 'center'),
-            ('border', '1px solid #ddd'),
-            ('padding', '5px 10px'),
-        ]
     }
 
     # Loop through each region
@@ -3855,7 +3866,8 @@ with tab_conf:
             .background_gradient(cmap="RdYlGn_r", subset=["MEAN SEED_25", "MEAN NET_25",
                                                           #"AVG TR_DEff_25",
                                                           ])
-            .set_table_styles(detailed_table_styles)
+            #.set_table_styles(detailed_table_styles)
+            .set_table_styles(advanced_table_styles + [index_style, cell_style, header])
         )
 
         st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
