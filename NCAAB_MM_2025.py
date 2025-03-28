@@ -2839,7 +2839,7 @@ with tab_H2H:
     selected_team = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=H2H_options,
-        index=H2H_options.index("Kentucky"),,
+        index=H2H_options.index("Kentucky"),
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
