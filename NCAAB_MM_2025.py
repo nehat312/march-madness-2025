@@ -684,11 +684,12 @@ def create_radar_chart(selected_teams, full_df):
     for i, row in subset.iterrows():
         team_name = row['TM_KP'] if 'TM_KP' in row else f"Team {i+1}"
         conf = row['CONFERENCE'] if 'CONFERENCE' in row else "N/A"
+        #conf['CONFERENCE'] = ['CONFERENCE'].apply(get_conf_logo_html)
         seed_str = ""
         if "SEED_25" in row and not pd.isna(row["SEED_25"]):
-            seed_str = f" - Seed {int(row['SEED_25'])}"
+            seed_str = f" | SEED #{int(row['SEED_25'])}"
         perf_data = compute_performance_text(row, t_avgs, t_stdevs)
-        subplot_titles.append(f"{i+1}) {team_name} ({conf}){seed_str}")
+        subplot_titles.append(f"{team_name} | [{conf}]{seed_str}")
     fig = make_subplots(
         rows=row_count, cols=col_count,
         specs=[[{'type': 'polar'}] * col_count for _ in range(row_count)],
@@ -697,11 +698,12 @@ def create_radar_chart(selected_teams, full_df):
         vertical_spacing=0.15
     )
     fig.update_layout(
+        title=dict(x=0.5, y=0.95, xanchor='center', yanchor='top'),
         height=fig_height,
         template='plotly_dark',
-        font=dict(family="Arial, sans-serif", size=12),
+        font=dict(family="Arial, sans-serif", size=12, color='white'),
         showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1, bgcolor="rgba(0,0,0,0.1)"),
+        legend=dict(orientation="h", yanchor="bottom", y=.95, xanchor="right", x=1, bgcolor="rgba(0,0,0,0.1)"),
         margin=dict(l=50, r=50, t=80, b=50),
         paper_bgcolor="rgba(0,0,0,0.8)",
         plot_bgcolor="rgba(0,0,0,0.8)"
@@ -2752,23 +2754,42 @@ with tab_H2H:
 
             /* Insights section */
             .insights-container {
-                background-color: #f8f9fa;
-                border-radius: 8px;
-                padding: 18px;
+                background-color: #ffffff; /* Brighter background */
+                border-radius: 12px;
+                padding: 20px;
                 margin-top: 20px;
-                border-left: 4px solid #0039A6;
+                border: 1px solid #e0e0e0; /* Lighter border */
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+                transition: all 0.3s ease; /* Smooth transition */
+            }
+            .insights-container:hover {
+                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); /* Slightly stronger shadow on hover */
+                transform: translateY(-2px); /* Slight lift on hover */
+            }
+            .insights-list {
+                list-style-type: none; /* Remove default bullets */
+                padding-left: 0;
+                margin-bottom: 0;
             }
             .insights-list li {
-                margin-bottom: 8px;
-                padding-left: 10px;
+                margin-bottom: 12px;
+                padding-left: 24px; /* Increased padding */
                 position: relative;
+                font-size: 0.95rem; /* Slightly smaller font */
+                line-height: 1.4; /* Improved line height */
             }
             .insights-list li:before {
-                content: "•";
+                content: "➤"; /* Use a right arrow */
                 color: #0039A6;
                 font-weight: bold;
                 position: absolute;
-                left: -10px;
+                left: 0;
+                top: 2px; /* Adjust vertical alignment */
+                font-size: 0.8rem; /* Smaller arrow */
+            }
+            .insights-list li strong {
+                font-weight: 600; /* Slightly bolder metric */
+                color: #333; /* Darker metric */
             }
 
             /* Win probability indicator */
@@ -2924,7 +2945,7 @@ with tab_H2H:
             #     key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
             if "AVG MARGIN" in team_data.columns:
                 val = round(team_data["AVG MARGIN"].iloc[0], 1)
-                key_stats.append(("AVG MARGIN", f"{val*100:.0f}%", "#333333"))                
+                key_stats.append(("AVG MARGIN", f"{val:.1f}%", "#333333"))                
             if "KP_AdjEM" in team_data.columns:
                 val = round(team_data["KP_AdjEM"].iloc[0], 1)
                 key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
@@ -2955,7 +2976,7 @@ with tab_H2H:
             #     opp_key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
             if "AVG MARGIN" in opp_data.columns:
                 val = round(opp_data["AVG MARGIN"].iloc[0], 1)
-                opp_key_stats.append(("AVG MARGIN", f"{val*100:.0f}%", "#333333"))                                              
+                opp_key_stats.append(("AVG MARGIN", f"{val:.1f}%", "#333333"))                                              
             if "KP_AdjEM" in opp_data.columns:
                 val = round(opp_data["KP_AdjEM"].iloc[0], 1)
                 opp_key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
@@ -3328,20 +3349,35 @@ with tab_H2H:
             opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
 
 
-            # Now show BOTH teams' interpretive insights side by side, only once
+            # Display BOTH teams' interpretive insights side-by-side
             colI1, colI2 = st.columns(2)
             with colI1:
-                st.markdown(f"### {selected_team} Interpretive Insights")
+                st.markdown(f"### {selected_team} Interpretive Insights:")
                 team_insights_str = get_interpretive_insights(row_team, df_main)
-                for ins in team_insights_str:
-                    metric, comment = ins.split(" | ")
-                    st.markdown(f"**{metric}**: {comment}")
+                if team_insights_str:
+                    st.markdown("<div class='insights-container'>", unsafe_allow_html=True)
+                    st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
+                    for ins in team_insights_str:
+                        metric, comment = ins.split(" | ")
+                        st.markdown(f"<li><strong>{metric}</strong>: {comment}</li>", unsafe_allow_html=True)
+                    st.markdown("</ul>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.info("No interpretive insights available for this team.")
 
             with colI2:
-                st.markdown(f"### {selected_opponent} Interpretive Insights")
-                for ins in opp_insights:
-                    metric, comment = ins.split(" | ")
-                    st.markdown(f"**{metric}**: {comment}")
+                st.markdown(f"### {selected_opponent} Interpretive Insights:")
+                opp_insights = get_interpretive_insights_opp(opp_data.iloc[0], df_main)
+                if opp_insights:
+                    st.markdown("<div class='insights-container'>", unsafe_allow_html=True)
+                    st.markdown("<ul class='insights-list'>", unsafe_allow_html=True)
+                    for ins in opp_insights:
+                        metric, comment = ins.split(" | ")
+                        st.markdown(f"<li><strong>{metric}</strong>: {comment}</li>", unsafe_allow_html=True)
+                    st.markdown("</ul>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.info("No interpretive insights available for this opponent.")
                 
 
             # Only show the single team's interpretive insights here if NO opponent is selected
