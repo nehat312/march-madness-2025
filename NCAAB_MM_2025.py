@@ -2835,16 +2835,17 @@ with tab_H2H:
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
     # -- TEAM & OPPONENT SELECTION --
+    H2H_options = [""] + sorted(df_main["TM_KP"].dropna().unique().tolist())
     selected_team = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
-        options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index="Tennessee", #0,
+        options=H2H_options,
+        index=H2H_options.index("Kentucky"),,
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
-        options=[""] + sorted(df_main["TM_KP"].dropna().unique().tolist()),
-        index="Kentucky", #0,
+        options=H2H_options,
+        index=H2H_options.index("Tennessee"), #0,
         key="select_opponent_reports"
     )
 
