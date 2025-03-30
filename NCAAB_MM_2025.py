@@ -325,7 +325,37 @@ def get_interpretive_insights_opp(row, df_all):
                 lines.append(f"**{metric}** | Notable weakness.")
     return lines
 
+# Helper to compute performance badge with revised thresholds
+def compute_performance_badge(row, df_all):
+    t_avgs, t_stdevs = compute_tournament_stats(df_all)
+    metrics = get_default_metrics()
+    z_vals = []
+    for m in metrics:
+        if m in row and m in t_avgs and m in t_stdevs:
+            std = t_stdevs[m] if t_stdevs[m] > 1e-12 else 1e-6
+            val = row[m]
+            mean_ = t_avgs[m]
+            z = (val - mean_) / std
+            # Invert if lower-is-better
+            if m in ["DEF EFF", "KP_AdjD", "TO/GM", "KP_SOS_AdjEM"]:
+                z = -z
+            z_vals.append(z)
+    if not z_vals:
+        return {"text": "NO DATA", "class": "badge-mid"}
+    avg_z = sum(z_vals) / len(z_vals)
+    # Adjust thresholds as you see fit
+    if avg_z >= 0.75:
+        return {"text": "ELITE", "class": "badge-elite"}
+    elif avg_z >= 0.25:
+        return {"text": "SOLID", "class": "badge-solid"}
+    elif avg_z >= -0.25:
+        return {"text": "MID", "class": "badge-mid"}
+    elif avg_z >= -0.75:
+        return {"text": "SUBPAR", "class": "badge-subpar"}
+    else:
+        return {"text": "WEAK", "class": "badge-weak"}
 
+# ----------------------------------------------------------------------------
 # Global visualization settings
 viz_margin_dict = dict(l=20, r=20, t=50, b=20)
 viz_bg_color = '#0360CE'
@@ -333,7 +363,7 @@ viz_font_dict = dict(size=12, color='#FFFFFF')
 RdYlGn = px.colors.diverging.RdYlGn
 Spectral = px.colors.diverging.Spectral
 RdBu_r = px.colors.diverging.RdBu_r
-# ----------------------------------------------------------------------------
+
 # Additional table styling used in Pandas Styler
 header = {
     'selector': 'th',
@@ -2095,7 +2125,7 @@ with tab_home:
 
     elite_8_matchups = [
         ("Florida", 1, "Texas Tech", 3),
-        ("Duke", 1, "Alabama", 2,),
+        ("Duke", 1, "Alabama", 2),
         ("Auburn", 1, "Michigan St.", 2),
         ("Houston", 1, "Tennessee", 2)
     ]
@@ -3045,35 +3075,7 @@ with tab_H2H:
             # <h2>Team Overview</h2>
             # """, unsafe_allow_html=True)
 
-            # Helper to compute performance badge with revised thresholds
-            def compute_performance_badge(row, df_all):
-                t_avgs, t_stdevs = compute_tournament_stats(df_all)
-                metrics = get_default_metrics()
-                z_vals = []
-                for m in metrics:
-                    if m in row and m in t_avgs and m in t_stdevs:
-                        std = t_stdevs[m] if t_stdevs[m] > 1e-12 else 1e-6
-                        val = row[m]
-                        mean_ = t_avgs[m]
-                        z = (val - mean_) / std
-                        # Invert if lower-is-better
-                        if m in ["DEF EFF", "KP_AdjD", "TO/GM", "KP_SOS_AdjEM"]:
-                            z = -z
-                        z_vals.append(z)
-                if not z_vals:
-                    return {"text": "NO DATA", "class": "badge-mid"}
-                avg_z = sum(z_vals) / len(z_vals)
-                # Adjust thresholds as you see fit
-                if avg_z >= 0.75:
-                    return {"text": "ELITE", "class": "badge-elite"}
-                elif avg_z >= 0.25:
-                    return {"text": "SOLID", "class": "badge-solid"}
-                elif avg_z >= -0.25:
-                    return {"text": "MID", "class": "badge-mid"}
-                elif avg_z >= -0.75:
-                    return {"text": "SUBPAR", "class": "badge-subpar"}
-                else:
-                    return {"text": "WEAK", "class": "badge-weak"}
+
 
             # Extract basic team info
             conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
@@ -3126,10 +3128,8 @@ with tab_H2H:
                 val = round(team_data["DEF EFF"].iloc[0], 2)
                 key_stats.append(("TeamRankings DEff", val, "#B22222"))
             
-
-
+            # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
-
 
             opp_key_stats = []
             # if "WIN% ALL GM" in opp_data.columns:
@@ -3243,9 +3243,9 @@ with tab_H2H:
 #                       text-shadow: 0px 1px 1px rgba(0,0,0,0.4);
 #                     </div>
 
-# ------------------------------------------------------
-# HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
-# ------------------------------------------------------
+            # ------------------------------------------------------
+            # HEAD-TO-HEAD COMPARISON (2-TEAM SECTION)
+            # ------------------------------------------------------
             with colB:
                 if selected_opponent and selected_opponent != selected_team:
                     if opp_data.empty:
