@@ -2050,9 +2050,9 @@ def display_simulation_results(single_run_logs):
 
 
 # --- App Header & Tabs ---
-st.title(":primary[MARCH MADNESS 2025 -- NCAAM BASKETBALL]")
+st.title(":primary[🏀 MARCH MADNESS 2025 -- NCAAM BASKETBALL 🏀]")
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards_]")
+st.subheader(":blue[_Cure your BRACKET 🧠 BRAIN 🧠 and propel yourself up the leaderboards_]")
 
 tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 H2H MATCHUPS", 
@@ -2065,7 +2065,6 @@ tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tab
 
 # --- Home Tab ---
 with tab_home:
-    st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[🏀 ELITE 8 -- TOP UPSET CANDIDATES 🏀]")
@@ -2088,7 +2087,7 @@ with tab_home:
         ("Florida", 1, "Maryland", 4),
         ("Duke", 1, "Arizona", 4),
         ("Texas Tech", 3, "Arkansas", 10),
-        ("Michigan State", 2, "Ole Miss", 6),
+        ("Michigan St.", 2, "Ole Miss", 6),
         ("Tennessee", 2, "Kentucky", 3),
         ("Auburn", 1, "Michigan", 5),
         ("Houston", 1, "Purdue", 4)
@@ -2097,7 +2096,7 @@ with tab_home:
     elite_8_matchups = [
         ("Florida", 1, "Texas Tech", 3),
         ("Duke", 1, "Alabama", 2,),
-        ("Auburn", 1, "Michigan State", 2),
+        ("Auburn", 1, "Michigan St.", 2),
         ("Houston", 1, "Tennessee", 2)
     ]
 
@@ -3981,6 +3980,11 @@ with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
+    st.subheader(":primary[🏀 NCAAM BASKETBALL CONFERENCE TREEMAP 🏀]", divider='grey')
+    treemap = create_treemap(df_main_notnull)
+    if treemap is not None:
+        st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
+
     numeric_cols = [c for c in core_cols if c in df_main.columns and pd.api.types.is_numeric_dtype(df_main[c])]
     ### CONFERENCE POWER RANKINGS ###    
     # Style for the index (RANK)
@@ -4112,11 +4116,6 @@ with tab_conf:
         )
 
         st.markdown(styled_conf_stats.to_html(escape=False), unsafe_allow_html=True)
-
-    treemap = create_treemap(df_main_notnull)
-    if treemap is not None:
-        st.plotly_chart(treemap, use_container_width=True, config={'displayModeBar': True, 'scrollZoom': True})
-
 
     # if "CONFERENCE" in df_main.columns:
     #     conf_metric = st.selectbox(
