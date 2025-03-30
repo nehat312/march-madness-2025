@@ -2068,7 +2068,7 @@ with tab_home:
     st.subheader(":primary[NCAAM BASKETBALL CONFERENCE TREEMAP]", divider='grey')
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
     # --- Top Upset Candidates Table for Sweet 16 ---
-    st.markdown("### :primary[TOP UPSET CANDIDATES -- SWEET 16]")
+    st.markdown("### :primary[🏀 ELITE 8 -- TOP UPSET CANDIDATES 🏀]")
     
     #bracket = prepare_tournament_data(df_main)
     #apply_completed_results(bracket, completed_results_2025)
@@ -2082,7 +2082,7 @@ with tab_home:
     else:
         bracket = st.session_state['bracket']    
 
-    # Actual Sweet 16 matchups
+    # Sweet 16 / Elite 8 matchups (2025)
     sweet_16_matchups = [
         ("Alabama", 2, "BYU", 6),
         ("Florida", 1, "Maryland", 4),
@@ -2094,10 +2094,17 @@ with tab_home:
         ("Houston", 1, "Purdue", 4)
     ]
 
+    elite_8_matchups = [
+        ("Florida", 1, "Texas Tech", 3),
+        ("Duke", 1, "Alabama", 2,),
+        ("Auburn", 1, "Michigan State", 2),
+        ("Houston", 1, "Tennessee", 2)
+    ]
+
     if bracket is not None:
         upset_candidates = []
 
-        for fav_team, fav_seed, dog_team, dog_seed in sweet_16_matchups:
+        for fav_team, fav_seed, dog_team, dog_seed in elite_8_matchups: #sweet_16_matchups
             # Fetch teams from the bracket data
             fav_data = next((team for region in bracket.values() for team in region if team['team'] == fav_team and team['seed'] == fav_seed), None)
             dog_data = next((team for region in bracket.values() for team in region if team['team'] == dog_team and team['seed'] == dog_seed), None)
@@ -3015,13 +3022,13 @@ with tab_H2H:
     selected_team = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=H2H_options,
-        index=H2H_options.index("Kentucky"),
+        index=H2H_options.index("Duke"),
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=H2H_options,
-        index=H2H_options.index("Tennessee"), #0,
+        index=H2H_options.index("Alabama"),
         key="select_opponent_reports"
     )
 
@@ -3180,8 +3187,8 @@ with tab_H2H:
                 # Card‐like container with corrected "team-info" div
                 st.markdown(f"""
                 <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
-                  <h3 style="margin-bottom:5px;">{selected_team}</h3>
-                  <p style="margin:2px 0; background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;"><strong>Conference:</strong> {conf}</p>
+                  <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_team}</h3>
+                  <p style="margin:2px 0;"><strong>Conference:</strong> {conf}</p>
                   <p style="margin:2px 0;"><strong>Record:</strong> {record} &nbsp; {seed_info}</p>
                   <p style="margin:2px 0;"><strong>Rankings:</strong> {rankings_html}</p>
                   <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
@@ -3250,7 +3257,7 @@ with tab_H2H:
                     #st.markdown(f"#### {selected_opponent}")
                     st.markdown(f"""
                                 <div class="opp-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
-                                <h3 style="margin-bottom:5px;">{selected_opponent}</h3>
+                                <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_opponent}</h3>
                                 <p style="margin:2px 0;"><strong>Conference:</strong> {opp_conf}</p>
                                 <p style="margin:2px 0;"><strong>Record:</strong> {opp_record} &nbsp; {opp_seed_info}</p>
                                 <p style="margin:2px 0;"><strong>Rankings:</strong> {opp_rankings_html}</p>
@@ -3495,23 +3502,21 @@ with tab_H2H:
             # Helper function to get icon for metric
             def get_metric_icon(metric_name):
                 icons = {
-                    "AVG MARGIN": "📌", #📊💯🏆🧱📈🔒⚡🛡️🔥
-                    "KP_AdjEM": "📌",
-                    "BPI_25": "📌",
-                    "KP_AdjO": "📌",
-                    "KP_AdjD": "📌",
-                    "OFF EFF": "📌",
-                    "DEF EFF": "📌",
-                    "AST/TO%": "📌",
-                    "STOCKS-TOV/GM": "📌"
+                    "AVG MARGIN": "⚡", #📌📊💯🏆🧱📈🔒⚡🛡️🔥
+                    "KP_AdjEM": "⚡",
+                    "BPI_25": "⚡",
+                    "KP_AdjO": "⚡",
+                    "KP_AdjD": "⚡",
+                    "OFF EFF": "⚡",
+                    "DEF EFF": "⚡",
+                    "AST/TO%": "⚡",
+                    "STOCKS-TOV/GM": "⚡"
                 }
                 
                 for key in icons:
                     if key.lower() in metric_name.lower():
                         return icons[key]
-                
-                # Default icon
-                return "📌"
+                return "⚡" # Default icon
 
             with colI1:
                 st.markdown(f"<div class='insights-header'>{selected_team} Insights</div>", unsafe_allow_html=True)
