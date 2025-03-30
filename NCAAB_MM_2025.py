@@ -3175,8 +3175,8 @@ with tab_H2H:
             opp_record = f"{w}-{l}"
             opp_seed_info = ""
             if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
-                seed_num = int(opp_data["SEED_25"].iloc[0])
-                seed_info = f"Seed {seed_num}"
+                opp_seed_num = int(opp_data["SEED_25"].iloc[0])
+                opp_seed_info = f"Seed {opp_seed_num}"
             # Rankings
             opp_rankings = []
             if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
@@ -3319,8 +3319,10 @@ with tab_H2H:
                 "OFF EFF", "DEF EFF",
                 #"WIN% ALL GM",
                 "AVG MARGIN",
-                "eFG%", "OPP eFG%",
-                "AST/TO%", "STOCKS-TOV/GM"
+                "PTS/GM", "OPP PTS/GM",
+                "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
+                "NET_eFG%", #"eFG%", "OPP eFG%",
+                "AST/TO%", "STOCKS-TOV/GM",
             ]
             #opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
             row_team = team_data.iloc[0]
