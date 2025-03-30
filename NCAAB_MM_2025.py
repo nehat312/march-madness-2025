@@ -426,19 +426,15 @@ cell_style = {
 def get_default_metrics():
     """Return metrics to be used in radar charts z-score logic."""
     return [
-        'AVG MARGIN',
-        'KP_AdjEM',
+        'AVG MARGIN', 'KP_AdjEM',
         'BPI_25',
         #'NET_25'
-        'KP_AdjO',
-        'KP_AdjD',
-        'OFF EFF',
-        'DEF EFF',
-        'AST/TO%',
-        'STOCKS-TOV/GM',
+        'KP_AdjO', 'KP_AdjD',
+        'OFF EFF', 'DEF EFF',
+        'AST/TO%', 'STOCKS-TOV/GM',
+        ]
 
-    ]
-# --- 2025 NCAA TOURNAMENT UPDATED RESULTS (SWEET 16)---
+# --- 2025 NCAA TOURNAMENT UPDATED RESULTS (ELITE 8)---
 
 completed_results_2025 = {
     'First Four': [
@@ -498,6 +494,16 @@ completed_results_2025 = {
         ('Ole Miss', 'Iowa State', 91, 78),
         ('Michigan State', 'New Mexico', 71, 63),
         ('Arizona', 'Oregon', 87, 83)
+    ],
+        'Elite Eight': [
+        ('Texas Tech', 'Arkansas', 85, 83),
+        ('Auburn', 'Michigan', 78, 65),
+        ('Houston', 'Purdue', 62, 60),
+        ('Tennessee', 'Kentucky', 78, 65),
+        ('Florida', 'Maryland', 87, 71),
+        ('Duke', 'Arizona', 100, 93),
+        ('Alabama', 'BYU', 113, 88),
+        ('Michigan St.', 'Ole Miss', 73, 70),
     ]
 }
 
@@ -511,6 +517,8 @@ def apply_completed_results(bracket, completed_results):
     for region in bracket:
         bracket[region] = [team for team in bracket[region] if team['team'] not in eliminated_teams]
 
+
+### --- STATS COMPUTATION --- ###
 def compute_tournament_stats(df):
     """Compute overall averages and standard deviations for radar metrics."""
     metrics = get_default_metrics()
@@ -554,6 +562,7 @@ def compute_performance_text(team_row, t_avgs, t_stdevs):
         return {"text": "SUBPAR", "class": "badge-subpar"}
     else:
         return {"text": "WEAK", "class": "badge-weak"}
+        
 
 def get_radar_traces(team_row, t_avgs, t_stdevs, conf_df, show_legend=False):
     """
@@ -1814,6 +1823,7 @@ def run_simulation_once(bracket):
     if not bracket:
         return []
     current = copy.deepcopy(bracket)
+    apply_completed_results(bracket, completed_results_2025)
     game_logs = []
 
     def record_game(rnd_name, region, tA, tB, w):
