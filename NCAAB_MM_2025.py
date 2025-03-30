@@ -1823,7 +1823,7 @@ def run_simulation_once(bracket):
     if not bracket:
         return []
     current = copy.deepcopy(bracket)
-    apply_completed_results(bracket, completed_results_2025)
+    #apply_completed_results(bracket, completed_results_2025)
     game_logs = []
 
     def record_game(rnd_name, region, tA, tB, w):
@@ -3320,8 +3320,8 @@ with tab_H2H:
                 #"WIN% ALL GM",
                 "AVG MARGIN",
                 "PTS/GM", "OPP PTS/GM",
-                "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
-                "NET_eFG%", #"eFG%", "OPP eFG%",
+                # "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
+                # "NET_eFG%", #"eFG%", "OPP eFG%",
                 "AST/TO%", "STOCKS-TOV/GM",
             ]
             #opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
