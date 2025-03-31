@@ -2119,7 +2119,7 @@ with tab_home:
     if 'bracket' not in st.session_state:
         bracket = prepare_tournament_data(df_main)
         if bracket is not None:  # Only apply if bracket data is valid
-            apply_completed_results(bracket, completed_results_2025)
+            #apply_completed_results(bracket, completed_results_2025)
             st.session_state['bracket'] = bracket
         else:
             st.error("Failed to prepare bracket data. Simulation cannot run.")
@@ -3293,7 +3293,7 @@ with tab_H2H:
             with colB:
                 if selected_opponent and selected_opponent != selected_team:
                     if opp_data.empty:
-                        st.warning("No data available for the selected opponent.")
+                        st.warning("No data available for selected opponent.")
                     else:
                         st.markdown("---")
                                             
@@ -3643,7 +3643,7 @@ with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
 
-    show_logs = st.checkbox(":blue[_Show Detailed Single-Sim Logs?_]", value=True)
+    show_logs = st.checkbox(":blue[_DISPLAY SINGLE-SIM LOGS?_]", value=True)
 
     if st.button(":green[RUN BRACKET SIMULATION]", icon="🏀"):
         with st.spinner(":green[RUNNING SIMULATIONS ...]"):
@@ -3652,7 +3652,7 @@ with tab_pred:
             if 'bracket' not in st.session_state:
                 bracket = prepare_tournament_data(df_main)
                 if bracket is not None:  # Only apply if bracket data is valid
-                    apply_completed_results(bracket, completed_results_2025)
+                    #apply_completed_results(bracket, completed_results_2025)
                     st.session_state['bracket'] = bracket
                 else:
                     st.error("Failed to prepare bracket data. Simulation cannot run.")
