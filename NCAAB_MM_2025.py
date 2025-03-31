@@ -438,8 +438,8 @@ def get_default_metrics():
 
 completed_results_2025 = {
     'First Four': [
-        ('Alabama State', 'Saint Francis', 70, 68),
-        ('North Carolina', 'San Diego State', 95, 68),
+        ('Alabama St.', 'Saint Francis', 70, 68),
+        ('North Carolina', 'San Diego St.', 95, 68),
         ('Mount St. Mary\'s', 'American University', 83, 72),
         ('Xavier', 'Texas', 86, 80)
     ],
@@ -448,7 +448,7 @@ completed_results_2025 = {
         ('Purdue', 'High Point', 75, 63),
         ('Wisconsin', 'Montana', 85, 66),
         ('Houston', 'SIU Edwardsville', 78, 40),
-        ('Auburn', 'Alabama State', 83, 63),
+        ('Auburn', 'Alabama St.', 83, 63),
         ('McNeese', 'Clemson', 69, 67),
         ('BYU', 'VCU', 80, 71),
         ('Gonzaga', 'Georgia', 89, 68),
@@ -456,25 +456,25 @@ completed_results_2025 = {
         ('Arkansas', 'Kansas', 79, 72),
         ('Texas A&M', 'Yale', 80, 71),
         ('Drake', 'Missouri', 67, 57),
-        ('UCLA', 'Utah State', 72, 47),
+        ('UCLA', 'Utah St.', 72, 47),
         ('St. John\'s', 'Omaha', 83, 53),
         ('Michigan', 'UC San Diego', 68, 65),
         ('Texas Tech', 'UNC Wilmington', 82, 72),
-        ('Baylor', 'Mississippi State', 75, 72),
+        ('Baylor', 'Mississippi St.', 75, 72),
         ('Alabama', 'Robert Morris', 90, 81),
-        ('Iowa State', 'Lipscomb', 82, 55),
-        ('Colorado State', 'Memphis', 78, 70),
+        ('Iowa St.', 'Lipscomb', 82, 55),
+        ('Colorado St.', 'Memphis', 78, 70),
         ('Duke', 'Mount St. Mary\'s', 93, 49),
         ('Saint Mary\'s', 'Vanderbilt', 59, 56),
-        ('Ole Miss', 'North Carolina', 71, 64),
+        ('Mississippi', 'North Carolina', 71, 64),
         ('Maryland', 'Grand Canyon', 81, 49),
-        ('Florida', 'Norfolk State', 95, 69),
+        ('Florida', 'Norfolk St.', 95, 69),
         ('Kentucky', 'Troy', 76, 57),
         ('New Mexico', 'Marquette', 75, 66),
         ('Arizona', 'Akron', 93, 65),
         ('UConn', 'Oklahoma', 67, 59),
         ('Illinois', 'Xavier', 86, 73),
-        ('Michigan State', 'Bryant', 87, 62),
+        ('Michigan St.', 'Bryant', 87, 62),
         ('Oregon', 'Liberty', 81, 52)
     ],
     'Round of 32': [
@@ -490,9 +490,9 @@ completed_results_2025 = {
         ('Duke', 'Baylor', 89, 66),
         ('Kentucky', 'Illinois', 84, 75),
         ('Alabama', 'Saint Mary\'s', 80, 66),
-        ('Maryland', 'Colorado State', 72, 71),
-        ('Ole Miss', 'Iowa State', 91, 78),
-        ('Michigan State', 'New Mexico', 71, 63),
+        ('Maryland', 'Colorado St.', 72, 71),
+        ('Mississippi', 'Iowa St.', 91, 78),
+        ('Michigan St.', 'New Mexico', 71, 63),
         ('Arizona', 'Oregon', 87, 83)
     ],
     'Sweet 16': [
@@ -503,7 +503,7 @@ completed_results_2025 = {
         ('Florida', 'Maryland', 87, 71),
         ('Duke', 'Arizona', 100, 93),
         ('Alabama', 'BYU', 113, 88),
-        ('Michigan St.', 'Ole Miss', 73, 70),
+        ('Michigan St.', 'Mississippi', 73, 70),
     ],
     'Elite 8': [
         ('Florida', 'Texas Tech', 84, 79),
@@ -1383,7 +1383,7 @@ def prepare_tournament_data(df):
     # Example: award bonus to perennial teams
     for perennial in ["Duke","Kentucky","Kansas","North Carolina","Gonzaga","Michigan St."]:
         if perennial in bracket_teams[name_col].values:
-            bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 2.0
+            bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 1.0
 
     bracket = {}
     for region in ['West', 'East', 'South', 'Midwest']:
