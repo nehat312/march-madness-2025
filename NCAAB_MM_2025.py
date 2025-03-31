@@ -495,7 +495,7 @@ completed_results_2025 = {
         ('Michigan State', 'New Mexico', 71, 63),
         ('Arizona', 'Oregon', 87, 83)
     ],
-        'Elite Eight': [
+    'Sweet 16': [
         ('Texas Tech', 'Arkansas', 85, 83),
         ('Auburn', 'Michigan', 78, 65),
         ('Houston', 'Purdue', 62, 60),
@@ -504,6 +504,12 @@ completed_results_2025 = {
         ('Duke', 'Arizona', 100, 93),
         ('Alabama', 'BYU', 113, 88),
         ('Michigan St.', 'Ole Miss', 73, 70),
+    ],
+    'Elite 8': [
+        ('Florida', 'Texas Tech', 84, 79),
+        ('Duke', 'Alabama', 85, 65),
+        ('Auburn', 'Michigan St.', 70, 64),
+        ('Houston', 'Tennessee', 69, 50),
     ]
 }
 
@@ -2107,21 +2113,22 @@ tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tab
 with tab_home:
     st.caption(":green[_DATA AS OF: 3/27/2025_]")
     # --- Top Upset Candidates Table for Sweet 16 ---
-    st.markdown("### :primary[🏀 ELITE 8 -- TOP UPSET CANDIDATES 🏀]")
-    
-    #bracket = prepare_tournament_data(df_main)
-    #apply_completed_results(bracket, completed_results_2025)
-    #st.session_state['bracket'] = bracket
+    st.markdown("### :primary[🏀 2025 FINAL FOUR -- TOP UPSET CANDIDATES 🏀]")
 
     # Initialize bracket exactly once globally (if not yet initialized)
     if 'bracket' not in st.session_state:
         bracket = prepare_tournament_data(df_main)
-        #apply_completed_results(bracket, completed_results_2025)
-        st.session_state['bracket'] = bracket
+        if bracket is not None:  # Only apply if bracket data is valid
+            apply_completed_results(bracket, completed_results_2025)
+            st.session_state['bracket'] = bracket
+        else:
+            st.error("Failed to prepare bracket data. Simulation cannot run.")
+            st.stop()  # Stop further execution if bracket prep fails
     else:
-        bracket = st.session_state['bracket']    
+        bracket = st.session_state['bracket']
 
-    # Sweet 16 / Elite 8 matchups (2025)
+
+    # 2025 GAME RESULTS -- Sweet 16 / Elite 8 / Final Four
     sweet_16_matchups = [
         ("Alabama", 2, "BYU", 6),
         ("Florida", 1, "Maryland", 4),
@@ -2140,21 +2147,48 @@ with tab_home:
         ("Houston", 1, "Tennessee", 2)
     ]
 
+    final_four_matchups = [
+        ("Florida", 1, "Auburn", 1),
+        ("Duke", 1, "Houston", 1),
+    ]
+
     if bracket is not None:
         upset_candidates = []
 
-        for fav_team, fav_seed, dog_team, dog_seed in elite_8_matchups: #sweet_16_matchups
+        for fav_team, fav_seed, dog_team, dog_seed in final_four_matchups: ## UPDATE FOR CURRENT ROUND ##
             # Fetch teams from the bracket data
             fav_data = next((team for region in bracket.values() for team in region if team['team'] == fav_team and team['seed'] == fav_seed), None)
             dog_data = next((team for region in bracket.values() for team in region if team['team'] == dog_team and team['seed'] == dog_seed), None)
 
             if fav_data and dog_data:
-                upset_prob = calculate_win_probability(dog_data, fav_data)
+                # Modified logic for equal seeds: favor the team with higher AdjEM
+                if fav_seed == dog_seed:
+                    if fav_data.get('KP_AdjEM', -float('inf')) > dog_data.get('KP_AdjEM', -float('inf')):
+                        stronger_team = fav_data
+                        weaker_team = dog_data
+                    elif fav_data.get('KP_AdjEM', -float('inf')) < dog_data.get('KP_AdjEM', -float('inf')):
+                        stronger_team = dog_data
+                        weaker_team = fav_data
+                    else:  # If AdjEM is also equal, default to seed (shouldn't happen often)
+                        stronger_team = fav_data if fav_seed < dog_seed else dog_data
+                        weaker_team = dog_data if fav_seed < dog_seed else fav_data
+                    upset_prob = calculate_win_probability(weaker_team, stronger_team)
+                    if stronger_team is fav_data:
+                        fav = fav_data['team']
+                        dog = dog_data['team']
+                    else:
+                        fav = dog_data['team']
+                        dog = fav_data['team']
+                else:  # Standard seed comparison
+                    upset_prob = calculate_win_probability(dog_data, fav_data)
+                    fav = fav_data['team']
+                    dog = dog_data['team']
+
                 upset_candidates.append({
                     "MATCHUP": f"{fav_team} ({fav_seed}) vs {dog_team} ({dog_seed})",
-                    "FAV": fav_team,
+                    "FAV": fav,
                     "FAV SEED": fav_seed,
-                    "DOG": dog_team,
+                    "DOG": dog,
                     "DOG SEED": dog_seed,
                     "UPSET PROB (%)": round(upset_prob * 100, 1)
                 })
@@ -2169,7 +2203,7 @@ with tab_home:
 
             st.markdown(upset_styler.to_html(escape=False), unsafe_allow_html=True)
         else:
-            st.info("No upset candidates found for Sweet 16.")
+            st.info("No upset candidates.")
     else:
         st.error("Bracket data not available.")
     
@@ -3637,10 +3671,10 @@ with tab_pred:
 
         # 1) If requested, show single-run logs first
         if show_logs and single_run:
-            st.subheader(":blue[_Detailed Round-by-Round (Single Simulation)_]")
+            st.subheader(":blue[_Round-by-Round (Single Simulation)_]")
             display_simulation_results(single_run)
         else:
-            st.info("Single-run logs hidden. Check box above to display them.")
+            st.info(":blue[_Single-run logs hidden. Check box above to display them._]")
 
         # 2) Now show aggregated results
         if not aggregated:
