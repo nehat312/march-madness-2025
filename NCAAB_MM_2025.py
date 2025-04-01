@@ -1181,245 +1181,339 @@ sim_logger.addHandler(sim_handler)
 
 def get_matchups_by_round():
     """
-    Returns the standard NCAA bracket matchups per region.
+    Returns the standard NCAA bracket matchups (seed pairings or indices) per round.
+    Indices assume winners from the previous round are ordered correctly.
     """
-    round_64 = {
+    round_64 = { # Seed pairings
         'West':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
         'East':    [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
         'South':   [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)],
         'Midwest': [(1,16),(8,9),(5,12),(4,13),(6,11),(3,14),(7,10),(2,15)]
     }
-    round_32 = {
+    # Subsequent rounds use indices relative to the winners of the previous round
+    round_32 = { # Index pairings from R64 winners (0=1/16 winner, 1=8/9 winner, etc.)
         'West':    [(0,1),(2,3),(4,5),(6,7)],
         'East':    [(0,1),(2,3),(4,5),(6,7)],
         'South':   [(0,1),(2,3),(4,5),(6,7)],
         'Midwest': [(0,1),(2,3),(4,5),(6,7)]
     }
-    sweet_16 = {
+    sweet_16 = { # Index pairings from R32 winners
         'West':    [(0,1),(2,3)],
         'East':    [(0,1),(2,3)],
         'South':   [(0,1),(2,3)],
         'Midwest': [(0,1),(2,3)]
     }
-    elite_8 = {
+    elite_8 = { # Index pairings from S16 winners
         'West':    [(0,1)],
         'East':    [(0,1)],
         'South':   [(0,1)],
         'Midwest': [(0,1)]
     }
+    # Final Four uses indices relative to the list of region winners [West, East, South, Midwest]
     final_four   = [(0,1), (2,3)]  # (West vs East, South vs Midwest)
-    championship = [(0,1)]
+    # Championship uses indices relative to the Final Four winners
+    championship = [(0,1)] # (Winner of WE vs Winner of SM)
     return round_64, round_32, sweet_16, elite_8, final_four, championship
 
 def simulate_game(team1, team2):
     """
     Simulate one game between team1 and team2.
-    Returns a *copy* of the winner's dictionary.
+    Returns a *copy* of the winner's dictionary. Handles missing 'team' key.
     """
-    pA = calculate_win_probability(team1, team2)
-    winner = team1 if (random.random() < pA) else team2
+    # Ensure 'team' key exists for logging/debugging - use index name or default if missing
+    t1_name = team1.get('team', 'Unknown Team 1')
+    t2_name = team2.get('team', 'Unknown Team 2')
+
+    # Ensure necessary keys for probability calculation exist, even if using defaults
+    if 'KP_AdjEM' not in team1 or 'KP_AdjEM' not in team2 or 'seed' not in team1 or 'seed' not in team2:
+        sim_logger.warning(f"Missing critical data (KP_AdjEM or seed) for matchup: {t1_name} vs {t2_name}. Using 50/50 prob.")
+        pA = 0.5
+    else:
+        pA = calculate_win_probability(team1, team2)
+
+    # Determine winner based on calculated probability
+    winner = team1 if random.random() < pA else team2
+    loser = team2 if winner is team1 else team1
+    sim_logger.info(f"Sim Game: {t1_name} vs {t2_name}. Winner: {winner.get('team', 'Unknown')}. Prob T1 ({t1_name}): {pA:.2f}")
+
+    # Return a deep copy to prevent modifications affecting subsequent rounds
     return copy.deepcopy(winner)
 
 def simulate_tournament(bracket, num_simulations=1000):
     """
-    Runs a full-bracket simulation from Round of 64 to Championship for a given
-    bracket (dictionary by region) and returns a dictionary of round–by–round
-    aggregated win percentages *plus* a "Region" key containing region-champion probabilities.
+    Runs multiple full-bracket simulations from Round of 64 to Championship
+    based on the provided bracket structure and returns aggregated win probabilities.
     """
-    round_64, round_32, sweet_16, elite_8, final_four, championship = get_matchups_by_round()
-    
+    if not bracket or len(bracket) != 4:
+        sim_logger.error("Invalid or incomplete bracket provided to simulate_tournament. Expected 4 regions.")
+        return {} # Return empty dict if bracket is invalid
+
+    round_64_pairs, round_32_pairs, sweet_16_pairs, elite_8_pairs, final_four_pairs, championship_pairs = get_matchups_by_round()
+
     rounds_list = [
-        "Round of 64",
-        "Round of 32",
-        "Sweet 16",
-        "Elite 8",
-        "Final Four",
-        "Championship",
-        "Champion"
+        "Round of 64", "Round of 32", "Sweet 16", "Elite 8",
+        "Final Four", "Championship", "Champion"
     ]
-    
-    region_order = ["West", "East", "South", "Midwest"]
-    # Initialize aggregator
-    results = {r: {} for r in rounds_list}
-    # Also track region-level champs
-    # Each region will be a dict of {team_name: count_of_times_it_won_that_region}
-    results["Region"] = {
-        "West": {},
-        "East": {},
-        "South": {},
-        "Midwest": {}
-    }
+    # Initialize aggregator for win counts in each round
+    results = {round_name: {} for round_name in rounds_list}
+    # Track region champions separately
+    results["Region"] = {region: {} for region in bracket.keys()}
 
-    for _ in range(num_simulations):
-        # Make fresh copies of the bracket
-        current = {}
-        for reg in bracket:
-            current[reg] = [copy.deepcopy(t) for t in bracket[reg]]
-            
-        # --- Round of 64 ---
-        r64_winners = {}
-        for region, matchups in round_64.items():
-            if region not in current:
-                continue
-            winners_for_region = []
+    # Define the order for Final Four/Championship matchups
+    region_order = ["West", "East", "South", "Midwest"] # MUST match the order assumed in final_four_pairs/championship_pairs
+
+    sim_logger.info(f"Starting {num_simulations} tournament simulations...")
+
+    for i in range(num_simulations):
+        # --- Initialize Simulation Run ---
+        # Deep copy the initial bracket state for this simulation run
+        current_winners = {region: [copy.deepcopy(t) for t in teams] for region, teams in bracket.items()}
+        round_advancers = {} # Stores winners for the *next* round
+
+        # --- Simulate Regional Rounds ---
+        for region in bracket.keys():
+            # Round of 64
+            r64_winners_region = []
+            teams_r64 = current_winners[region]
+            matchups = round_64_pairs.get(region, [])
             for (s1, s2) in matchups:
-                t1 = next((x for x in current[region] if x['seed'] == s1), None)
-                t2 = next((x for x in current[region] if x['seed'] == s2), None)
-                if not t1 or not t2:
-                    continue
-                w = simulate_game(t1, t2)
-                winners_for_region.append(w)
-                results["Round of 64"][w['team']] = results["Round of 64"].get(w['team'], 0) + 1
-            r64_winners[region] = winners_for_region
+                t1 = next((t for t in teams_r64 if t.get('seed') == s1), None)
+                t2 = next((t for t in teams_r64 if t.get('seed') == s2), None)
+                if t1 and t2:
+                    w = simulate_game(t1, t2)
+                    w_name = w.get('team')
+                    if w_name:
+                        results["Round of 64"][w_name] = results["Round of 64"].get(w_name, 0) + 1
+                        r64_winners_region.append(w)
+                else:
+                     sim_logger.warning(f"Sim {i}, R64, {region}: Missing team for seed pairing ({s1} vs {s2}).")
+            round_advancers[region] = {'r32': r64_winners_region} # Store for next round
 
-        # --- Round of 32 ---
-        r32_winners = {}
-        for region, pairs in round_32.items():
-            if region not in r64_winners:
-                continue
-            winners_for_region = []
-            region_list = r64_winners[region]
-            for (i, j) in pairs:
-                if i < len(region_list) and j < len(region_list):
-                    w = simulate_game(region_list[i], region_list[j])
-                    winners_for_region.append(w)
-                    results["Round of 32"][w['team']] = results["Round of 32"].get(w['team'], 0) + 1
-            r32_winners[region] = winners_for_region
+            # Round of 32
+            r32_winners_region = []
+            teams_r32 = round_advancers[region]['r32']
+            matchups = round_32_pairs.get(region, [])
+            for (idx1, idx2) in matchups:
+                if idx1 < len(teams_r32) and idx2 < len(teams_r32):
+                    t1, t2 = teams_r32[idx1], teams_r32[idx2]
+                    w = simulate_game(t1, t2)
+                    w_name = w.get('team')
+                    if w_name:
+                        results["Round of 32"][w_name] = results["Round of 32"].get(w_name, 0) + 1
+                        r32_winners_region.append(w)
+                else:
+                    sim_logger.warning(f"Sim {i}, R32, {region}: Index out of bounds for pairing ({idx1} vs {idx2}).")
+            round_advancers[region]['s16'] = r32_winners_region
 
-        # --- Sweet 16 ---
-        s16_winners = {}
-        for region, pairs in sweet_16.items():
-            if region not in r32_winners:
-                continue
-            winners_for_region = []
-            region_list = r32_winners[region]
-            for (i, j) in pairs:
-                if i < len(region_list) and j < len(region_list):
-                    w = simulate_game(region_list[i], region_list[j])
-                    winners_for_region.append(w)
-                    results["Sweet 16"][w['team']] = results["Sweet 16"].get(w['team'], 0) + 1
-            s16_winners[region] = winners_for_region
+            # Sweet 16
+            s16_winners_region = []
+            teams_s16 = round_advancers[region]['s16']
+            matchups = sweet_16_pairs.get(region, [])
+            for (idx1, idx2) in matchups:
+                 if idx1 < len(teams_s16) and idx2 < len(teams_s16):
+                    t1, t2 = teams_s16[idx1], teams_s16[idx2]
+                    w = simulate_game(t1, t2)
+                    w_name = w.get('team')
+                    if w_name:
+                        results["Sweet 16"][w_name] = results["Sweet 16"].get(w_name, 0) + 1
+                        s16_winners_region.append(w)
+                 else:
+                    sim_logger.warning(f"Sim {i}, S16, {region}: Index out of bounds for pairing ({idx1} vs {idx2}).")
+            round_advancers[region]['e8'] = s16_winners_region
 
-        # --- Elite 8 ---
-        e8_finalists = []
-        for region, pairs in elite_8.items():
-            if region not in s16_winners:
-                continue
-            region_list = s16_winners[region]
-            for (i, j) in pairs:
-                if i < len(region_list) and j < len(region_list):
-                    w = simulate_game(region_list[i], region_list[j])
-                    e8_finalists.append((region, w))
-                    results["Elite 8"][w['team']] = results["Elite 8"].get(w['team'], 0) + 1
-        
-        region_champs = {}
-        for (reg, champ_dict) in e8_finalists:
-            region_champs[reg] = champ_dict
+            # Elite 8 (Regional Final)
+            e8_winner_region = None
+            teams_e8 = round_advancers[region]['e8']
+            matchups = elite_8_pairs.get(region, [])
+            for (idx1, idx2) in matchups: # Should only be one matchup
+                if idx1 < len(teams_e8) and idx2 < len(teams_e8):
+                    t1, t2 = teams_e8[idx1], teams_e8[idx2]
+                    w = simulate_game(t1, t2)
+                    e8_winner_region = w # This is the regional champion
+                    w_name = w.get('team')
+                    if w_name:
+                        results["Elite 8"][w_name] = results["Elite 8"].get(w_name, 0) + 1
+                        # Record the region champion win count
+                        results["Region"][region][w_name] = results["Region"][region].get(w_name, 0) + 1
+                else:
+                    sim_logger.warning(f"Sim {i}, E8, {region}: Index out of bounds for pairing ({idx1} vs {idx2}).")
+            round_advancers[region]['f4'] = e8_winner_region # Store the single region winner
 
-        # --- Final Four ---
+        # --- Simulate Final Four and Championship ---
+        # Collect region winners based on the defined region_order
+        final_four_teams = [round_advancers.get(reg, {}).get('f4', None) for reg in region_order]
+
+        # Check if all four regional winners are present
+        if None in final_four_teams:
+            sim_logger.warning(f"Sim {i}: Missing one or more regional champions for Final Four.")
+            continue # Skip Final Four/Championship for this simulation run
+
+        # Final Four
         ff_winners = []
-        for (idxA, idxB) in final_four:
-            rA = region_order[idxA]
-            rB = region_order[idxB]
-            if rA not in region_champs or rB not in region_champs:
-                continue
-            w = simulate_game(region_champs[rA], region_champs[rB])
-            ff_winners.append(w)
-            results["Final Four"][w['team']] = results["Final Four"].get(w['team'], 0) + 1
+        for (idx1, idx2) in final_four_pairs:
+            t1, t2 = final_four_teams[idx1], final_four_teams[idx2]
+            w = simulate_game(t1, t2)
+            w_name = w.get('team')
+            if w_name:
+                results["Final Four"][w_name] = results["Final Four"].get(w_name, 0) + 1
+                ff_winners.append(w)
 
-        # Record the region champion in aggregator
-        # (whoever advanced from that region's E8)
-        for reg in region_order:
-            if reg in region_champs:
-                rc_team = region_champs[reg]['team']
-                results["Region"][reg][rc_team] = results["Region"][reg].get(rc_team, 0) + 1
-
-        # --- Championship ---
+        # Championship
         champion = None
-        for (i, j) in championship:
-            if i < len(ff_winners) and j < len(ff_winners):
-                champion = simulate_game(ff_winners[i], ff_winners[j])
-                results["Championship"][champion['team']] = results["Championship"].get(champion['team'], 0) + 1
-                results["Champion"][champion['team']] = results["Champion"].get(champion['team'], 0) + 1
+        if len(ff_winners) == 2: # Should always be 2 if FF simulation was successful
+             for (idx1, idx2) in championship_pairs: # Should only be one pairing (0, 1)
+                t1, t2 = ff_winners[idx1], ff_winners[idx2]
+                w = simulate_game(t1, t2)
+                champion = w
+                w_name = w.get('team')
+                if w_name:
+                    results["Championship"][w_name] = results["Championship"].get(w_name, 0) + 1
+                    results["Champion"][w_name] = results["Champion"].get(w_name, 0) + 1
+        else:
+             sim_logger.warning(f"Sim {i}: Incorrect number of Final Four winners ({len(ff_winners)}), cannot simulate Championship.")
 
-    # Convert counts to percentages
+    sim_logger.info("Simulations finished. Converting counts to percentages...")
+
+    # --- Convert Counts to Percentages ---
+    # For advancing to each round
     for round_name in rounds_list:
-        for tm in results[round_name]:
-            results[round_name][tm] = 100.0 * (results[round_name][tm] / num_simulations)
+        total_wins_in_round = sum(results[round_name].values())
+        # Avoid division by zero if a round had no winners (shouldn't happen in full sim)
+        # Normalization should be based on num_simulations * potential winners in that round,
+        # but dividing by num_simulations gives probability of *reaching* that round.
+        for team_name in results[round_name]:
+            results[round_name][team_name] = (results[round_name][team_name] / num_simulations) * 100.0
 
-    # Also convert region champion counts to percentages
-    for reg in region_order:
-        for tm in results["Region"][reg]:
-            results["Region"][reg][tm] = 100.0 * (results["Region"][reg][tm] / num_simulations)
+    # For winning each region
+    for region in results["Region"]:
+        for team_name in results["Region"][region]:
+            results["Region"][region][team_name] = (results["Region"][region][team_name] / num_simulations) * 100.0
 
     return results
 
 
 def prepare_tournament_data(df):
     """
-    From a DataFrame df, keep teams with seeds 1..16 per region.
-    Returns a bracket dictionary:
-      { 'West': [ { 'team':..., 'seed':..., ... }, ... (16 teams) ],
-        'East': [...], 'South': [...], 'Midwest': [...] }
+    Filters and prepares the main DataFrame for simulation.
+    Extracts seeded teams (1-16) for the four main regions.
+    Returns a bracket dictionary: {'Region': [list_of_team_dicts], ...}
+    Each team_dict contains necessary stats for simulation.
     """
-    required = ['SEED_25','REGION_25','KP_AdjEM','OFF EFF','DEF EFF']
-    missing = [c for c in required if c not in df.columns]
-    if missing:
-        sim_logger.warning(f"Missing required bracket columns: {missing}")
+    # Define required and desired optional columns for simulation
+    required_cols = ['SEED_25', 'REGION_25', 'KP_AdjEM']
+    # Add more columns used in calculate_win_probability
+    optional_cols = [
+        'TM_KP', 'TEAM', # Need at least one identifier
+        'BPI_25', 'NET_25', 'OFF EFF', 'DEF EFF', 'KP_AdjO', 'KP_AdjD',
+        'WIN% ALL GM', 'WIN% CLOSE GM', 'AVG MARGIN', 'KP_SOS_AdjEM',
+        'eFG%', 'OPP eFG%', 'TS%', 'OPP TS%', 'AST/TO%', 'TO/GM',
+        'STOCKS/GM', 'STOCKS-TOV/GM', 'OFF REB/GM', 'DEF REB/GM',
+        # Add ranks if available and potentially useful for thresholds
+        'KP_Rank', 'KP_AdjO_Rk', 'KP_AdjD_Rk', 'KP_AdjEM_Rk', 'BPI_Rk_25',
+    ]
+
+    # Check for required columns
+    missing_req = [c for c in required_cols if c not in df.columns]
+    if missing_req:
+        sim_logger.error(f"FATAL: Missing required columns for simulation: {missing_req}. Cannot prepare bracket.")
+        st.error(f"Data is missing required columns for simulation: {missing_req}")
         return None
 
-    bracket_teams = df.dropna(subset=required).copy()
+    # Select columns, prioritize TM_KP as identifier if available
+    sim_cols = list(set(required_cols + optional_cols))
+    actual_sim_cols = [c for c in sim_cols if c in df.columns]
+    bracket_teams = df[actual_sim_cols].copy()
+
+    # Identify the team name column to use
+    if 'TM_KP' in bracket_teams.columns:
+        name_col = 'TM_KP'
+    elif 'TEAM' in bracket_teams.columns:
+        name_col = 'TEAM'
+    elif bracket_teams.index.name is not None and bracket_teams.index.name.upper() == 'TEAM':
+         bracket_teams['TEAM'] = bracket_teams.index # Add index as column if it's the team name
+         name_col = 'TEAM'
+    else:
+         sim_logger.error("FATAL: No valid team identifier column (TM_KP or TEAM) found.")
+         st.error("Could not identify team names in the data.")
+         return None
+    bracket_teams.rename(columns={name_col: 'sim_team_name'}, inplace=True) # Use a consistent internal name
+
+
+    # --- Data Cleaning and Preparation ---
+    # Ensure SEED is numeric and handle potential NaNs before filtering
+    bracket_teams['SEED_25'] = pd.to_numeric(bracket_teams['SEED_25'], errors='coerce')
+    bracket_teams.dropna(subset=['SEED_25'], inplace=True)
     bracket_teams['SEED_25'] = bracket_teams['SEED_25'].astype(int)
-    bracket_teams = bracket_teams[(bracket_teams['SEED_25']>=1) & (bracket_teams['SEED_25']<=16)]
 
-    # Decide on team name column
-    name_col = 'TM_KP' if 'TM_KP' in bracket_teams.columns else ('TEAM' if 'TEAM' in bracket_teams.columns else bracket_teams.index.name)
-    
-    # Ensure bonus columns exist
-    for bonus_col in ['TOURNEY_SUCCESS','TOURNEY_EXPERIENCE']:
-        if bonus_col not in bracket_teams.columns:
-            bracket_teams[bonus_col] = 0.0
+    # Filter for valid seeds (1-16)
+    bracket_teams = bracket_teams[(bracket_teams['SEED_25'] >= 1) & (bracket_teams['SEED_25'] <= 16)]
 
-    # Example: award bonus to perennial teams
-    for perennial in ["Duke","Kentucky","Kansas","North Carolina","Gonzaga","Michigan St."]:
-        if perennial in bracket_teams[name_col].values:
-            bracket_teams.loc[ bracket_teams[name_col]==perennial, 'TOURNEY_SUCCESS'] = 1.0
+    # Ensure REGION is string for comparison
+    bracket_teams['REGION_25'] = bracket_teams['REGION_25'].astype(str).str.strip()
 
+    # Convert all potential simulation stats to numeric, coercing errors
+    for col in actual_sim_cols:
+        if col not in ['REGION_25', 'sim_team_name', 'CONFERENCE']: # Skip non-numeric identifiers/categories
+             bracket_teams[col] = pd.to_numeric(bracket_teams[col], errors='coerce')
+
+    # Define default values for potential NaNs AFTER conversion
+    # Using 0 for ranks/ratings and 0.5 for percentages might be okay,
+    # but consider using tournament averages or other imputation methods if NaNs are frequent.
+    default_values = {
+        'BPI_25': 0, 'NET_25': 150, 'OFF EFF': 100, 'DEF EFF': 100, 'KP_AdjO': 100, 'KP_AdjD': 100,
+        'WIN% ALL GM': 0.5, 'WIN% CLOSE GM': 0.5, 'AVG MARGIN': 0, 'KP_SOS_AdjEM': 0,
+        'eFG%': 0.5, 'OPP eFG%': 0.5, 'TS%': 0.5, 'OPP TS%': 0.5, 'AST/TO%': 1.0, 'TO/GM': 12,
+        'STOCKS/GM': 8, 'STOCKS-TOV/GM': 0.7,
+        'OFF REB/GM': 10, 'DEF REB/GM': 25
+        # 'TOURNEY_SUCCESS': 0, 'TOURNEY_EXPERIENCE': 0
+    }
+    for col, default in default_values.items():
+        if col in bracket_teams.columns:
+            bracket_teams[col].fillna(default, inplace=True)
+
+
+    # --- Build Bracket Dictionary ---
     bracket = {}
-    for region in ['West', 'East', 'South', 'Midwest']:
-        # Convert 'REGION_25' to string type, then lowercase, and compare.  .copy() is good practice
-        region_df = bracket_teams[bracket_teams['REGION_25'].astype(str).str.lower() == region.lower()].copy()
+    main_regions = ['West', 'East', 'South', 'Midwest']
+    for region in main_regions:
+        region_df = bracket_teams[bracket_teams['REGION_25'].str.lower() == region.lower()].copy()
 
-        # Check if the region_df is empty after filtering.  This is crucial!
         if region_df.empty:
-            sim_logger.warning(f"Region '{region}' not found in 'REGION_25' column.  Skipping.")
+            sim_logger.warning(f"No teams found for region '{region}'. Skipping this region.")
             continue
 
-        region_seeds = region_df['SEED_25'].unique().tolist()
-        if len(region_seeds) < 16:
-            sim_logger.warning(f"{region} region missing some seeds: {region_seeds}. Skipping.")
-            continue
+        if len(region_df) != 16:
+             sim_logger.warning(f"Region '{region}' has {len(region_df)} teams, expected 16. Simulation may be incomplete.")
+             # Decide if you want to proceed with incomplete regions or skip them
+             # continue # Option to skip incomplete regions
+
         region_df = region_df.sort_values('SEED_25')
+
+        # Convert rows to dictionaries for the simulation
         region_list = []
         for _, row in region_df.iterrows():
-            # Use .get() with a default for ALL optional columns to prevent KeyErrors.
-            region_list.append({
-                'team': row[name_col],
-                'seed': int(row['SEED_25']),
-                'KP_AdjEM': float(row['KP_AdjEM']),
-                'OFF EFF': float(row['OFF EFF']),
-                'DEF EFF': float(row['DEF EFF']),
-                'TOURNEY_SUCCESS': float(row['TOURNEY_SUCCESS']),
-                'TOURNEY_EXPERIENCE': float(row['TOURNEY_EXPERIENCE']),
-                # Additional predictive metrics:
-                'WIN% ALL GM': float(row.get('WIN% ALL GM', 0.5)),
-                'WIN% CLOSE GM': float(row.get('WIN% CLOSE GM', 0.5)),
-                'AVG MARGIN': float(row.get('AVG MARGIN', 0)),
-                'KP_SOS_AdjEM': float(row.get('KP_SOS_AdjEM', 0)),
-                'KP_AdjO': float(row.get('KP_AdjO', 0)),
-                'KP_AdjD': float(row.get('KP_AdjD', 0))
-            })
+            team_dict = row.to_dict()
+            # Ensure key stats are floats for calculations
+            for col in team_dict:
+                 # Attempt conversion, default to 0 if fails (though fillna should handle most)
+                if isinstance(team_dict[col], (int, float, np.number)):
+                     team_dict[col] = float(team_dict[col])
+                elif isinstance(team_dict[col], str):
+                    try:
+                        team_dict[col] = float(team_dict[col])
+                    except (ValueError, TypeError):
+                        # Keep as string if not convertible (like team name, region)
+                        pass
+            # Rename sim_team_name back to 'team' for consistency in simulation logic
+            team_dict['team'] = team_dict.pop('sim_team_name')
+            team_dict['seed'] = int(team_dict['SEED_25']) # Ensure seed is integer
+            region_list.append(team_dict)
+
         bracket[region] = region_list
+
+    if len(bracket) != 4:
+         st.warning(f"Bracket preparation resulted in {len(bracket)} regions. Simulation might produce unexpected results.")
+
     return bracket
 
 
@@ -1443,13 +1537,17 @@ def calculate_win_probability(t1, t2):
     def_advantage = t1_def - t2_off
     adjO_diff = float(t1.get('KP_AdjO', 0)) - float(t2.get('KP_AdjO', 0))
     adjD_diff = float(t2.get('KP_AdjD', 0)) - float(t1.get('KP_AdjD', 0))
+    # Schedule / Record
     win_pct_diff = (float(t1.get('WIN% ALL GM', 0.5)) - float(t2.get('WIN% ALL GM', 0.5)))
     close_pct_diff = (float(t1.get('WIN% CLOSE GM', 0.5)) - float(t2.get('WIN% CLOSE GM', 0.5)))
     margin_diff = float(t1.get('AVG MARGIN', 0)) - float(t2.get('AVG MARGIN', 0))
     sos_diff = float(t1.get('KP_SOS_AdjEM', 0)) - float(t2.get('KP_SOS_AdjEM', 0))
+    # Experience / Intangibles
     exp_diff = (float(t1.get('TOURNEY_EXPERIENCE', 0)) - float(t2.get('TOURNEY_EXPERIENCE', 0))) * 0.5
     success_diff = (float(t1.get('TOURNEY_SUCCESS', 0)) - float(t2.get('TOURNEY_SUCCESS', 0)))
+    # Shooting differentials
     efg_diff = float(t1.get('eFG%', 0.5)) - float(t2.get('eFG%', 0.5))
+    # Ball control / Misc differentials
     ast_to_diff = float(t1.get('AST/TO%', 1.0)) - float(t2.get('AST/TO%', 1.0))
     net_ast_to_ratio_diff = float(t1.get('NET AST/TOV RATIO', 1.0)) - float(t2.get('NET AST/TOV RATIO', 1.0))
     stocks_to_diff = float(t1.get('STOCKS-TOV/GM', 1.0)) - float(t2.get('STOCKS-TOV/GM', 1.0))
@@ -1468,7 +1566,7 @@ def calculate_win_probability(t1, t2):
 
     # --- FACTOR WEIGHTING --- #
     factor = 0
-    factor += 0.25 * kp_diff            # KP_AdjEM difference
+    factor += 0.2 * kp_diff            # KP_AdjEM difference
     factor += 0.15 * bpi_diff           # ESPN BPI_25 difference
     factor += 0.00 * net_diff           # NCAA NET_25 difference
     factor += 0.10 * off_advantage    
@@ -1476,51 +1574,50 @@ def calculate_win_probability(t1, t2):
     factor += 0.00 * adjO_diff       
     factor += 0.00 * adjD_diff       
     factor += 0.00 * win_pct_diff * 100    
-    factor += 0.00 * close_pct_diff * 100  
-    factor += 0.20 * margin_diff      # AVG MARGIN difference
+    factor += 0.10 * close_pct_diff * 100  
+    factor += 0.15 * margin_diff      # AVG MARGIN difference
     factor += 0.00 * sos_diff        
     factor += 0.00 * exp_diff
     factor += 0.00 * success_diff
     factor += 0.05 * efg_diff * 100  
-    factor += 0.05 * ast_to_diff * 100
-    factor += 0.00 * net_ast_to_ratio_diff * 100
-    factor += 0.05 * stocks_to_diff * 100
+    factor += 0.05 * ast_to_diff
+    factor += 0.00 * net_ast_to_ratio_diff
+    factor += 0.05 * stocks_to_diff
 
     # --- THRESHOLD EVALUATION (using KP metrics) --- #
+    # Adds bonus points based on meeting typical contender/champion thresholds
     def threshold_evaluation(team):
         score = 0
+        # Use .get() with safe defaults
         kp_adjEM = float(team.get('KP_AdjEM', 0))
         kp_adjO = float(team.get('KP_AdjO', 0))
-        kp_adjD = float(team.get('KP_AdjD', 0))
-        if kp_adjEM >= KP_AdjEM_champ_min:
-            score += .1
-        if kp_adjEM >= KP_AdjEM_champ_live:
-            score += .1
-        if kp_adjO >= KP_AdjO_THRESHOLD:
-            score += .1
-        elif kp_adjO >= (KP_AdjO_THRESHOLD - 5):
-            score += .1
-        if kp_adjD <= KP_AdjD_THRESHOLD:
-            score += .1
-        elif kp_adjD <= (KP_AdjD_THRESHOLD + 5):
-            score += .1
-        kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999))
+        kp_adjD = float(team.get('KP_AdjD', 150)) # High default for lower-is-better
+        kp_adjEM_rk = float(team.get('KP_AdjEM_Rk', 999)) # High default for rank
         kp_adjO_rk = float(team.get('KP_AdjO_Rk', 999))
         kp_adjD_rk = float(team.get('KP_AdjD_Rk', 999))
-        if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD:
-            score += .1
-        elif kp_adjEM_rk <= 20:
-            score += .1
-        if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD:
-            score += .1
-        if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD:
-            score += .1
+
+        # AdjEM thresholds
+        if kp_adjEM >= KP_AdjEM_champ_min: score += 0.1
+        if kp_adjEM >= KP_AdjEM_champ_live: score += 0.1
+        if kp_adjEM_rk <= KP_AdjEM_Rk_THRESHOLD: score += 0.1 # Bonus for being elite rank
+        elif kp_adjEM_rk <= 20: score += 0.05 # Smaller bonus for being very good
+
+        # AdjO thresholds
+        if kp_adjO >= KP_AdjO_THRESHOLD: score += 0.1
+        elif kp_adjO >= (KP_AdjO_THRESHOLD - 5): score += 0.05 # Near elite Offense
+        if kp_adjO_rk <= KP_AdjO_Rk_THRESHOLD: score += 0.1
+
+        # AdjD thresholds
+        if kp_adjD <= KP_AdjD_THRESHOLD: score += 0.1
+        elif kp_adjD <= (KP_AdjD_THRESHOLD + 5): score += 0.05 # Near elite Defense
+        if kp_adjD_rk <= KP_AdjD_Rk_THRESHOLD: score += 0.1
+
         return score
 
     t1_threshold_score = threshold_evaluation(t1)
     t2_threshold_score = threshold_evaluation(t2)
     threshold_diff = t1_threshold_score - t2_threshold_score
-    factor += 0.10 * threshold_diff
+    factor += 0.10 * threshold_diff # Add threshold difference to the overall factor
 
     # def_eff_diff = t2_def - t1_def  
     # factor += 0.05 * def_eff_diff
@@ -1538,8 +1635,12 @@ def calculate_win_probability(t1, t2):
         base_seed_prob = 0.49
 
     # --- APPLYING LOGISTIC TRANSFORMATION ---
-    adjustment_t1 = 1.0 / (1.0 + np.exp(-factor))
-    adjustment_t2 = 1.0 / (1.0 + np.exp(factor))
+    # The logistic function converts the weighted factor sum into a probability adjustment (0 to 1)
+    # The divisor controls the steepness of the curve (sensitivity to factor changes)
+
+    sensitivity = 10 # Lower value = more sensitive; Higher value = less sensitive
+    adjustment_t1 = 1.0 / (1.0 + np.exp(-factor) / sensitivity)
+    adjustment_t2 = 1.0 / (1.0 + np.exp(factor) / sensitivity)
     adjusted_t1 = base_seed_prob * adjustment_t1
     adjusted_t2 = (1 - base_seed_prob) * adjustment_t2
     total = adjusted_t1 + adjusted_t2
@@ -3660,10 +3761,19 @@ with tab_pred:
             else:
                 bracket = st.session_state['bracket']
 
-            # Ensure your functions now directly use this bracket:
-            aggregated = run_tournament_simulation(bracket, num_sims=1000)
-            #single_run = run_simulation_once(bracket)
-            single_run = run_simulation_once(bracket) # st.session_state['bracket'])
+            # # Ensure your functions now directly use this bracket:
+            # aggregated = run_tournament_simulation(bracket, num_sims=1000)
+            # #single_run = run_simulation_once(bracket)
+            # single_run = run_simulation_once(bracket) # st.session_state['bracket'])
+
+                        # --- Run Simulations ---
+            num_sims_aggregate = 1000 # Number of simulations for probability aggregation
+            aggregated = simulate_tournament(bracket, num_simulations=num_sims_aggregate)
+
+            # Run one simulation separately *only if* logs are requested
+            single_run = None
+            if show_logs:
+                single_run = run_simulation_once(bracket)
 
             
             st.success("SIMULATIONS COMPLETE! A VICTOR HAS BEEN ANNOUNCED")
