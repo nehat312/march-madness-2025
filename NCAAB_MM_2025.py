@@ -1926,7 +1926,7 @@ def run_simulation_once(bracket):
     """
     Run a single tournament simulation (one complete bracket) and return a list of detailed game logs.
     """
-    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
+    #r64, r32, s16, e8, f4, champ = get_bracket_matchups()
     if not bracket:
         return []
     current = copy.deepcopy(bracket)
@@ -2235,7 +2235,7 @@ with tab_home:
         ("Florida", 1, "Maryland", 4),
         ("Duke", 1, "Arizona", 4),
         ("Texas Tech", 3, "Arkansas", 10),
-        ("Michigan St.", 2, "Ole Miss", 6),
+        ("Michigan St.", 2, "Mississippi", 6),
         ("Tennessee", 2, "Kentucky", 3),
         ("Auburn", 1, "Michigan", 5),
         ("Houston", 1, "Purdue", 4)
