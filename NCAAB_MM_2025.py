@@ -156,6 +156,8 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "OFF REB/GM", "DEF REB/GM",
              "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", 
              "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
+             "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
+             "NET_eFG%", "eFG%", "OPP eFG%",
              ]
 
 # ----------------------------------------------------------------------------
@@ -3346,10 +3348,12 @@ with tab_H2H:
                   <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px;">
                 """, unsafe_allow_html=True)
 
+#                <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+
                 # Render each stat bubble in a 3x3 grid
                 for stat_name, stat_value, color in key_stats:
                     st.markdown(f"""
-                                <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+
                                 <div style="text-align:center;">
                                 <div style="
                                     margin:auto; 
@@ -3415,9 +3419,11 @@ with tab_H2H:
                                 <!-- 3x3 bubble grid -->
                                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px;">
                     """, unsafe_allow_html=True)
+
+                    # <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
                     for stat_name, stat_value, color in opp_key_stats:
                         st.markdown(f"""
-                                    <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+
                                     <div style="text-align:center;">
                                     <div style="
                                         margin:auto; 
@@ -3453,7 +3459,7 @@ with tab_H2H:
                             """, unsafe_allow_html=True)
 
         # --- Head-to-Head Stats Table ---
-        with st.markdown("H2H STATISTICAL COMPARISON"):
+        with st.expander("H2H STATISTICAL COMPARISON"):
             h2h_metrics = [
                 #"SEED_25",
                 "BPI_25", "KP_AdjEM", #"KP_Rank", "KP_SOS_AdjEM",
@@ -3462,8 +3468,8 @@ with tab_H2H:
                 #"WIN% ALL GM",
                 "AVG MARGIN",
                 "PTS/GM", "OPP PTS/GM",
-                # "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
-                # "NET_eFG%", #"eFG%", "OPP eFG%",
+                "FT%", "3PT%", "3PTA/GM", #"3PTM/GM", 
+                "NET_eFG%", #"eFG%", "OPP eFG%",
                 "AST/TO%", "STOCKS-TOV/GM",
             ]
             #opp_conf['CONFERENCE'] = opp_conf['CONFERENCE'].apply(get_conf_logo_html)
@@ -4550,8 +4556,12 @@ def color_log_text(round_name, text):
 
 #if FinalFour25_logo:
     #st.image(FinalFour25_logo, width=750)
-if Banner_logo:
-    st.image(Banner_logo, width=750)
+# if Banner_logo:
+#     st.image(Banner_logo, width=750)
+
+# if freshest_banner:
+#     st.image(freshest_banner, width=750)
+
 
 st.markdown("---")
 st.caption(":blue[PYTHON CODE FRAMEWORK: [GitHub](https://github.com/nehat312/march-madness-2025)]")
