@@ -3216,15 +3216,10 @@ with tab_H2H:
             st.warning("No data found for selected team.")
         else:
             st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team} vs. {selected_opponent}]")
-            #st.markdown(f"### :blue[_TEAM OVERVIEW:_]") # {selected_team} vs. {selected_opponent}
-            # st.markdown("""
-            # <h2>Team Overview</h2>
-            # """, unsafe_allow_html=True)
-
 
             # Extract basic team info
-            conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
-            conf = conf.apply(get_conf_logo_html)
+            conf = team_data["CONFERENCE"].iloc[0].apply(get_conf_logo_html) if "CONFERENCE" in team_data.columns else "N/A"
+
             record = "N/A"
             if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
                 w = int(team_data["WIN_25"].iloc[0])
@@ -3260,7 +3255,7 @@ with tab_H2H:
             #     key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
             if "AVG MARGIN" in team_data.columns:
                 val = round(team_data["AVG MARGIN"].iloc[0], 1)
-                key_stats.append(("AVG MARGIN", f"{val:.1f}%", "#333333"))                
+                key_stats.append(("AVG MARGIN", f"{val:.1f}", "#333333"))                
             if "KP_AdjEM" in team_data.columns:
                 val = round(team_data["KP_AdjEM"].iloc[0], 1)
                 key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
@@ -3283,8 +3278,8 @@ with tab_H2H:
             # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
 
-            opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
-            opp_conf = opp_conf.apply(get_conf_logo_html)
+            opp_conf = opp_data["CONFERENCE"].iloc[0].apply(get_conf_logo_html) if "CONFERENCE" in opp_data.columns else "N/A"
+
             #opp_record = "N/A"
             if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
                 w = int(opp_data["WIN_25"].iloc[0])
@@ -3314,7 +3309,7 @@ with tab_H2H:
             #     opp_key_stats.append(("WIN% ALL GM", f"{val*100:.0f}%", "#333333"))
             if "AVG MARGIN" in opp_data.columns:
                 val = round(opp_data["AVG MARGIN"].iloc[0], 1)
-                opp_key_stats.append(("AVG MARGIN", f"{val:.1f}%", "#333333"))                                              
+                opp_key_stats.append(("AVG MARGIN", f"{val:.1f}", "#333333"))                                              
             if "KP_AdjEM" in opp_data.columns:
                 val = round(opp_data["KP_AdjEM"].iloc[0], 1)
                 opp_key_stats.append(("KenPom AdjEM", val, "#2E8B57"))
@@ -3341,35 +3336,35 @@ with tab_H2H:
             with colA:
                 # Card‐like container with corrected "team-info" div
                 st.markdown(f"""
-                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
+                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:12px;">
                   <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_team}</h3>
                   <p style="margin:2px 0;"><strong>Conference:</strong> {conf}</p>
                   <p style="margin:2px 0;"><strong>Record:</strong> {record} | {seed_info}</p>
                   <p style="margin:2px 0;"><strong>Rankings:</strong> {rankings_html}</p>
-                  <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
 
                   <!-- 3x3 bubble grid -->
-                  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12.5px; margin-top:12.5px;">
+                  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px;">
                 """, unsafe_allow_html=True)
 
                 # Render each stat bubble in a 3x3 grid
                 for stat_name, stat_value, color in key_stats:
                     st.markdown(f"""
-                      <div style="text-align:center;">
-                        <div style="
-                             margin:auto; 
-                             background-color:{color}; 
-                             border-radius:50%; 
-                             width:55px; height:55px; 
-                             display:flex; 
-                             align-items:center; 
-                             justify-content:center;
-                             margin-bottom:5px;">
-                          <span style="font-weight:bold; color:#fff;">{stat_value}</span>
-                        </div>
-                        <p style="font-size:0.85rem;">{stat_name}</p>
-                      </div>
-                    """, unsafe_allow_html=True)
+                                <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+                                <div style="text-align:center;">
+                                <div style="
+                                    margin:auto; 
+                                    background-color:{color}; 
+                                    border-radius:50%; 
+                                    width:55px; height:55px; 
+                                    display:flex; 
+                                    align-items:center; 
+                                    justify-content:center;
+                                    margin-bottom:5px;">
+                                <span style="font-weight:bold; color:#fff;">{stat_value}</span>
+                                </div>
+                                <p style="font-size:0.85rem;">{stat_name}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
 
                 # Close the grid and team-info
                 st.markdown("""
@@ -3411,33 +3406,34 @@ with tab_H2H:
                                             
                     #st.markdown(f"#### {selected_opponent}")
                     st.markdown(f"""
-                                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
+                                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:12px;">
                                 <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_opponent}</h3>
                                 <p style="margin:2px 0;"><strong>Conference:</strong> {opp_conf}</p>
                                 <p style="margin:2px 0;"><strong>Record:</strong> {opp_record} | {opp_seed_info}</p>
                                 <p style="margin:2px 0;"><strong>Rankings:</strong> {opp_rankings_html}</p>
-                                <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+
                                 <!-- 3x3 bubble grid -->
-                                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12.5px; margin-top:12.5px;">
+                                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px;">
                     """, unsafe_allow_html=True)
                     for stat_name, stat_value, color in opp_key_stats:
                         st.markdown(f"""
-                        <div style="text-align:center;">
-                        <div style="
-                            margin:auto; 
-                            background-color:{color}; 
-                            border-radius:50%; 
-                            width:60px; height:60px; 
-                            display:flex; 
-                            align-items:center; 
-                            justify-content:center;
-                            margin-bottom:5px;">
-                            <span style="font-weight:bold; color:#fff;">{stat_value}</span>
-                        </div>
-                        <p style="font-size:0.85rem;">{stat_name}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    #st.markdown("</div>", unsafe_allow_html=True)
+                                    <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
+                                    <div style="text-align:center;">
+                                    <div style="
+                                        margin:auto; 
+                                        background-color:{color}; 
+                                        border-radius:50%; 
+                                        width:60px; height:60px; 
+                                        display:flex; 
+                                        align-items:center; 
+                                        justify-content:center;
+                                        margin-bottom:5px;">
+                                        <span style="font-weight:bold; color:#fff;">{stat_value}</span>
+                                    </div>
+                                    <p style="font-size:0.85rem;">{stat_name}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                #st.markdown("</div>", unsafe_allow_html=True)
                     
                     # Close the grid and team-info
                     st.markdown("""
