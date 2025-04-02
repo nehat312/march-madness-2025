@@ -146,8 +146,9 @@ mm_database_2025 = load_data()
 # ----------------------------------------------------------------------------
 # Select Relevant Columns (including radar metrics)
 core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
-             "KP_Rank", "NET_25", "BPI_25", "SEED_25", 'REGION_25',
-             "KP_AdjEM", "KP_SOS_AdjEM", "OFF EFF", "DEF EFF",
+             "KP_Rank", "NET_25", "BPI_25", "BPI_Rk_25", "SEED_25", 'REGION_25',
+             "KP_AdjEM", "KP_SOS_AdjEM",
+             "OFF EFF", "DEF EFF",
              "KP_AdjO", "KP_AdjD",
              #'TR_ORk_25', 'TR_DRk_25',  
              "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
@@ -157,6 +158,8 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
              ]
 
+# ----------------------------------------------------------------------------
+# Prepare Data for Treemap / Path configurations
 extra_cols_for_treemap = ["CONFERENCE", "TM_KP"] #, "SEED_25"  "REGION_25"
 all_desired_cols = core_cols + extra_cols_for_treemap
 actual_cols = [c for c in all_desired_cols if c in mm_database_2025.columns]
@@ -174,8 +177,6 @@ if "KP_AdjEM" in df_main.columns:
     offset = (-min_adj + 1) if min_adj < 0 else 0
     df_main["KP_AdjEM_Offset"] = df_main["KP_AdjEM"] + offset
 
-# ----------------------------------------------------------------------------
-# Clean Data for Treemap
 required_path_cols = ["CONFERENCE", "TM_KP", "KP_AdjEM"]
 if all(col in df_main.columns for col in required_path_cols):
     df_main_notnull = df_main.dropna(subset=required_path_cols, how="any").copy()
@@ -183,7 +184,7 @@ else:
     df_main_notnull = df_main.copy()
 
 # ----------------------------------------------------------------------------
-# Logo Loading / Syntax Configuration
+# Logo Loading / Image Configuration
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
@@ -1926,7 +1927,7 @@ def run_simulation_once(bracket):
     """
     Run a single tournament simulation (one complete bracket) and return a list of detailed game logs.
     """
-    #r64, r32, s16, e8, f4, champ = get_bracket_matchups()
+    r64, r32, s16, e8, f4, champ = get_bracket_matchups()
     if not bracket:
         return []
     current = copy.deepcopy(bracket)
@@ -3202,37 +3203,43 @@ with tab_H2H:
     selected_opponent = st.selectbox(
         ":red[_COMPARE vs. OPPONENT:_]",
         options=H2H_options,
-        index=H2H_options.index("Alabama"),
+        index=H2H_options.index("Houston"),
         key="select_opponent_reports"
     )
 
+    # ------------------------------------------------------
+    # TEAM / OPPONENT OVERVIEWS & INSIGHTS
+    # ------------------------------------------------------
     if selected_team:
-        # ------------------------------------------------------
-        # TEAM OVERVIEW & INSIGHTS (SINGLE-TEAM SECTION)
-        # ------------------------------------------------------
         team_data = df_main[df_main["TM_KP"] == selected_team].copy()
         if team_data.empty:
-            st.warning("No data found for the selected team.")
+            st.warning("No data found for selected team.")
         else:
             st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team} vs. {selected_opponent}]")
-            st.markdown(f"### :blue[_TEAM OVERVIEW:_]") # {selected_team} vs. {selected_opponent}
+            #st.markdown(f"### :blue[_TEAM OVERVIEW:_]") # {selected_team} vs. {selected_opponent}
             # st.markdown("""
             # <h2>Team Overview</h2>
             # """, unsafe_allow_html=True)
 
 
-
             # Extract basic team info
             conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A"
+            conf = conf.apply(get_conf_logo_html)
             record = "N/A"
             if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
                 w = int(team_data["WIN_25"].iloc[0])
                 l = int(team_data["LOSS_25"].iloc[0])
                 record = f"{w}-{l}"
+
+            # record_info = ""
+            # if "WIN% ALL GM" in team_data.columns and not pd.isna(team_data["WIN% ALL GM"].iloc[0]):
+            #     win_pct_all_gm = int(team_data["WIN% ALL GM"].iloc[0])
+            #     win_pct_info = f"RECORD {win_pct_all_gm}"
+
             seed_info = ""
             if "SEED_25" in team_data.columns and not pd.isna(team_data["SEED_25"].iloc[0]):
                 seed_num = int(team_data["SEED_25"].iloc[0])
-                seed_info = f"Seed {seed_num}"
+                seed_info = f"SEED #{seed_num}"
             # Rankings
             rankings = []
             if "KP_Rank" in team_data.columns and not pd.isna(team_data["KP_Rank"].iloc[0]):
@@ -3272,9 +3279,34 @@ with tab_H2H:
             if "DEF EFF" in team_data.columns:
                 val = round(team_data["DEF EFF"].iloc[0], 2)
                 key_stats.append(("TeamRankings DEff", val, "#B22222"))
-            
+
             # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
+
+            opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
+            opp_conf = opp_conf.apply(get_conf_logo_html)
+            #opp_record = "N/A"
+            if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
+                w = int(opp_data["WIN_25"].iloc[0])
+                l = int(opp_data["LOSS_25"].iloc[0])
+            opp_record = f"{w}-{l}"
+            opp_seed_info = ""
+            if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
+                opp_seed_num = int(opp_data["SEED_25"].iloc[0])
+                opp_seed_info = f"Seed {opp_seed_num}"
+            # Rankings
+            opp_rankings = []
+            if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
+                opp_kp_rank = int(opp_data["KP_Rank"].iloc[0])
+                opp_rankings.append(f"KenPom Rank: #{opp_kp_rank}")
+            if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
+                opp_bpi_rank = int(opp_data["BPI_Rk_25"].iloc[0])
+                opp_rankings.append(f"BPI Rank: #{opp_bpi_rank}")
+            if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
+                opp_net_rank = int(opp_data["NET_25"].iloc[0])
+                opp_rankings.append(f"NET: #{opp_net_rank}")
+            opp_rankings_html = " | ".join(opp_rankings) if opp_rankings else "N/A"            
+
 
             opp_key_stats = []
             # if "WIN% ALL GM" in opp_data.columns:
@@ -3302,28 +3334,7 @@ with tab_H2H:
                 val = round(opp_data["DEF EFF"].iloc[0], 2)
                 opp_key_stats.append(("TeamRankings DEff", val, "#B22222"))
             
-            opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A"
-            #opp_record = "N/A"
-            if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
-                w = int(opp_data["WIN_25"].iloc[0])
-                l = int(opp_data["LOSS_25"].iloc[0])
-            opp_record = f"{w}-{l}"
-            opp_seed_info = ""
-            if "SEED_25" in opp_data.columns and not pd.isna(opp_data["SEED_25"].iloc[0]):
-                opp_seed_num = int(opp_data["SEED_25"].iloc[0])
-                opp_seed_info = f"Seed {opp_seed_num}"
-            # Rankings
-            opp_rankings = []
-            if "KP_Rank" in opp_data.columns and not pd.isna(opp_data["KP_Rank"].iloc[0]):
-                opp_kp_rank = int(opp_data["KP_Rank"].iloc[0])
-                opp_rankings.append(f"KenPom Rank: #{opp_kp_rank}")
-            if "BPI_Rk_25" in opp_data.columns and not pd.isna(opp_data["BPI_Rk_25"].iloc[0]):
-                opp_bpi_rank = int(opp_data["BPI_Rk_25"].iloc[0])
-                opp_rankings.append(f"BPI Rank: #{opp_bpi_rank}")
-            if "NET_25" in opp_data.columns and not pd.isna(opp_data["NET_25"].iloc[0]):
-                opp_net_rank = int(opp_data["NET_25"].iloc[0])
-                opp_rankings.append(f"NET: #{opp_net_rank}")
-            opp_rankings_html = " | ".join(opp_rankings) if opp_rankings else "N/A"            
+
 
             # Lay out: left column for team info, right column for radar
             colA, colB = st.columns(2)
@@ -3333,7 +3344,7 @@ with tab_H2H:
                 <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
                   <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_team}</h3>
                   <p style="margin:2px 0;"><strong>Conference:</strong> {conf}</p>
-                  <p style="margin:2px 0;"><strong>Record:</strong> {record} &nbsp; {seed_info}</p>
+                  <p style="margin:2px 0;"><strong>Record:</strong> {record} | {seed_info}</p>
                   <p style="margin:2px 0;"><strong>Rankings:</strong> {rankings_html}</p>
                   <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
 
@@ -3400,10 +3411,10 @@ with tab_H2H:
                                             
                     #st.markdown(f"#### {selected_opponent}")
                     st.markdown(f"""
-                                <div class="opp-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
+                                <div class="team-info" style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:20px;">
                                 <h3 style="margin-bottom:5px;background: linear-gradient(135deg, #00539B, #FFFFFF); color: white;">{selected_opponent}</h3>
                                 <p style="margin:2px 0;"><strong>Conference:</strong> {opp_conf}</p>
-                                <p style="margin:2px 0;"><strong>Record:</strong> {opp_record} &nbsp; {opp_seed_info}</p>
+                                <p style="margin:2px 0;"><strong>Record:</strong> {opp_record} | {opp_seed_info}</p>
                                 <p style="margin:2px 0;"><strong>Rankings:</strong> {opp_rankings_html}</p>
                                 <h5 style="margin-top:15px; border-bottom:1px solid #eee; padding-bottom:5px;">KEY STATS</h5>
                                 <!-- 3x3 bubble grid -->
@@ -3446,7 +3457,7 @@ with tab_H2H:
                             """, unsafe_allow_html=True)
 
         # --- Head-to-Head Stats Table ---
-        with st.expander("H2H STATISTICAL COMPARISON"):
+        with st.markdown("H2H STATISTICAL COMPARISON"):
             h2h_metrics = [
                 #"SEED_25",
                 "BPI_25", "KP_AdjEM", #"KP_Rank", "KP_SOS_AdjEM",
@@ -3608,8 +3619,8 @@ with tab_H2H:
                 )
             else:
                 summary_text = (
-                    f"Both teams are evenly matched with {adv_team} metrics each. "
-                    f"This could be a close contest!"
+                    f"Both teams appear evenly matched with {adv_team} metrics each. "
+                    f"Looks to be an evenly-matched affair!"
                 )
 
             st.markdown(f"""
