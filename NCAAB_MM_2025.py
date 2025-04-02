@@ -1436,7 +1436,7 @@ def prepare_tournament_data(df):
          sim_logger.error("FATAL: No valid team identifier column (TM_KP or TEAM) found.")
          st.error("Could not identify team names in the data.")
          return None
-    bracket_teams.rename(columns={name_col: 'team'}, inplace=True) # Use a consistent internal name
+    bracket_teams.rename(columns={name_col: 'TM_KP'}, inplace=True) # Use a consistent internal name
 
 
     # --- Data Cleaning and Preparation ---
