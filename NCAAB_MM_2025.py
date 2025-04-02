@@ -1436,7 +1436,7 @@ def prepare_tournament_data(df):
          sim_logger.error("FATAL: No valid team identifier column (TM_KP or TEAM) found.")
          st.error("Could not identify team names in the data.")
          return None
-    bracket_teams.rename(columns={name_col: 'TEAM'}, inplace=True) # Use a consistent internal name
+    bracket_teams.rename(columns={name_col: 'team'}, inplace=True) # Use a consistent internal name
 
 
     # --- Data Cleaning and Preparation ---
@@ -1453,7 +1453,7 @@ def prepare_tournament_data(df):
 
     # Convert all potential simulation stats to numeric, coercing errors
     for col in actual_sim_cols:
-        if col not in ['REGION_25', 'TEAM', 'CONFERENCE']: # Skip non-numeric identifiers/categories
+        if col not in ['REGION_25', 'TM_KP', 'CONFERENCE']: # Skip non-numeric identifiers/categories
              bracket_teams[col] = pd.to_numeric(bracket_teams[col], errors='coerce')
 
     # Define default values for potential NaNs AFTER conversion
@@ -1505,7 +1505,7 @@ def prepare_tournament_data(df):
                         # Keep as string if not convertible (like team name, region)
                         pass
             # Rename columns back for consistency in simulation logic
-            team_dict['team'] = team_dict.pop('TEAM')
+            team_dict['team'] = team_dict.pop('TM_KP')
             team_dict['seed'] = int(team_dict['SEED_25'])
             region_list.append(team_dict)
 
