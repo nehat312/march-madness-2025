@@ -3218,7 +3218,7 @@ with tab_H2H:
             st.markdown(f"## :blue[_HEAD-TO-HEAD:_ {selected_team} vs. {selected_opponent}]")
 
             # Extract basic team info
-            conf = team_data["CONFERENCE"].iloc[0].apply(get_conf_logo_html) if "CONFERENCE" in team_data.columns else "N/A"
+            conf = team_data["CONFERENCE"].iloc[0] if "CONFERENCE" in team_data.columns else "N/A" #.apply(get_conf_logo_html)
 
             record = "N/A"
             if "WIN_25" in team_data.columns and "LOSS_25" in team_data.columns:
@@ -3278,7 +3278,7 @@ with tab_H2H:
             # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
 
-            opp_conf = opp_data["CONFERENCE"].iloc[0].apply(get_conf_logo_html) if "CONFERENCE" in opp_data.columns else "N/A"
+            opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A" #.apply(get_conf_logo_html)
 
             #opp_record = "N/A"
             if "WIN_25" in opp_data.columns and "LOSS_25" in opp_data.columns:
