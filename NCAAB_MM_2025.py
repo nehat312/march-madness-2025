@@ -190,7 +190,21 @@ else:
 logo_path = "images/NCAA_logo1.png"
 FinalFour25_logo_path = "images/ncaab_mens_finalfour2025_logo.png"
 Conferences25_logo_path = "images/ncaab_conferences_2025.png"
-Banner_logo_path = "images/MM2025_banner1.png" 
+Banner_logo_path = "images/MM2025_banner1.png"
+
+## FINAL FOUR ##
+Duke_BlueDevils = "images/Duke_BlueDevils.png"
+Houston_Cougars = "images/Houston_Cougars.png"
+Florida_Gators = "images/Florida_Gators.png"
+Auburn_Tigers = "images/Auburn_Tigers.png"
+
+## HEADER // FOOTER IMAGES ##
+UAP_court1 = "images/UAP_court1.png"
+UAP_court2 = "images/UAP_court2.png"
+Space_court1 = "images/Space_court1.png"
+Space_court2 = "images/Space_court2.png"
+
+## CONFERENCES ##
 A10_logo_path = "images/A10_logo.png"
 ACC_logo_path = "images/ACC_logo.png"
 AAC_logo_path = "images/AAC_logo.png"
@@ -227,6 +241,18 @@ NCAA_logo = Image.open(logo_path) if os.path.exists(logo_path) else None
 FinalFour25_logo = Image.open(FinalFour25_logo_path) if os.path.exists(FinalFour25_logo_path) else None
 Conferences25_logo = Image.open(Conferences25_logo_path) if os.path.exists(Conferences25_logo_path) else None
 Banner_logo = Image.open(Banner_logo_path) if os.path.exists(Banner_logo_path) else None
+
+Duke_BlueDevils_logo = Image.open(Duke_BlueDevils) if os.path.exists(Duke_BlueDevils) else None
+Houston_Cougars_logo = Image.open(Houston_Cougars) if os.path.exists(Houston_Cougars) else None
+Florida_Gators_logo = Image.open(Florida_Gators) if os.path.exists(Florida_Gators) else None
+Auburn_Tigers_logo = Image.open(Auburn_Tigers) if os.path.exists(Auburn_Tigers) else None
+
+## HEADER // FOOTER IMAGES ##
+UAP_court1_banner = Image.open(UAP_court1) if os.path.exists(UAP_court1) else None
+UAP_court2_banner = Image.open(UAP_court2) if os.path.exists(UAP_court2) else None
+Space_court1_banner = Image.open(Space_court1) if os.path.exists(Space_court1) else None
+Space_court2_banner = Image.open(Space_court2) if os.path.exists(Space_court2) else None
+
 A10_logo = Image.open(A10_logo_path) if os.path.exists(A10_logo_path) else None
 ACC_logo = Image.open(ACC_logo_path) if os.path.exists(ACC_logo_path) else None
 AAC_logo = Image.open(AAC_logo_path) if os.path.exists(AAC_logo_path) else None
@@ -266,6 +292,11 @@ conference_logo_map = {"A10": A10_logo, "ACC": ACC_logo, "Amer": AAC_logo, "AE":
                        "Sum": Summit_logo, "SWAC": SWAC_logo, "WAC": WAC_logo, "WCC": WCC_logo,
                        }
 
+final_four_logo_map = {"Duke": Duke_BlueDevils, "Houston": Houston_Cougars,
+                       "Florida": Florida_Gators, "Auburn": Auburn_Tigers,
+                       }
+
+
 #####################################
 def image_to_base64(img_obj):  # Convert PIL Image to base64
     if img_obj is None:
@@ -276,6 +307,14 @@ def image_to_base64(img_obj):  # Convert PIL Image to base64
 
 def get_conf_logo_html(conf_name):  # Return HTML <img> + conference name for table column 
     img_obj = conference_logo_map.get(conf_name, None)
+    if img_obj:
+        encoded = image_to_base64(img_obj)
+        if encoded:
+            return f'<img src="data:image/png;base64,{encoded}" width="40" style="vertical-align: middle;" /> {conf_name}'
+    return conf_name
+
+def get_team_logo_html(conf_name):  # Return HTML <img> + conference name for table column 
+    img_obj = final_four_logo_map.get(conf_name, None)
     if img_obj:
         encoded = image_to_base64(img_obj)
         if encoded:
@@ -1679,14 +1718,14 @@ def calculate_win_probability(t1, t2):
     # --- FACTOR WEIGHTING --- #
     factor = 0
     factor += 0.2 * kp_diff            # KP_AdjEM difference
-    factor += 0.15 * bpi_diff           # ESPN BPI_25 difference
+    factor += 0.2 * bpi_diff           # ESPN BPI_25 difference
     factor += 0.00 * net_diff           # NCAA NET_25 difference
     factor += 0.10 * off_advantage    
     factor += 0.10 * (-def_advantage) 
     factor += 0.00 * adjO_diff       
     factor += 0.00 * adjD_diff       
     factor += 0.00 * win_pct_diff * 100    
-    factor += 0.10 * close_pct_diff * 100  
+    factor += 0.05 * close_pct_diff * 100  
     factor += 0.15 * margin_diff      # AVG MARGIN difference
     factor += 0.00 * sos_diff        
     factor += 0.00 * exp_diff
@@ -2184,7 +2223,7 @@ def visualize_aggregated_results(aggregated_analysis):
 
 def create_regional_prob_chart(region_df):
     """
-    Create a Plotly bar chart visualizing regional champion probabilities.
+    Plotly bar chart visualizing regional championship probabilities
     """
     if region_df is None or region_df.empty:
         return None
@@ -2193,7 +2232,7 @@ def create_regional_prob_chart(region_df):
         region_data = region_df[region_df['Region'] == region].sort_values('Probability', ascending=False).head(8)
         top_teams_by_region.append(region_data)
     filtered_df = pd.concat(top_teams_by_region)
-    fig = px.bar(filtered_df, x='Team', y='Probability', color='Region',
+    fig = px.bar(filtered_df, x='Team', y='Probability', #color='Region',
                  barmode='group', facet_col='Region', facet_col_wrap=2,
                  labels={'Probability': 'WIN PROBABILITY', 'Team': 'TEAM'},
                  title='REGIONAL WIN PROBABILITY  (Top 8 per Region)',
@@ -2310,8 +2349,11 @@ def display_simulation_results(single_run_logs):
 
 # --- App Header & Tabs ---
 st.title(":primary[🏀 MARCH MADNESS 2025 -- NCAAM BASKETBALL 🏀]")
+if FinalFour25_logo:
+    st.image(FinalFour25_logo, use_container_width=True) #width=750
+
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
-st.subheader(":blue[_Cure your BRACKET 🧠 BRAIN 🧠 and propel yourself up the leaderboards_]")
+st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards_]")
 
 tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tabs(["🏀 HOME",  #🌐
                                                                           "📋 H2H MATCHUPS", 
@@ -2324,7 +2366,7 @@ tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tab
 
 # --- Home Tab ---
 with tab_home:
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
     # --- Top Upset Candidates Table for Sweet 16 ---
     st.markdown("### :primary[🏀 2025 FINAL FOUR -- TOP UPSET CANDIDATES 🏀]")
 
@@ -2332,7 +2374,7 @@ with tab_home:
     if 'bracket' not in st.session_state:
         bracket = prepare_tournament_data(df_main)
         if bracket is not None:  # Only apply if bracket data is valid
-            #apply_completed_results(bracket, completed_results_2025)
+            apply_completed_results(bracket, completed_results_2025)
             st.session_state['bracket'] = bracket
         else:
             st.error("Failed to prepare bracket data. Simulation cannot run.")
@@ -2361,8 +2403,8 @@ with tab_home:
     ]
 
     final_four_matchups = [
-        ("Florida", 1, "Auburn", 1),
         ("Duke", 1, "Houston", 1),
+        ("Florida", 1, "Auburn", 1),
     ]
 
     if bracket is not None:
@@ -2408,6 +2450,9 @@ with tab_home:
 
         if upset_candidates:
             df_upsets = pd.DataFrame(upset_candidates)
+            df_upsets['FAV'] = df_upsets['FAV'].apply(final_four_logo_map)
+            df_upsets['DOG'] = df_upsets['DOG'].apply(final_four_logo_map)
+
             df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
             upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
                 .background_gradient(subset=["UPSET PROB (%)"], cmap="RdYlGn")\
@@ -2609,7 +2654,7 @@ with tab_home:
 
 # with tab_H2H:
 #     st.header(":primary[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 3/27/2025_]")
+#     st.caption(":green[_DATA AS OF: 4/3/2025_]")
 #     # Allow team selection – similar to the Home tab approach
 #     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
@@ -2921,7 +2966,7 @@ with tab_home:
 #     """, unsafe_allow_html=True)
 
 #     st.header(":blue[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 3/27/2025_]")
+#     st.caption(":green[_DATA AS OF: 4/3/2025_]")
 
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
@@ -3300,8 +3345,8 @@ with tab_H2H:
             </style>
             """, unsafe_allow_html=True)
     
-    st.header(":blue[TEAM REPORTS]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.header(":primary[TEAM REPORTS]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
 
     # -- TEAM & OPPONENT SELECTION --
     H2H_options = [""] + sorted(df_main["TM_KP"].dropna().unique().tolist())
@@ -3323,6 +3368,7 @@ with tab_H2H:
     # ------------------------------------------------------
     if selected_team:
         team_data = df_main[df_main["TM_KP"] == selected_team].copy()
+        team_data["TM_KP"] = team_data["TM_KP"].apply(get_team_logo_html)
         if team_data.empty:
             st.warning("No data found for selected team.")
         else:
@@ -3388,6 +3434,7 @@ with tab_H2H:
 
             # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
+            opp_data["TM_KP"] = opp_data["TM_KP"].apply(get_team_logo_html)
 
             opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A" #.apply(get_conf_logo_html)
 
@@ -3770,15 +3817,15 @@ with tab_H2H:
             # Helper function to get icon for metric
             def get_metric_icon(metric_name):
                 icons = {
-                    "AVG MARGIN": "⚡", #📌📊💯🏆🧱📈🔒⚡🛡️🔥
-                    "KP_AdjEM": "⚡",
-                    "BPI_25": "⚡",
-                    "KP_AdjO": "⚡",
-                    "KP_AdjD": "⚡",
-                    "OFF EFF": "⚡",
-                    "DEF EFF": "⚡",
-                    "AST/TO%": "⚡",
-                    "STOCKS-TOV/GM": "⚡"
+                    "AVG MARGIN": "🔒", #📌📊💯🏆🧱📈🔒⚡🛡️🔥
+                    "KP_AdjEM": "🔒",
+                    "BPI_25": "🔒",
+                    "KP_AdjO": "🔒",
+                    "KP_AdjD": "🔒",
+                    "OFF EFF": "🔒",
+                    "DEF EFF": "🔒",
+                    "AST/TO%": "🔒",
+                    "STOCKS-TOV/GM": "🔒"
                 }
                 
                 for key in icons:
@@ -3864,7 +3911,7 @@ with tab_H2H:
 
 with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
 
     show_logs = st.checkbox(":blue[_DISPLAY SINGLE-SIM LOGS?_]", value=True)
 
@@ -4033,8 +4080,8 @@ with tab_pred:
                         name=region_name,
                         text=[f"{v:.1f}%" for v in y_vals],
                         textposition="outside",
-                        color='CONFERENCE',
-                        marker_color='CONFERENCE',
+                        #color='CONFERENCE',
+                        #marker_color='CONFERENCE',
                         #marker_color="steelblue",
 
                     ),
@@ -4084,7 +4131,7 @@ with tab_pred:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header(":primary[REGIONAL RADAR CHARTS]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
     create_region_seeding_radar_grid(df_main) #, region_teams
     with st.expander("*About Radar Grid:*"):
         st.markdown("""
@@ -4139,7 +4186,7 @@ with tab_radar:
 # --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header(":primary[REGIONAL HEATMAPS]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
     df_heat = df_main.copy()
     numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
     mean_series = df_heat.mean(numeric_only=True)
@@ -4256,7 +4303,7 @@ with tab_regions:
 # --- Conference Comparison Tab ---
 with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
 
     st.subheader(":primary[🏀 NCAAM BASKETBALL CONFERENCE TREEMAP 🏀]", divider='grey')
     treemap = create_treemap(df_main_notnull)
@@ -4430,7 +4477,7 @@ with tab_conf:
 # --- Team Metrics Comparison Tab ---
 with tab_team:
     st.header(":primary[TEAM METRICS COMPARISON]")
-    st.caption(":green[_DATA AS OF: 3/27/2025_]")
+    st.caption(":green[_DATA AS OF: 4/3/2025_]")
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     if "TM_KP" in df_main.columns:
         all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
@@ -4662,8 +4709,16 @@ def color_log_text(round_name, text):
     return f"<span style='color:{color_hex}; font-weight:bold;'>{text}</span>"
 
 
+# if Space_court1_banner:
+#     st.image(Space_court1_banner, use_container_width=True) #width=750
+
+if UAP_court2_banner:
+    st.image(Space_court1_banner, use_container_width=True) #width=750
+
+
 #if FinalFour25_logo:
     #st.image(FinalFour25_logo, width=750)
+
 # if Banner_logo:
 #     st.image(Banner_logo, width=750)
 
