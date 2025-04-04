@@ -2451,8 +2451,8 @@ with tab_home:
 
         if upset_candidates:
             df_upsets = pd.DataFrame(upset_candidates)
-            df_upsets['FAV'] = df_upsets['FAV'].apply(final_four_logo_map)
-            df_upsets['DOG'] = df_upsets['DOG'].apply(final_four_logo_map)
+            df_upsets['FAV'] = df_upsets['FAV'].apply(get_team_logo_html)
+            df_upsets['DOG'] = df_upsets['DOG'].apply(get_team_logo_html)
 
             df_upsets = df_upsets.sort_values("UPSET PROB (%)", ascending=False).reset_index(drop=True)
             upset_styler = df_upsets.style.format({"UPSET PROB (%)": "{:.1f}"})\
