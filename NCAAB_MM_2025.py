@@ -2349,8 +2349,9 @@ def display_simulation_results(single_run_logs):
 
 # --- App Header & Tabs ---
 st.title(":primary[🏀 MARCH MADNESS 2025 -- NCAAM BASKETBALL 🏀]")
-if FinalFour25_logo:
-    st.image(FinalFour25_logo, use_container_width=True) #width=750
+
+# if FinalFour25_logo:
+#     st.image(FinalFour25_logo, use_container_width=True) #width=750
 
 #st.subheader(":primary[2025 MARCH MADNESS -- NCAAM BASKETBALL -- RESEARCH HUB]")
 st.subheader(":blue[_Cure your 🧠 BRACKET BRAIN 🧠 and propel yourself up the leaderboards_]")
