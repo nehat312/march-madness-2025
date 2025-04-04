@@ -152,7 +152,7 @@ core_cols = ["WIN_25", "LOSS_25", "WIN% ALL GM", "WIN% CLOSE GM",
              "KP_AdjO", "KP_AdjD",
              #'TR_ORk_25', 'TR_DRk_25',  
              "AVG MARGIN", "PTS/GM", "OPP PTS/GM",
-             "eFG%", "OPP eFG%", "TS%", "OPP TS%", 
+            "TS%", "OPP TS%", 
              "OFF REB/GM", "DEF REB/GM",
              "BLKS/GM", "STL/GM", "AST/GM", "TO/GM", 
              "AST/TO%", "STOCKS/GM", "STOCKS-TOV/GM",
@@ -1559,7 +1559,7 @@ def prepare_tournament_data(df):
     for col, default in default_values.items():
         if col in bracket_teams.columns:
             if pd.api.types.is_numeric_dtype(bracket_teams[col]):
-                 bracket_teams[col].fillna(default, inplace=True)
+                 bracket_teams[col].fillna(default)
             else:
                  # Log if a column expected to be numeric (because it has a default) isn't
                  sim_logger.warning(f"Column '{col}' was expected to be numeric for fillna but is type {bracket_teams[col].dtype}. Skipping fillna.")
