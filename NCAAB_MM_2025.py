@@ -1415,7 +1415,6 @@ def prepare_tournament_data(df):
         'KP_Rank', 'KP_AdjO_Rk', 'KP_AdjD_Rk', 'KP_AdjEM_Rk', 'BPI_Rk_25',
         "FT%", "3PT%", "3PTA/GM", #"3PTM/GM",
         'CONFERENCE', # Make sure CONFERENCE is selected if used later
-
     ]
 
     # Check for required columns
@@ -1435,51 +1434,78 @@ def prepare_tournament_data(df):
          st.error("Could not identify team names in the available data columns.")
          return None
 
+    # Initial selection
     bracket_teams = df[actual_sim_cols].copy()
 
+    # --- **NEW**: Check and handle duplicate columns ---
+    if bracket_teams.columns.duplicated().any():
+        duplicated_cols = bracket_teams.columns[bracket_teams.columns.duplicated()].unique()
+        sim_logger.warning(f"Duplicate columns found in input data: {list(duplicated_cols)}. Keeping first instance.")
+        # Keep the first instance of each column name
+        bracket_teams = bracket_teams.loc[:, ~bracket_teams.columns.duplicated(keep='first')]
+        # Update actual_sim_cols to reflect the columns that actually remain AFTER deduplication
+        current_columns = bracket_teams.columns.tolist()
+        actual_sim_cols = [col for col in actual_sim_cols if col in current_columns]
+        # Re-check required columns AFTER deduplication
+        missing_req_after_dedup = [c for c in required_cols if c not in bracket_teams.columns]
+        if missing_req_after_dedup:
+             sim_logger.error(f"FATAL: Required columns missing after duplicate removal: {missing_req_after_dedup}.")
+             st.error(f"Data integrity issue: Required columns lost after handling duplicates: {missing_req_after_dedup}")
+             return None
+        sim_logger.info(f"Columns after deduplication: {bracket_teams.columns.tolist()}") # Log remaining columns
+    # --- End New Section ---
+
     # Identify the team name column to use
+    name_col_found = False
     if 'TM_KP' in bracket_teams.columns:
         name_col = 'TM_KP'
+        name_col_found = True
     elif 'TEAM' in bracket_teams.columns:
         name_col = 'TEAM'
+        name_col_found = True
     elif bracket_teams.index.name is not None and bracket_teams.index.name.upper() == 'TEAM':
-         # If index is TEAM and 'TEAM' column doesn't exist, create it
          if 'TEAM' not in bracket_teams.columns:
              bracket_teams['TEAM'] = bracket_teams.index
          name_col = 'TEAM'
-    else:
-         # This case should be caught by the earlier check, but added for safety
-         sim_logger.error("FATAL: No valid team identifier column could be confirmed after selection.")
+         name_col_found = True
+
+    if not name_col_found:
+         sim_logger.error("FATAL: No valid team identifier column could be confirmed after selection/deduplication.")
          st.error("Could not identify team names in the data.")
          return None
 
     # Use a consistent internal name ('TM_KP')
     if name_col != 'TM_KP':
+        # Ensure 'TM_KP' doesn't already exist from a duplicate before renaming
+        if 'TM_KP' in bracket_teams.columns and name_col in bracket_teams.columns:
+             sim_logger.warning(f"Both '{name_col}' and 'TM_KP' exist. Dropping 'TM_KP' before renaming.")
+             bracket_teams = bracket_teams.drop(columns=['TM_KP'])
+             actual_sim_cols.remove('TM_KP') # Remove from list if it was there
+
         bracket_teams.rename(columns={name_col: 'TM_KP'}, inplace=True)
-        # If the original name_col was removed from actual_sim_cols during set operation, add TM_KP back
+        # Update actual_sim_cols list after rename
         if 'TM_KP' not in actual_sim_cols:
              actual_sim_cols.append('TM_KP')
-        # Remove the old name_col if it wasn't TM_KP initially
         if name_col in actual_sim_cols:
              actual_sim_cols.remove(name_col)
 
+    # Ensure TM_KP is definitely in the list if it exists in the DataFrame
+    if 'TM_KP' in bracket_teams.columns and 'TM_KP' not in actual_sim_cols:
+         actual_sim_cols.append('TM_KP')
+
 
     # --- Data Cleaning and Preparation ---
-    # Ensure SEED is numeric and handle potential NaNs before filtering
     if 'SEED_25' in bracket_teams.columns:
         bracket_teams['SEED_25'] = pd.to_numeric(bracket_teams['SEED_25'], errors='coerce')
-        bracket_teams.dropna(subset=['SEED_25'], inplace=True) # Drop teams with no seed after coercion
+        bracket_teams.dropna(subset=['SEED_25'], inplace=True)
         bracket_teams['SEED_25'] = bracket_teams['SEED_25'].astype(int)
     else:
         sim_logger.error("FATAL: 'SEED_25' column missing, cannot prepare bracket.")
         st.error("Missing 'SEED_25' column.")
         return None
 
-
-    # Filter for valid seeds (1-16)
     bracket_teams = bracket_teams[(bracket_teams['SEED_25'] >= 1) & (bracket_teams['SEED_25'] <= 16)]
 
-    # Ensure REGION is string for comparison
     if 'REGION_25' in bracket_teams.columns:
         bracket_teams['REGION_25'] = bracket_teams['REGION_25'].astype(str).str.strip()
     else:
@@ -1487,73 +1513,85 @@ def prepare_tournament_data(df):
         st.error("Missing 'REGION_25' column.")
         return None
 
-    # --- **FIXED SECTION** ---
-    # Convert all potential simulation stats to numeric, coercing errors
-    columns_to_skip_conversion = ['REGION_25', 'TM_KP', 'CONFERENCE', 'TEAM'] # Add all known non-numeric + the standardized name
+    # --- Numeric Conversion Loop ---
+    columns_to_skip_conversion = ['REGION_25', 'TM_KP', 'CONFERENCE', 'TEAM'] # Add potential original name 'TEAM' just in case
+    sim_logger.info(f"Attempting numeric conversion. Skipping: {columns_to_skip_conversion}")
+    sim_logger.info(f"Columns to process: {actual_sim_cols}")
+
     for col in actual_sim_cols:
-        # Skip columns that are explicitly non-numeric identifiers or categories
-        if col not in columns_to_skip_conversion:
-             # Check if column exists before trying conversion (safety check)
-             if col in bracket_teams.columns:
+        # Check existence and skip non-numeric
+        if col in bracket_teams.columns and col not in columns_to_skip_conversion:
+             sim_logger.debug(f"Converting column '{col}' to numeric.")
+             try:
+                 # Check the type before conversion attempt
+                 if not isinstance(bracket_teams[col], (pd.Series, pd.Index)):
+                      sim_logger.warning(f"Column '{col}' is type {type(bracket_teams[col])}, not Series/Index. Skipping conversion.")
+                      continue # Skip this column if it's not a Series
+
                  bracket_teams[col] = pd.to_numeric(bracket_teams[col], errors='coerce')
-             else:
-                 sim_logger.warning(f"Column '{col}' listed in actual_sim_cols but not found in bracket_teams DataFrame just before numeric conversion.")
+
+             except TypeError as te:
+                  # --- **NEW** Final Safety Net ---
+                  sim_logger.error(f"*** Persistent TypeError converting column '{col}'. Type was: {type(bracket_teams[col])}. Skipping conversion for this column. Error: {te}")
+                  # Optionally, you could try converting element by element if necessary, but skipping is safer now.
+                  # For example:
+                  # bracket_teams[col] = bracket_teams[col].apply(pd.to_numeric, errors='coerce')
+                  continue # Skip to the next column
+             except Exception as e:
+                  sim_logger.error(f"Unexpected error converting column '{col}'. Error: {e}. Skipping conversion.")
+                  continue # Skip to the next column
+        elif col not in bracket_teams.columns:
+             sim_logger.warning(f"Column '{col}' was in actual_sim_cols but not found in bracket_teams just before conversion loop.")
+        else:
+             sim_logger.debug(f"Skipping non-numeric column '{col}'.")
 
 
     # Define default values for potential NaNs AFTER conversion
-    # Using 0 for ranks/ratings and 0.5 for percentages might be okay,
-    # but consider using tournament averages or other imputation methods if NaNs are frequent.
     default_values = {
         'BPI_25': 0, 'NET_25': 150, 'OFF EFF': 100, 'DEF EFF': 100, 'KP_AdjO': 100, 'KP_AdjD': 100,
         'WIN% ALL GM': 0.5, 'WIN% CLOSE GM': 0.5, 'AVG MARGIN': 0, 'KP_SOS_AdjEM': 0,
         'eFG%': 0.5, 'OPP eFG%': 0.5, 'TS%': 0.5, 'OPP TS%': 0.5, 'AST/TO%': 1.0, 'TO/GM': 12,
         'STOCKS/GM': 8, 'STOCKS-TOV/GM': 0.7,
         'OFF REB/GM': 10, 'DEF REB/GM': 25,
-        # Defaults for ranks (assign poor ranks)
         'KP_Rank': 300, 'KP_AdjO_Rk': 300, 'KP_AdjD_Rk': 300, 'KP_AdjEM_Rk': 300, 'BPI_Rk_25': 300,
         'FT%': 0.7, '3PT%': 0.33, '3PTA/GM': 20,
     }
     for col, default in default_values.items():
         if col in bracket_teams.columns:
-            # Ensure the column is numeric before filling NaN (it should be after the loop above)
             if pd.api.types.is_numeric_dtype(bracket_teams[col]):
                  bracket_teams[col].fillna(default, inplace=True)
             else:
-                 sim_logger.warning(f"Column '{col}' was expected to be numeric but isn't. Skipping fillna.")
+                 # Log if a column expected to be numeric (because it has a default) isn't
+                 sim_logger.warning(f"Column '{col}' was expected to be numeric for fillna but is type {bracket_teams[col].dtype}. Skipping fillna.")
 
 
     # --- Build Bracket Dictionary ---
     bracket = {}
     main_regions = ['West', 'East', 'South', 'Midwest']
-    all_teams_added = [] # Keep track of teams added to prevent duplicates if data is messy
+    all_teams_added = []
 
     for region in main_regions:
-        # Ensure case-insensitive matching for region
         region_df = bracket_teams[bracket_teams['REGION_25'].str.lower() == region.lower()].copy()
 
         if region_df.empty:
             sim_logger.warning(f"No teams found for region '{region}'. Skipping this region.")
             continue
 
-        # Check for duplicate seeds within the region
         if region_df['SEED_25'].duplicated().any():
-             sim_logger.warning(f"Region '{region}' contains duplicate seeds. Simulation may be unpredictable.")
-             # Optional: Add logic here to handle duplicates, e.g., keep only the first occurrence
-             # region_df = region_df.drop_duplicates(subset=['SEED_25'], keep='first')
+             sim_logger.warning(f"Region '{region}' contains duplicate seeds. Deduplicating based on SEED, keeping first.")
+             region_df = region_df.drop_duplicates(subset=['SEED_25'], keep='first')
 
         if len(region_df) != 16:
-             sim_logger.warning(f"Region '{region}' has {len(region_df)} teams, expected 16. Simulation may be incomplete.")
-             # Decide if you want to proceed with incomplete regions or skip them
-             # continue # Option to skip incomplete regions
+             sim_logger.warning(f"Region '{region}' has {len(region_df)} teams after potential deduplication, expected 16. Simulation may be incomplete.")
 
         region_df = region_df.sort_values('SEED_25')
 
-        # Convert rows to dictionaries for the simulation
         region_list = []
         for _, row in region_df.iterrows():
-            team_name = row['TM_KP'] # Get the team name before converting to dict
+            # Check for duplicates across regions before processing
+            team_name = row['TM_KP']
             if team_name in all_teams_added:
-                sim_logger.warning(f"Team '{team_name}' already added to another region or duplicated. Skipping.")
+                sim_logger.warning(f"Team '{team_name}' (Seed {row['SEED_25']}, Region {region}) appears to be a duplicate across regions. Skipping this instance.")
                 continue
 
             team_dict = row.to_dict()
@@ -1562,39 +1600,32 @@ def prepare_tournament_data(df):
             numeric_simulation_keys = list(default_values.keys()) + ['KP_AdjEM', 'SEED_25'] # Add essential keys
             for key in numeric_simulation_keys:
                 if key in team_dict:
-                    # Try converting, default to 0.0 or the default_value if conversion fails
                     try:
-                        # Use pd.to_numeric again here on the individual value for robustness
                         numeric_val = pd.to_numeric(team_dict[key], errors='coerce')
                         if pd.isna(numeric_val):
-                            team_dict[key] = float(default_values.get(key, 0.0)) # Use default or 0.0 if no default
+                            team_dict[key] = float(default_values.get(key, 0.0))
                         else:
-                             # Ensure SEED is integer, others float
                              team_dict[key] = int(numeric_val) if key == 'SEED_25' else float(numeric_val)
                     except (ValueError, TypeError):
-                        sim_logger.warning(f"Could not convert {key}='{team_dict[key]}' to numeric for team {team_name}. Using default.")
+                        sim_logger.warning(f"Could not convert {key}='{team_dict[key]}' to numeric for team {team_name} during dict creation. Using default.")
                         team_dict[key] = float(default_values.get(key, 0.0))
 
-            # Rename columns for consistency in simulation logic AFTER processing
-            # Use .pop(key, default) to avoid KeyError if columns were missing initially
+            # Rename columns for simulation logic AFTER processing
             team_dict['team'] = team_dict.pop('TM_KP', 'Unknown Team')
-            team_dict['seed'] = int(team_dict.pop('SEED_25', 99)) # Ensure seed is int, default to 99 if missing
+            team_dict['seed'] = int(team_dict.pop('SEED_25', 99))
 
             region_list.append(team_dict)
             all_teams_added.append(team_name) # Mark team as added
 
-        # Check if region list has expected number of teams after processing
-        if len(region_list) != 16:
-            sim_logger.warning(f"Region '{region}' list ended up with {len(region_list)} teams after dictionary conversion/deduplication.")
-
         bracket[region] = region_list
 
+    # Final checks after processing all regions
     if len(bracket) != 4:
-         st.warning(f"Bracket preparation resulted in {len(bracket)} valid regions processed. Simulation might produce unexpected results if regions are missing.")
+         st.warning(f"Bracket preparation resulted in {len(bracket)} valid regions. Simulation might produce unexpected results.")
     elif len(all_teams_added) != 64:
-         st.warning(f"Bracket preparation processed {len(all_teams_added)} unique teams, expected 64.")
+         st.warning(f"Bracket preparation processed {len(all_teams_added)} unique teams, expected 64. Check for duplicate teams in source data or missing teams.")
 
-
+    sim_logger.info("Bracket preparation finished.")
     return bracket
 
 
