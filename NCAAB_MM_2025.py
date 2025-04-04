@@ -3369,7 +3369,7 @@ with tab_H2H:
     # ------------------------------------------------------
     if selected_team:
         team_data = df_main[df_main["TM_KP"] == selected_team].copy()
-        team_data["TM_KP"] = team_data["TM_KP"].apply(get_team_logo_html)
+        #team_data["TM_KP"] = team_data["TM_KP"].apply(get_team_logo_html)
         if team_data.empty:
             st.warning("No data found for selected team.")
         else:
@@ -3435,7 +3435,7 @@ with tab_H2H:
 
             # OPPONENT STATS
             opp_data = df_main[df_main["TM_KP"] == selected_opponent].copy()
-            opp_data["TM_KP"] = opp_data["TM_KP"].apply(get_team_logo_html)
+            #opp_data["TM_KP"] = opp_data["TM_KP"].apply(get_team_logo_html)
 
             opp_conf = opp_data["CONFERENCE"].iloc[0] if "CONFERENCE" in opp_data.columns else "N/A" #.apply(get_conf_logo_html)
 
