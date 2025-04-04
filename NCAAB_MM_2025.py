@@ -1439,7 +1439,7 @@ def prepare_tournament_data(df):
          sim_logger.error("FATAL: No valid team identifier column (TM_KP or TEAM) found.")
          st.error("Could not identify team names in the data.")
          return None
-    bracket_teams.rename(columns={name_col: 'TM_KP'}, inplace=True) # Use a consistent internal name
+    #bracket_teams.rename(columns={name_col: 'TM_KP'}, inplace=True) # Use a consistent internal name
 
 
     # --- Data Cleaning and Preparation ---
@@ -1456,7 +1456,7 @@ def prepare_tournament_data(df):
 
     # Convert all potential simulation stats to numeric, coercing errors
     for col in actual_sim_cols:
-        if col not in ['REGION_25', 'TM_KP', 'CONFERENCE']: # Skip non-numeric identifiers/categories
+        if col not in ['REGION_25', 'TM_KP', 'TEAM', 'CONFERENCE']: # Skip non-numeric identifiers/categories
              bracket_teams[col] = pd.to_numeric(bracket_teams[col], errors='coerce')
 
     # Define default values for potential NaNs AFTER conversion
@@ -1467,7 +1467,7 @@ def prepare_tournament_data(df):
         'WIN% ALL GM': 0.5, 'WIN% CLOSE GM': 0.5, 'AVG MARGIN': 0, 'KP_SOS_AdjEM': 0,
         'eFG%': 0.5, 'OPP eFG%': 0.5, 'TS%': 0.5, 'OPP TS%': 0.5, 'AST/TO%': 1.0, 'TO/GM': 12,
         'STOCKS/GM': 8, 'STOCKS-TOV/GM': 0.7,
-        'OFF REB/GM': 10, 'DEF REB/GM': 25
+        'OFF REB/GM': 10, 'DEF REB/GM': 25,
         # 'TOURNEY_SUCCESS': 0, 'TOURNEY_EXPERIENCE': 0
     }
     for col, default in default_values.items():
@@ -4330,12 +4330,10 @@ with tab_team:
             selected_teams = st.multiselect(
                 "👉 SELECT TEAMS TO COMPARE:",
                 options=all_teams,
-                default=['Duke', 'Florida', # 'Arizona', 'Maryland',
-                         'Texas Tech', 'Alabama', #'Arkansas', 'BYU',
-                         'Auburn', 'Michigan', 'Houston', 'Purdue',
-                         'Tennessee', 'Kentucky',
-                          'Michigan St.', 'Mississippi',
-                         # 'Kansas',  'Iowa St.',
+                default=['Duke', 'Houston', 'Florida', 'Auburn', 
+                          # 'Arizona', 'Maryland', 'Texas Tech', 'Alabama', #'Arkansas', 'BYU',
+                          # 'Michigan',  'Purdue', 'Tennessee', 'Kentucky',
+                          # 'Michigan St.', 'Mississippi', 'Kansas',  'Iowa St.',
                          ])
         with col2:
             view_option = st.radio(
@@ -4358,6 +4356,7 @@ with tab_team:
                     "OFF EFF", "DEF EFF", 
                     #"TS%", "OPP TS%",
                     "eFG%", "OPP eFG%",
+                    "3PT%", "3PTA/GM", #"3PTM/GM",
                     "AST/TO%", "STOCKS/GM", 
                 ]
                 metrics_to_display = [m for m in metrics_to_display if m in selected_df.columns]
