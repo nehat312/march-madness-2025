@@ -2371,9 +2371,9 @@ tab_home, tab_H2H, tab_pred, tab_regions, tab_conf, tab_team, tab_radar = st.tab
 
 # --- Home Tab ---
 with tab_home:
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
     # --- Top Upset Candidates Table for Sweet 16 ---
-    st.markdown("### :primary[🏀 2025 FINAL FOUR -- TOP UPSET CANDIDATES 🏀]")
+    st.markdown("### :primary[🏀 2025 CHAMPIONSHIP ODDS 🏀]")
 
     # Initialize bracket exactly once globally (if not yet initialized)
     if 'bracket' not in st.session_state:
@@ -2659,7 +2659,7 @@ with tab_home:
 
 # with tab_H2H:
 #     st.header(":primary[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 4/3/2025_]")
+#     st.caption(":green[_DATA AS OF: 4/7/2025_]")
 #     # Allow team selection – similar to the Home tab approach
 #     selected_team = st.selectbox(
 #         ":green[_SELECT A TEAM:_]",
@@ -2971,7 +2971,7 @@ with tab_home:
 #     """, unsafe_allow_html=True)
 
 #     st.header(":blue[TEAM REPORTS]")
-#     st.caption(":green[_DATA AS OF: 4/3/2025_]")
+#     st.caption(":green[_DATA AS OF: 4/7/2025_]")
 
 #######################################
 # -- TEAM REPORTS TAB (HEAD-TO-HEAD) --
@@ -3351,7 +3351,7 @@ with tab_H2H:
             """, unsafe_allow_html=True)
     
     st.header(":primary[TEAM REPORTS]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
 
     # -- TEAM & OPPONENT SELECTION --
     H2H_options = [""] + sorted(df_main["TM_KP"].dropna().unique().tolist())
@@ -3916,7 +3916,7 @@ with tab_H2H:
 
 with tab_pred:
     st.header(":primary[BRACKET SIMULATION]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
 
     show_logs = st.checkbox(":blue[_DISPLAY SINGLE-SIM LOGS?_]", value=True)
 
@@ -4136,7 +4136,7 @@ with tab_pred:
 # --- Radar Charts Tab ---
 with tab_radar:
     st.header(":primary[REGIONAL RADAR CHARTS]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
     create_region_seeding_radar_grid(df_main) #, region_teams
     with st.expander("*About Radar Grid:*"):
         st.markdown("""
@@ -4191,7 +4191,7 @@ with tab_radar:
 # --- Regional Heatmaps Tab ---
 with tab_regions:
     st.header(":primary[REGIONAL HEATMAPS]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
     df_heat = df_main.copy()
     numeric_cols_heat = df_heat.select_dtypes(include=np.number).columns
     mean_series = df_heat.mean(numeric_only=True)
@@ -4308,7 +4308,7 @@ with tab_regions:
 # --- Conference Comparison Tab ---
 with tab_conf:
     st.header(":primary[CONFERENCE COMPARISON]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
 
     st.subheader(":primary[🏀 NCAAM BASKETBALL CONFERENCE TREEMAP 🏀]", divider='grey')
     treemap = create_treemap(df_main_notnull)
@@ -4482,7 +4482,7 @@ with tab_conf:
 # --- Team Metrics Comparison Tab ---
 with tab_team:
     st.header(":primary[TEAM METRICS COMPARISON]")
-    st.caption(":green[_DATA AS OF: 4/3/2025_]")
+    st.caption(":green[_DATA AS OF: 4/7/2025_]")
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     if "TM_KP" in df_main.columns:
         all_teams = sorted(df_main["TM_KP"].dropna().unique().tolist())
