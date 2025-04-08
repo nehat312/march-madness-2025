@@ -552,7 +552,11 @@ completed_results_2025 = {
         ('Duke', 'Alabama', 85, 65),
         ('Auburn', 'Michigan St.', 70, 64),
         ('Houston', 'Tennessee', 69, 50),
-    ]
+    ],
+    'Final Four': [
+        ('Florida', 'Auburn', 79, 73),
+        ('Houston', 'Duke', 70, 67),
+    ],
 }
 
 def apply_completed_results(bracket, completed_results):
@@ -3354,7 +3358,7 @@ with tab_H2H:
     selected_team = st.selectbox(
         ":blue[_SELECT A TEAM:_]",
         options=H2H_options,
-        index=H2H_options.index("Duke"),
+        index=H2H_options.index("Florida"), #Duke
         key="select_team_reports"
     )
     selected_opponent = st.selectbox(
